@@ -8,16 +8,18 @@ import {
   Plus,
   Check,
   CalendarDays,
-  House,
-  Wind,
   Settings,
   X,
   Sun,
+  CloudSun,
+  MoonStar,
   Trash2,
+  Pencil,
   Clock,
   Play,
-  Users,
-  Image as ImageIcon,
+  Heart,
+  House,
+  Smile,
 } from "lucide-react";
 import {
   Data,
@@ -30,18 +32,23 @@ import {
   dateKey,
   currentSlot,
   timeLabel,
-  saveEntry,
+  saveActivity,
+  toggleEntryStatus,
+  sleepBoundary,
+  removeEntry,
   slotDate,
   entriesInSlot,
   rememberActivity,
+  suggestedActivities,
 } from "./model";
 import { WeekPicker, TimePicker } from "./DateTimePicker";
-import { ActivityIcon } from "./ActivityIcon";
+import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 import { ActivityPicker } from "./ActivityPicker";
 import { RatingSlider } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
 import { BreathingGuide, RelaxationVideo } from "./Relaxation";
-// Daily mood UI and data are preserved; frontend access is temporarily disabled below.
+import { Values } from "./Values";
+import { ReportSettings } from "./ReportSettings";
 import { DailyMood } from "./DailyMood";
 import "./style.css";
 
@@ -49,20 +56,21 @@ type Screen =
   | "home"
   | "plan"
   | "edit"
-  | "detail"
   | "relax"
   | "breathing"
   | "visualization"
   | "stretching"
   | "settings"
-  | "dailyMood";
-type Step = "activity" | "day" | "time" | "mood" | "enjoyment";
+  | "dailyMood"
+  | "values";
+type Step = "activity" | "day" | "time" | "mood" | "enjoyment" | "importance";
 const stepTitles: Record<Step, string> = {
   activity: "What activity?",
   day: "Which day?",
   time: "What time?",
   mood: "How did you feel?",
-  enjoyment: "How important?",
+  enjoyment: "How much did you enjoy it?",
+  importance: "How important was it?",
 };
 
 function App() {
@@ -95,10 +103,13 @@ function App() {
     "visualization",
     "stretching",
   ].includes(screen);
-  const steps: Step[] =
-    draft?.status === "planned"
-      ? ["activity", "day", "time"]
-      : ["activity", "day", "time", "mood", "enjoyment"];
+  const editingEntry = Boolean(draft && data.entries[draft.id]);
+  const steps: Step[] = draft?.status === "planned"
+    ? editingEntry ? ["activity"] : ["activity", "day", "time"]
+    : [
+        "activity",
+        ...(draft && sleepBoundary(draft.name) ? [] : ["mood", "enjoyment", "importance"] as Step[]),
+      ];
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 15000);
@@ -122,6 +133,26 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [notice]);
+  const recordMindfulness = (
+    id: string,
+    kind: "breathing" | "visualization" | "stretching",
+    status: "started" | "completed",
+  ) => {
+    setData((prev) => ({
+      ...prev,
+      mindfulness: [
+        ...prev.mindfulness.filter((s) => s.id !== id),
+        {
+          id,
+          kind,
+          status,
+          date:
+            prev.mindfulness.find((s) => s.id === id)?.date ??
+            dateKey(new Date()),
+        },
+      ],
+    }));
+  };
   const go = (next: Screen) => {
     setNotice("");
     setScreen(next);
@@ -144,10 +175,23 @@ function App() {
     setStep("activity");
     go("edit");
   };
-  const openEntry = (entry: Entry, origin: "home" | "plan") => {
+  const editEntry = (entry: Entry, origin: "home" | "plan") => {
     setDraft({ ...entry });
     setReturnTo(origin);
-    go("detail");
+    setStep("activity");
+    go("edit");
+  };
+  const deleteEntry = (id: string) => {
+    setData((previous) => removeEntry(previous, id));
+    setNotice("Activity deleted");
+  };
+  const toggleStatus = (id: string) => {
+    const entry = data.entries[id];
+    if (!entry || entry.sleepId) return;
+    if (entry.status === "planned" && slotDate(entry.date, entry.startMinute) > new Date())
+      return;
+    setData((previous) => toggleEntryStatus(previous, id));
+    setNotice(entry.status === "planned" ? "Activity completed" : "Activity planned");
   };
   const chooseActivity = (choice: ActivityChoice) => {
     setDraft((prev) => (prev ? { ...prev, ...choice } : prev));
@@ -171,7 +215,7 @@ function App() {
   };
   const save = (entry: Entry) => {
     if (!entry.name.trim() || !validateTime(entry)) return;
-    setData((prev) => saveEntry(prev, { ...entry, name: entry.name.trim() }));
+    setData((prev) => saveActivity(prev, { ...entry, name: entry.name.trim() }));
     setDate(entry.date);
     if (entry.date === today) setMinute(entry.startMinute);
     go(returnTo === "plan" || entry.status === "planned" ? "plan" : "home");
@@ -179,6 +223,14 @@ function App() {
   };
   const nextStep = () => {
     if (!draft) return;
+    if (step === "activity" && editingEntry && draft.status === "planned") {
+      save(draft);
+      return;
+    }
+    if (step === "activity" && draft.status === "done" && sleepBoundary(draft.name)) {
+      save(draft);
+      return;
+    }
     if (step === "time" && !validateTime(draft)) return;
     if (step === "mood") {
       setDraft({ ...draft, mood: draft.mood ?? 5 });
@@ -186,10 +238,15 @@ function App() {
       return;
     }
     if (step === "enjoyment") {
-      save({ ...draft, rating: draft.rating ?? 5 });
+      setDraft({ ...draft, rating: draft.rating ?? 5 });
+      setStep("importance");
       return;
     }
-    if (step === "time" && draft.status === "planned") {
+    if (step === "importance") {
+      save({ ...draft, importance: draft.importance ?? 5 });
+      return;
+    }
+    if (step === "time" && (draft.status === "planned" || Boolean(sleepBoundary(draft.name)))) {
       save(draft);
       return;
     }
@@ -198,7 +255,7 @@ function App() {
   const previousStep = () => {
     const index = steps.indexOf(step);
     if (index > 0) setStep(steps[index - 1]);
-    else go(draft && data.entries[draft.id] ? "detail" : returnTo);
+    else go(returnTo);
   };
   const reset = () => {
     setData(emptyData());
@@ -217,14 +274,16 @@ function App() {
   };
   const header = (
     title: string,
-    back: () => void = () => go("home"),
-    backLabel = "Home",
+    back?: () => void,
+    backLabel = "Back",
   ) => (
     <>
-      <button className="back" onClick={back}>
-        <ArrowLeft size={24} />
-        {backLabel}
-      </button>
+      {back && (
+        <button className="back" onClick={back}>
+          <ArrowLeft size={24} />
+          {backLabel}
+        </button>
+      )}
       <div className="page-title">
         <h1 ref={heading} tabIndex={-1}>
           {title}
@@ -234,7 +293,7 @@ function App() {
   );
 
   return (
-    <div className={`app-shell ${relaxed ? "theme-relax" : "theme-activity"}`}>
+    <div className={`app-shell ${relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
       <main>
         {!data.name ? (
           <div className="welcome">
@@ -295,11 +354,16 @@ function App() {
                   </span>
                   <h1>
                     Hi, {data.name}{" "}
-                    <span className="hello-sun">
-                      <Sun size={29} />
+                    <span className="hello-sun" role="img" aria-label={clock.getHours() < 6 || clock.getHours() >= 18 ? "Evening" : clock.getHours() < 12 ? "Morning" : "Afternoon"}>
+                      {clock.getHours() < 6 || clock.getHours() >= 18
+                        ? <MoonStar size={29} />
+                        : clock.getHours() < 12
+                          ? <Sun size={29} />
+                          : <CloudSun size={29} />}
                     </span>
                   </h1>
                 </div>
+                <div className="home-dashboard">
                 <section className="moment-section">
                   <div className="hour-selector">
                     <button
@@ -322,24 +386,42 @@ function App() {
                     </button>
                   </div>
                   {homeEntries.map((entry) => (
-                    <button
+                    <div
                       key={entry.id}
                       className="activity-card home-activity"
-                      aria-label={`Edit ${entry.name}`}
-                      onClick={() => openEntry(entry, "home")}
                     >
-                      <span className="activity-art">
-                        <ActivityIcon id={entry.icon} size={48} />
-                      </span>
-                      <strong>{entry.name}</strong>
-                      {entry.mood !== undefined && (
-                        <span>Mood: {entry.mood} / 10</span>
-                      )}
-                      {entry.rating !== undefined && (
-                        <span>Enjoyment: {entry.rating} / 10</span>
-                      )}
-                      {entry.status === "planned" && <span>Planned</span>}
-                    </button>
+                      <button
+                        className="home-activity-open"
+                        aria-label={`Edit ${entry.name}`}
+                        disabled={Boolean(entry.sleepId)}
+                        onClick={() => editEntry(entry, "home")}
+                      >
+                        {hasActivityIcon(entry.icon, entry.name) && (
+                          <span className="activity-art">
+                            <ActivityIcon id={entry.icon} size={48} name={entry.name} />
+                          </span>
+                        )}
+                        <strong>{entry.name}</strong>
+                      </button>
+                      <div className="entry-controls">
+                        {!entry.sleepId && (
+                          <>
+                            <button className="entry-icon-control is-delete" aria-label={`Delete ${entry.name}`} onClick={() => deleteEntry(entry.id)}><Trash2 /></button>
+                            <button className="entry-icon-control" aria-label={`Edit ${entry.name}`} onClick={() => editEntry(entry, "home")}><Pencil /></button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className={`completion-toggle ${entry.status === "done" ? "is-complete" : "is-planned"}`}
+                          aria-label={entry.sleepId ? "Automatic sleep entry" : `Mark ${entry.name} as ${entry.status === "done" ? "planned" : "completed"}`}
+                          aria-pressed={entry.status === "done"}
+                          disabled={Boolean(entry.sleepId) || (entry.status === "planned" && slotDate(entry.date, entry.startMinute) > clock)}
+                          onClick={() => toggleStatus(entry.id)}
+                        >
+                          {entry.status === "done" ? <Check /> : <Clock />}
+                        </button>
+                      </div>
+                    </div>
                   ))}
                   <button
                     className={
@@ -363,7 +445,7 @@ function App() {
                         : "Log activity"}
                   </button>
                 </section>
-                <div className="section-heading next-heading" />
+                <div className="home-actions">
                 <div className="action-grid">
                   <button
                     className="action-card plan-card"
@@ -383,22 +465,35 @@ function App() {
                     onClick={() => go("relax")}
                   >
                     <span className="tile-icon">
-                      <Wind size={30} />
+                      <img className="mindfulness-icon" src="/illustrations/mindfulness.svg" alt="" />
                     </span>
-                    <h3>Take a breath</h3>
+                    <h3>Mindfulness</h3>
                     <ChevronRight className="tile-arrow" size={23} />
                   </button>
                 </div>
-                 
-       {/* <button className="day-card" onClick={() => go('dailyMood')}>
-         <strong>Log your mood</strong><span>{data.ratings[today]} / 10</span>
-       </button>
-      */}
+
+                <div className="action-grid home-secondary-grid">
+                  <button className="action-card mood-card" onClick={() => go("dailyMood")}>
+                    <span className="mood-topline">
+                      <span className="tile-icon"><Smile size={30} /></span>
+                      {data.ratings[today] !== undefined && <span className="mood-score">{data.ratings[today]} / 10</span>}
+                    </span>
+                    <h3>Log your mood</h3>
+                    <ChevronRight className="tile-arrow" size={23} />
+                  </button>
+                  <button className="action-card values-card" onClick={() => go("values")}>
+                    <span className="tile-icon"><Heart size={30} /></span>
+                    <h3>My values</h3>
+                    <ChevronRight className="tile-arrow" size={23} />
+                  </button>
+                </div>
+                </div>
+                </div>
               </>
             )}
             {screen === "plan" && (
               <>
-                {header("Your plans")}
+                {header("Activity Log")}
                 <WeekPicker value={date} onChange={setDate} />
                 <div className="section-heading">
                   <h2>
@@ -413,7 +508,9 @@ function App() {
                 <DayTimeline
                   date={date}
                   data={data}
-                  onEdit={(entry) => openEntry(entry, "plan")}
+                  onEdit={(entry) => editEntry(entry, "plan")}
+                  onDelete={deleteEntry}
+                  onToggle={toggleStatus}
                   onAdd={(selectedMinute) =>
                     newEntry(
                       slotDate(date, selectedMinute) > new Date()
@@ -461,6 +558,7 @@ function App() {
                     key={draft.id}
                     value={draft}
                     recent={data.recentActivities}
+                    suggestions={suggestedActivities(data)}
                     onChange={chooseActivity}
                   />
                 )}
@@ -505,14 +603,26 @@ function App() {
                     onChange={(rating) => setDraft({ ...draft, rating })}
                   />
                 )}
+                {step === "importance" && (
+                  <RatingSlider
+                    label="Importance"
+                    value={draft.importance ?? 5}
+                    onChange={(importance) =>
+                      setDraft({ ...draft, importance })
+                    }
+                  />
+                )}
                 <div className="wizard-actions">
                   <button
                     className="primary"
                     disabled={step === "activity" && !draft.name.trim()}
                     onClick={nextStep}
                   >
-                    {step === "enjoyment" ||
-                    (step === "time" && draft.status === "planned") ? (
+                    {step === "importance" ||
+                    (step === "activity" && editingEntry && draft.status === "planned") ||
+                    (step === "activity" && draft.status === "done" && !!sleepBoundary(draft.name)) ||
+                    (step === "time" &&
+                      (draft.status === "planned" || !!sleepBoundary(draft.name))) ? (
                       <>
                         <Check /> Save activity
                       </>
@@ -522,14 +632,19 @@ function App() {
                       </>
                     )}
                   </button>
-                  {(step === "mood" || step === "enjoyment") && (
+                  {(step === "mood" ||
+                    step === "enjoyment" ||
+                    step === "importance") && (
                     <button
                       className="secondary"
                       onClick={() => {
                         if (step === "mood") {
                           setDraft({ ...draft, mood: undefined });
                           setStep("enjoyment");
-                        } else save({ ...draft, rating: undefined });
+                        } else if (step === "enjoyment") {
+                          setDraft({ ...draft, rating: undefined });
+                          setStep("importance");
+                        } else save({ ...draft, importance: undefined });
                       }}
                     >
                       Skip
@@ -538,95 +653,13 @@ function App() {
                 </div>
               </>
             )}
-            {screen === "detail" && draft && (
-              <>
-                {header("Your activity", () => go(returnTo), "Back")}
-                <div className="activity-detail">
-                  <span className="activity-art">
-                    <ActivityIcon id={draft.icon} size={48} />
-                  </span>
-                  <h2>{draft.name}</h2>
-                  <p>
-                    {new Date(`${draft.date}T12:00`).toLocaleDateString(
-                      "en-US",
-                      { weekday: "long", month: "short", day: "numeric" },
-                    )}
-                    <br />
-                    {timeLabel(draft.startMinute)}
-                  </p>
-                  <p>{draft.status === "planned" ? "Planned" : "Completed"}</p>
-                  {draft.status === "done" && (
-                    <>
-                      <button
-                        className="score-row"
-                        onClick={() => {
-                          setStep("mood");
-                          go("edit");
-                        }}
-                      >
-                        Mood <strong>{draft.mood ?? "—"} / 10</strong>
-                        <ChevronRight />
-                      </button>
-                      <button
-                        className="score-row"
-                        onClick={() => {
-                          setStep("enjoyment");
-                          go("edit");
-                        }}
-                      >
-                        Enjoyment <strong>{draft.rating ?? "—"} / 10</strong>
-                        <ChevronRight />
-                      </button>
-                    </>
-                  )}
-                </div>
-                {draft.status === "planned" && (
-                  <button
-                    className="primary"
-                    disabled={
-                      slotDate(draft.date, draft.startMinute) > new Date()
-                    }
-                    onClick={() => {
-                      setDraft({ ...draft, status: "done" });
-                      setStep("mood");
-                      go("edit");
-                    }}
-                  >
-                    <Check /> I did this activity
-                  </button>
-                )}
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    setStep("activity");
-                    go("edit");
-                  }}
-                >
-                  Edit activity
-                </button>
-                <button
-                  className="delete-button"
-                  onClick={() => {
-                    setData((prev) => {
-                      const entries = { ...prev.entries };
-                      delete entries[draft.id];
-                      return { ...prev, entries };
-                    });
-                    go(returnTo);
-                    setNotice("Activity deleted");
-                  }}
-                >
-                  <Trash2 size={24} /> Delete activity
-                </button>
-              </>
-            )}
             {screen === "relax" && (
               <>
-                {header("Take a breath")}
+                {header("Mindfulness")}
                 <div className="relaxation-options">
                   <button className="entry-row" onClick={() => go("breathing")}>
                     <span className="entry-picture">
-                      <Wind size={36} />
+                      <ActivityIcon id="mindfulness" size={48} />
                     </span>
                     <strong>Breathing</strong>
                     <ChevronRight />
@@ -636,7 +669,7 @@ function App() {
                     onClick={() => go("visualization")}
                   >
                     <span className="entry-picture">
-                      <ImageIcon size={36} />
+                      <ActivityIcon id="mindfulness" size={48} />
                     </span>
                     <strong>Visualization</strong>
                     <ChevronRight />
@@ -646,7 +679,7 @@ function App() {
                     onClick={() => go("stretching")}
                   >
                     <span className="entry-picture">
-                      <Users size={36} />
+                      <ActivityIcon id="health" size={48} />
                     </span>
                     <strong>Gentle stretching</strong>
                     <ChevronRight />
@@ -657,24 +690,48 @@ function App() {
             {screen === "breathing" && (
               <>
                 {header("Breathing", () => go("relax"), "Back")}
-                <BreathingGuide />
+                <BreathingGuide onSession={recordMindfulness} />
               </>
             )}
             {screen === "visualization" && (
               <>
                 {header("Visualization", () => go("relax"), "Back")}
-                <RelaxationVideo kind="visualization" />
+                <RelaxationVideo
+                  kind="visualization"
+                  onSession={recordMindfulness}
+                />
               </>
             )}
             {screen === "stretching" && (
               <>
                 {header("Gentle stretching", () => go("relax"), "Back")}
-                <RelaxationVideo kind="stretching" />
+                <RelaxationVideo
+                  kind="stretching"
+                  onSession={recordMindfulness}
+                />
               </>
             )}
-            {/* Retained daily mood page; uncomment with its Home entry point to restore it.
-     {screen === 'dailyMood' && <>{header('How was your day?')}<DailyMood value={data.ratings[today]} onSave={value => {setData(prev => ({...prev, ratings: {...prev.ratings, [today]: value}}));go('home');}}/></>}
-   */}
+            {screen === "dailyMood" && (
+              <>
+                {header("How was your day?")}
+                <DailyMood
+                  value={data.ratings[today]}
+                  onSave={(value) => {
+                    setData((prev) => ({
+                      ...prev,
+                      ratings: { ...prev.ratings, [today]: value },
+                    }));
+                    go("home");
+                  }}
+                />
+              </>
+            )}
+            {screen === "values" && (
+              <>
+                {header("My values")}
+                <Values data={data} onChange={setData} />
+              </>
+            )}
             {screen === "settings" && (
               <>
                 {header("Settings")}
@@ -698,11 +755,12 @@ function App() {
                     Save name <Check />
                   </button>
                 </form>
+                <ReportSettings data={data} onChange={setData} />
                 <button className="secondary reset-button" onClick={reset}>
                   Start over
                 </button>
                 <p className="reset-description">
-                  Clear name, activities, and ratings.
+                  Clear all saved information.
                 </p>
               </>
             )}
@@ -740,14 +798,14 @@ function App() {
             }}
           >
             <CalendarDays size={25} />
-            <span>My plans</span>
+            <span>Activity Log</span>
           </button>
           <button
             className={relaxed ? "active relax-nav" : "relax-nav"}
             onClick={() => go("relax")}
           >
-            <Wind size={25} />
-            <span>Relax</span>
+            <ActivityIcon id="mindfulness" size={30} />
+            <span>Mindfulness</span>
           </button>
         </nav>
       )}

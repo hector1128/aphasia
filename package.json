@@ -6,19 +6,24 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "test": "node --import tsx --test src/model.test.ts"
+    "test": "node --import tsx --test src/*.test.ts",
+    "test:sleep": "node --import tsx --test --test-name-pattern=sleep src/features.test.ts",
+    "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
+    "nodemailer": "^10.0.13",
+    "pdf-lib": "^1.17.1",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "lucide-react": "^0.468.0"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vite": "^6.1.0",
-    "tsx": "^4.19.0"
+    "vite": "^6.1.0"
   }
 }

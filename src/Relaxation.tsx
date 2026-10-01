@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Play, Pause, RotateCcw, ExternalLink } from "lucide-react";
 
-export function BreathingGuide() {
+type SessionCallback = (
+  id: string,
+  kind: "breathing" | "visualization" | "stretching",
+  status: "started" | "completed",
+) => void;
+export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
+  const sessionId = useRef(crypto.randomUUID());
+  const callback = useRef(onSession);
+  callback.current = onSession;
+  const begin = () =>
+    callback.current(sessionId.current, "breathing", "started");
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const finished = elapsed >= 60000;
@@ -14,7 +24,10 @@ export function BreathingGuide() {
     const timer = window.setInterval(() => {
       const next = Math.min(performance.now() - start, 60000);
       setElapsed(next);
-      if (next >= 60000) setRunning(false);
+      if (next >= 60000) {
+        setRunning(false);
+        callback.current(sessionId.current, "breathing", "completed");
+      }
     }, 100);
     const pauseWhenHidden = () => {
       if (document.hidden) setRunning(false);
@@ -60,6 +73,8 @@ export function BreathingGuide() {
         <button
           className="primary"
           onClick={() => {
+            sessionId.current = crypto.randomUUID();
+            begin();
             setElapsed(0);
             setRunning(true);
           }}
@@ -67,7 +82,13 @@ export function BreathingGuide() {
           <RotateCcw /> Again
         </button>
       ) : (
-        <button className="primary" onClick={() => setRunning(!running)}>
+        <button
+          className="primary"
+          onClick={() => {
+            if (!running && elapsed === 0) begin();
+            setRunning(!running);
+          }}
+        >
           {running ? <Pause /> : <Play />}
           {running ? "Pause" : elapsed ? "Continue" : "Start"}
         </button>
@@ -77,6 +98,7 @@ export function BreathingGuide() {
           className="secondary"
           onClick={() => {
             setRunning(false);
+            sessionId.current = crypto.randomUUID();
             setElapsed(0);
           }}
         >
@@ -104,11 +126,15 @@ export const relaxationVideos = {
 };
 export function RelaxationVideo({
   kind,
+  onSession,
 }: {
   kind: keyof typeof relaxationVideos;
+  onSession: SessionCallback;
 }) {
   const video = relaxationVideos[kind];
   const [loaded, setLoaded] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const sessionId = useRef(crypto.randomUUID());
   return (
     <div className="relaxation-video">
       {kind === "stretching" && (
@@ -142,6 +168,16 @@ export function RelaxationVideo({
       >
         Open on YouTube <ExternalLink size={24} />
       </a>
+      <button
+        className="primary"
+        disabled={completed}
+        onClick={() => {
+          onSession(sessionId.current, kind, "completed");
+          setCompleted(true);
+        }}
+      >
+        {completed ? "Activity recorded" : "I did this activity"}
+      </button>
       <p className="video-provider">{video.provider}</p>
       <p>Pause whenever you need. Stop if uncomfortable.</p>
     </div>

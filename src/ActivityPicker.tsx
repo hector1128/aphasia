@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { X, Check } from "lucide-react";
-import { activities, filterActivities } from "./activities";
+import { X, Check, ArrowLeft, ChevronRight } from "lucide-react";
+import {
+  activities,
+  filterActivities,
+  activityCategories,
+  categoryActivities,
+} from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
 import type { ActivityChoice } from "./model";
 
@@ -8,13 +13,22 @@ export function ActivityPicker({
   value,
   recent,
   onChange,
+  suggestions = [],
 }: {
+  suggestions?: ActivityChoice[];
   value: ActivityChoice;
   recent: ActivityChoice[];
   onChange: (choice: ActivityChoice) => void;
 }) {
   const [query, setQuery] = useState("");
-  const matches = filterActivities(query);
+  const [category, setCategory] = useState("");
+  const choices =
+    category === "Most recent"
+      ? recent
+      : category === "Suggestions"
+        ? suggestions
+        : categoryActivities(category);
+  const matches = query ? filterActivities(query) : choices;
   const recents = filterActivities(query, recent);
   const renderChoice = (choice: ActivityChoice) => (
     <button
@@ -24,7 +38,7 @@ export function ActivityPicker({
       aria-pressed={value.name === choice.name}
       onClick={() => onChange(choice)}
     >
-      <ActivityIcon id={choice.icon} />
+      <ActivityIcon id={choice.icon} name={choice.name} />
       <span>{choice.name}</span>
       {value.name === choice.name && <Check size={24} />}
     </button>
@@ -65,20 +79,60 @@ export function ActivityPicker({
         aria-label="Activity choices"
         key={query}
       >
-        {recents.length > 0 && (
+        {!query && !category ? (
+          <div className="activity-options">
+            {recent.length > 0 && (
+              <button
+                type="button"
+                className="activity-choice"
+                onClick={() => setCategory("Most recent")}
+              >
+                Most recent <ChevronRight />
+              </button>
+            )}
+            <button
+              type="button"
+              className="activity-choice"
+              onClick={() => setCategory("Suggestions")}
+            >
+              Need suggestions? <ChevronRight />
+            </button>
+            {activityCategories.map((c) => (
+              <button
+                type="button"
+                className="activity-choice"
+                key={c.name}
+                onClick={() => setCategory(c.name)}
+              >
+                <ActivityIcon id={c.icon} />
+                <span>{c.name}</span>
+                <ChevronRight />
+              </button>
+            ))}
+          </div>
+        ) : (
           <section>
-            <h2>Most recent</h2>
-            <div className="activity-options">{recents.map(renderChoice)}</div>
+            {!query && (
+              <button
+                type="button"
+                className="back"
+                onClick={() => setCategory("")}
+              >
+                <ArrowLeft />
+                Categories
+              </button>
+            )}
+            <h2>{query ? "Matching activities" : category}</h2>
+            <div className="activity-options">{matches.map(renderChoice)}</div>
+            {!matches.length && (
+              <p>
+                {category === "Suggestions" && !query
+                  ? "Log an activity or link a value to get suggestions."
+                  : "No activities found."}
+              </p>
+            )}
           </section>
         )}
-        <section>
-          <h2>{query ? "Matching activities" : "Activities"}</h2>
-          <div className="activity-options">
-            {matches
-              .filter((a) => !recents.some((r) => r.name === a.name))
-              .map(renderChoice)}
-          </div>
-        </section>
         {query.trim() &&
           !activities.some(
             (a) => a.name.toLowerCase() === query.trim().toLowerCase(),

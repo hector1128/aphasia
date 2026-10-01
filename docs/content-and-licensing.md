@@ -1,6 +1,6 @@
 # Content and picture-library review
 
-Reviewed September 28, 2026. These notes are for design and content review, outside the patient interface.
+Reviewed October 1, 2026. These notes are for design and content review, outside the patient interface.
 
 ## Relaxation content
 
@@ -24,4 +24,12 @@ Also considered: [American Stroke Foundation seated stretching](https://afterstr
 | [ARASAAC](https://arasaac.org/terms-of-use) | Broad AAC pictogram catalogue useful for many daily activities. | Pictograms are identified as CC BY-NC-SA: attribution, noncommercial use, and share-alike restrictions matter. See also the official [pictographic-system explanation](https://aulaabierta.arasaac.org/en/arasaac-pictographic-system-of-reference-in-the-aac). | Consider for a compatible noncommercial prototype; obtain permission for uses outside the licence. |
 | [Lucide](https://lucide.dev/guide/lucide) | Current consistent interface icons. These are general UI icons, not an aphasia-tested communication system. | ISC licence; keep the applicable notices. | Retain for navigation while evaluating a dedicated activity-picture library. |
 
-Recommendation: first evaluate ParticiPics with the intended audience; consider Widgit for a commercial app licence. No accounts, purchases, licence agreements, outreach, or third-party picture downloads were made during this task. Current activity choices still use Lucide icons paired with words.
+## unDraw artwork used in the prototype
+
+Activity illustrations in `public/illustrations/` come from unDraw: Walking outside, Book lover, Eating pasta, Listening, Coffee with friends, Alarm clock, Creative drawing, Video game night, Sweet home, Morning workout, Career growth, Cooking, Online groceries, and Mindfulness. Their accent color is adjusted to match the app's green activity and blue mindfulness sections. unDraw's [license](https://undraw.co/license) grants free use, modification, and distribution without attribution, while its rule-of-thumb cautions against making unDraw illustrations the center of an app. Treat these as prototype artwork and verify the intended release/distribution model before shipping. The illustrations are decorative design assets, not aphasia-tested communication symbols.
+
+No close unDraw illustration was selected for Personal care, general Out & about activities, or arbitrary custom activity names; these keep the existing Lucide symbols. Visualization currently reuses the Mindfulness illustration. Recommendation: evaluate ParticiPics with the intended audience; consider Widgit for a commercial app licence.
+
+## Handcrafts icon review
+
+The [Handcrafts catalogue](https://handcrafts.undraw.co/app) has similar icons for arrows, checks, hearts, smiley faces, clocks, and plus controls. It does not list clear equivalents for the app's calendar, settings, home, pencil, trash, play/pause, or time-of-day icons. The [Handcrafts license](https://handcrafts.undraw.co/license) cautions against using its artwork at the center of an app. Pictures are central to this app's aphasia interface, so Handcrafts assets were not bundled. Seek permission from the creator before using them as this app's icon system; keep the current Lucide controls for now.

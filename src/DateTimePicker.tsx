@@ -29,7 +29,6 @@ export function WeekPicker({
 
   return (
     <div className="calendar-picker">
-      <div className="calendar-month">{monthLabel}</div>
       <div className="week-heading">
         <button
           type="button"
@@ -40,9 +39,7 @@ export function WeekPicker({
         >
           <ChevronLeft />
         </button>
-        <strong aria-live="polite">
-          {first.getDate()} – {last.getDate()}
-        </strong>
+        <strong aria-live="polite">{monthLabel}</strong>
         <button
           type="button"
           className="block-arrow"

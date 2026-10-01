@@ -636,3 +636,27 @@ export function filterActivities(
     terms.every((term) => choice.name.toLowerCase().includes(term)),
   );
 }
+
+export const activityCategories = [
+  { name: "Food & drink", icon: "eat", icons: ["eat"] },
+  { name: "Rest & quiet", icon: "rest", icons: ["rest"] },
+  { name: "Outside", icon: "walk", icons: ["walk"] },
+  { name: "Friends & family", icon: "friends", icons: ["friends"] },
+  { name: "Reading & writing", icon: "read", icons: ["read"] },
+  { name: "Music", icon: "music", icons: ["music"] },
+  { name: "Arts & crafts", icon: "art", icons: ["art"] },
+  { name: "Games & TV", icon: "game", icons: ["game"] },
+  { name: "Home", icon: "home", icons: ["home"] },
+  { name: "Personal care", icon: "care", icons: ["care"] },
+  { name: "Out & about", icon: "out", icons: ["out"] },
+  { name: "Health & movement", icon: "health", icons: ["health"] },
+  { name: "Work & learning", icon: "work", icons: ["work"] },
+];
+export function categoryActivities(category: string) {
+  const item = activityCategories.find((c) => c.name === category);
+  return activities.filter((a) =>
+    a.name === "Watching a film"
+      ? category === "Games & TV"
+      : item?.icons.includes(a.icon),
+  );
+}

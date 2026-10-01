@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Check, Clock, Pencil, Trash2 } from "lucide-react";
 import {
   Entry,
   Data,
   currentSlot,
   dateKey,
   entriesInSlot,
+  slotDate,
   timeLabel,
 } from "./model";
 import { ActivityIcon } from "./ActivityIcon";
@@ -14,11 +15,15 @@ export function DayTimeline({
   data,
   onAdd,
   onEdit,
+  onDelete,
+  onToggle,
 }: {
   date: string;
   data: Data;
   onAdd: (minute: number) => void;
   onEdit: (entry: Entry) => void;
+  onDelete: (id: string) => void;
+  onToggle: (id: string) => void;
 }) {
   const [now, setNow] = useState(() => new Date());
   const area = useRef<HTMLDivElement>(null);
@@ -63,26 +68,37 @@ export function DayTimeline({
                 </button>
               </div>
               {entries.map((entry) => (
-                <button
-                  className="timeline-entry"
-                  key={entry.id}
-                  aria-label={`Edit ${entry.name} at ${timeLabel(minute)}`}
-                  onClick={() => onEdit(entry)}
-                >
-                  <ActivityIcon id={entry.icon} />
-                  <span>
-                    <strong>{entry.name}</strong>
-                    <span>
-                      {entry.status === "planned" ? "Planned" : "Completed"}
-                    </span>
-                    {entry.mood !== undefined && (
-                      <span>Mood: {entry.mood} / 10</span>
+                <div className="timeline-entry" key={entry.id}>
+                  <div className="timeline-entry-info">
+                    <ActivityIcon id={entry.icon} name={entry.name} />
+                    <div>
+                      <strong>{entry.name}</strong>
+                      {entry.rating !== undefined && !entry.sleepId && (
+                        <span className="timeline-enjoyment" aria-label={`Enjoyment ${entry.rating} out of 10`}>
+                          <span className="enjoyment-label">Enjoyment </span>{entry.rating}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="entry-controls">
+                    {!entry.sleepId && (
+                      <>
+                        <button className="entry-icon-control is-delete" aria-label={`Delete ${entry.name}`} onClick={() => onDelete(entry.id)}><Trash2 /></button>
+                        <button className="entry-icon-control" aria-label={`Edit ${entry.name}`} onClick={() => onEdit(entry)}><Pencil /></button>
+                      </>
                     )}
-                    {entry.rating !== undefined && (
-                      <span>Enjoyment: {entry.rating} / 10</span>
-                    )}
-                  </span>
-                </button>
+                    <button
+                      type="button"
+                      className={`completion-toggle ${entry.status === "done" ? "is-complete" : "is-planned"}`}
+                      aria-label={entry.sleepId ? "Automatic sleep entry" : `Mark ${entry.name} as ${entry.status === "done" ? "planned" : "completed"}`}
+                      aria-pressed={entry.status === "done"}
+                      disabled={Boolean(entry.sleepId) || (entry.status === "planned" && slotDate(entry.date, entry.startMinute) > now)}
+                      onClick={() => onToggle(entry.id)}
+                    >
+                      {entry.status === "done" ? <Check /> : <Clock />}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
             {current && (
