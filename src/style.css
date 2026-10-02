@@ -1513,6 +1513,15 @@ nav button.active {
 nav .relax-nav {
   color: #225e8a;
 }
+nav .values-nav {
+  color: #674a86;
+}
+nav .values-nav.active {
+  background: #f0eafa;
+}
+nav .nav-mindfulness-short {
+  display: none;
+}
 nav button.active svg {
   fill: var(--section-soft);
 }
@@ -1744,6 +1753,7 @@ h1:focus {
   height: 140px;
   margin: 0 auto;
   color: var(--section);
+  object-fit: contain;
 }
 .rating-end-faces {
   display: flex;
@@ -2384,13 +2394,14 @@ nav button:nth-child(2).active {
     height: 22px;
   }
   nav button span {
-    font-size: 18px;
+    font-size: 16px;
     letter-spacing: 0;
+    overflow-wrap: anywhere;
   }
   nav button > svg,
   nav button > .activity-illustration {
-    width: 23px;
-    height: 23px;
+    width: 22px;
+    height: 22px;
   }
   nav button {
     min-height: 62px;
@@ -2398,6 +2409,15 @@ nav button:nth-child(2).active {
   }
 }
 @media (max-width: 360px) {
+  nav .nav-mindfulness-full {
+    display: none;
+  }
+  nav .nav-mindfulness-short {
+    display: block;
+  }
+  nav button span {
+    font-size: 15px;
+  }
   .home-activity.activity-card:has(strong) strong,
   .timeline-entry-info strong {
     font-size: 17px;

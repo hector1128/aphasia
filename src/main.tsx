@@ -20,6 +20,7 @@ import {
   Heart,
   House,
   Smile,
+  Brain,
 } from "lucide-react";
 import {
   Data,
@@ -465,7 +466,7 @@ function App() {
                     onClick={() => go("relax")}
                   >
                     <span className="tile-icon">
-                      <img className="mindfulness-icon" src="/illustrations/mindfulness.svg" alt="" />
+                      <Brain size={30} aria-hidden="true" />
                     </span>
                     <h3>Mindfulness</h3>
                     <ChevronRight className="tile-arrow" size={23} />
@@ -802,10 +803,19 @@ function App() {
           </button>
           <button
             className={relaxed ? "active relax-nav" : "relax-nav"}
+            aria-label="Mindfulness"
             onClick={() => go("relax")}
           >
             <ActivityIcon id="mindfulness" size={30} />
-            <span>Mindfulness</span>
+            <span className="nav-mindfulness-full">Mindfulness</span>
+            <span className="nav-mindfulness-short">Mindful</span>
+          </button>
+          <button
+            className={screen === "values" ? "active values-nav" : "values-nav"}
+            onClick={() => go("values")}
+          >
+            <Heart size={25} />
+            <span>Values</span>
           </button>
         </nav>
       )}

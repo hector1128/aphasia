@@ -73,11 +73,6 @@ export function DayTimeline({
                     <ActivityIcon id={entry.icon} name={entry.name} />
                     <div>
                       <strong>{entry.name}</strong>
-                      {entry.rating !== undefined && !entry.sleepId && (
-                        <span className="timeline-enjoyment" aria-label={`Enjoyment ${entry.rating} out of 10`}>
-                          <span className="enjoyment-label">Enjoyment </span>{entry.rating}/10
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="entry-controls">

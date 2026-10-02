@@ -62,6 +62,10 @@ export const activities: ActivityChoice[] = [
     icon: "rest",
   },
   {
+    name: "Wake up",
+    icon: "sleep",
+  },
+  {
     name: "Drinking tea",
     icon: "rest",
   },
@@ -639,7 +643,7 @@ export function filterActivities(
 
 export const activityCategories = [
   { name: "Food & drink", icon: "eat", icons: ["eat"] },
-  { name: "Rest & quiet", icon: "rest", icons: ["rest"] },
+  { name: "Rest & quiet", icon: "rest", icons: ["rest", "sleep"] },
   { name: "Outside", icon: "walk", icons: ["walk"] },
   { name: "Friends & family", icon: "friends", icons: ["friends"] },
   { name: "Reading & writing", icon: "read", icons: ["read"] },

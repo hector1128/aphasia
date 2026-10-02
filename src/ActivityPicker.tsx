@@ -26,7 +26,10 @@ export function ActivityPicker({
     category === "Most recent"
       ? recent
       : category === "Suggestions"
-        ? suggestions
+        ? [
+            { name: "Wake up", icon: "sleep" },
+            ...suggestions.filter((choice) => choice.name.toLowerCase() !== "wake up"),
+          ]
         : categoryActivities(category);
   const matches = query ? filterActivities(query) : choices;
   const recents = filterActivities(query, recent);

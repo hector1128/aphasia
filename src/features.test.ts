@@ -29,6 +29,7 @@ import { createServer } from "node:http";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
+import { DayTimeline } from "./DayTimeline";
 const make = (id: string, changes: Partial<Entry> = {}): Entry => ({
   id,
   name: "Walking",
@@ -198,6 +199,20 @@ test("every activity is in exactly one category", () => {
   const all = activityCategories.flatMap((c) => categoryActivities(c.name));
   assert.equal(all.length, activities.length);
   assert.equal(new Set(all.map((a) => a.name)).size, activities.length);
+  assert.ok(categoryActivities("Rest & quiet").some((a) => a.name === "Wake up"));
+});
+test("calendar entries show the activity name without a rating", () => {
+  const data = saveEntry(emptyData(), make("rated", { rating: 5 }));
+  const html = renderToStaticMarkup(createElement(DayTimeline, {
+    date: "2026-10-01",
+    data,
+    onAdd: () => {},
+    onEdit: () => {},
+    onDelete: () => {},
+    onToggle: () => {},
+  }));
+  assert.match(html, /Walking/);
+  assert.doesNotMatch(html, /Enjoyment 5/);
 });
 test("suggestions prefer enjoyed and valued activities, ignore planned/sleep, deduplicate", () => {
   let data = saveEntry(
