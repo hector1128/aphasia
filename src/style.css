@@ -1755,6 +1755,9 @@ h1:focus {
   color: var(--section);
   object-fit: contain;
 }
+.rating-sheet-picture {
+  overflow: hidden;
+}
 .rating-end-faces {
   display: flex;
   margin-top: 26px;

@@ -1,8 +1,10 @@
 import { Minus, Plus } from "lucide-react";
+import { useId } from "react";
 
 type RatingKind = "Mood" | "Enjoyment" | "Importance";
 
 function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
+  const clipId = useId();
   const score = Math.max(0, Math.min(10, Math.round(value)));
   if (kind === "Mood") {
     return (
@@ -19,23 +21,43 @@ function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
   const top = score < 6;
   const sheetWidth = kind === "Enjoyment" ? 1491 : 1448;
   const sheetHeight = kind === "Enjoyment" ? 1055 : 1086;
-  const cellWidth = sheetWidth / (top ? 6 : 5);
-  const inset = kind === "Enjoyment" && top ? 32 : 16;
-  const x = (top ? score : score - 6) * cellWidth + inset;
-  const y = kind === "Enjoyment" ? (top ? 90 : 540) : (top ? 150 : 565);
-  const height = kind === "Enjoyment" ? (top ? 315 : 340) : (top ? 330 : 340);
+  const crop = (() => {
+    if (kind === "Importance") {
+      const topX = [35, 270, 502, 735, 960, 1195];
+      const topWidths = [216, 210, 207, 210, 220, 220];
+      const bottomX = [35, 290, 543, 817, 1106];
+      const bottomWidths = [238, 240, 255, 273, 309];
+      return top
+        ? { x: topX[score], y: 95, width: topWidths[score], height: 350 }
+        : { x: bottomX[score - 6], y: 559, width: bottomWidths[score - 6], height: 380 };
+    }
+    const cellWidth = sheetWidth / (top ? 6 : 5);
+    const inset = 12;
+    return {
+      x: (top ? score : score - 6) * cellWidth + inset,
+      y: top ? 100 : 548,
+      width: cellWidth - inset * 2,
+      height: top ? 300 : 320,
+    };
+  })();
 
   return (
     <svg
       className="rating-expression rating-sheet-picture"
-      viewBox={`${x} ${y} ${cellWidth - inset * 2} ${height}`}
+      viewBox={`${crop.x} ${crop.y} ${crop.width} ${crop.height}`}
       role="img"
       aria-label={`${kind} ${score} out of 10`}
     >
+      <defs>
+        <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
+          <rect x={crop.x} y={crop.y} width={crop.width} height={crop.height} />
+        </clipPath>
+      </defs>
       <image
         href={`/ratings/${kind.toLowerCase()}.png`}
         width={sheetWidth}
         height={sheetHeight}
+        clipPath={`url(#${clipId})`}
       />
     </svg>
   );
