@@ -1,5 +1,5 @@
-import { type Data, dateKey, slotDate } from "./model";
-import { weekDates } from "./date-time";
+import { type Data, dateKey, slotDate } from "./model.js";
+import { weekDates } from "./date-time.js";
 export const average = (values: number[]) => values.length
   ? values.reduce((total, value) => total + value, 0) / values.length : undefined;
 export function weeklyStats(data: Data, selectedDate: string, now = new Date()) {

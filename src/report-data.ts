@@ -1,4 +1,4 @@
-import { Data, lifeAreas, timeLabel, dateKey } from "./model";
+import { Data, lifeAreas, timeLabel, dateKey } from "./model.js";
 const missing = "Not completed";
 const score = (n?: number) => (n === undefined ? missing : `${n}/10`);
 export function reportData(data: Data, date: string): Data {

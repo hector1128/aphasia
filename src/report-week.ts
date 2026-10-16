@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { type Data, timeLabel } from "./model";
-import { weeklyStats } from "./weekly";
+import { type Data, timeLabel } from "./model.js";
+import { weeklyStats } from "./weekly.js";
 
 export async function buildWeeklyReportPdf(data: Data, date: string, now = new Date()): Promise<Uint8Array> {
   const stats = weeklyStats(data, date, now);

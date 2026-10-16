@@ -1,4 +1,4 @@
-import { dateKey } from "./model";
+import { dateKey } from "./model.js";
 
 export function weekDates(selectedDate: string): Date[] {
   const monday = new Date(`${selectedDate}T12:00`);

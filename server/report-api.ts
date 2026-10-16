@@ -1,12 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import nodemailer from "nodemailer";
 import type { SendMailOptions } from "nodemailer";
-import { readData, dateKey } from "../src/model";
-import { buildReportPdf } from "../src/report";
-import { reportData } from "../src/report-data";
-import { weeklyReportData } from "../src/weekly";
-import { buildWeeklyReportPdf } from "../src/report-week";
-import { cloudConfig } from "../src/cloud-config";
+import { readData, dateKey } from "../src/model.js";
+import { buildReportPdf } from "../src/report.js";
+import { reportData } from "../src/report-data.js";
+import { weeklyReportData } from "../src/weekly.js";
+import { buildWeeklyReportPdf } from "../src/report-week.js";
+import { cloudConfig } from "../src/cloud-config.js";
 import { createClient } from "@supabase/supabase-js";
 export type MailConfig = Record<string, string>;
 export function validateRequest(body: unknown) {

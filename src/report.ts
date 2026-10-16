@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { type Data, type Entry, lifeAreas, timeLabel, dateKey } from "./model";
-import { reportData } from "./report-data";
+import { type Data, type Entry, lifeAreas, timeLabel, dateKey } from "./model.js";
+import { reportData } from "./report-data.js";
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
