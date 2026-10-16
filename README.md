@@ -1,50 +1,56 @@
 # My Day
 
-Mobile-focused React + TypeScript prototype for recording activities, planning a day, and relaxation.
+React and TypeScript app for logging activities, scheduling, values, mood and mindfulness.
 
 ## Run and validate
 
-- `npm install`
-- `npm run dev`
-- `npm run build`
-- `npm test`
-- `npm run test:sleep` for the sleep/wake half-hour check
+```sh
+npm install
+npm run dev
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
 
-## Current design
+`npm run test:sleep` checks automatic sleep filling. `node --import tsx scripts/preview-report.ts` generates a fictional weekly PDF in the ignored `output/pdf` folder.
 
-- Four small logging steps: activity, mood, enjoyment, importance. Planning uses activity, day, time; completing a plan opens the three ratings.
-- 156 searchable everyday activities, custom activity names, and eight persisted recent choices.
-- Separate 0–10 mood, enjoyment, and importance sliders with changing faces or a filling star and non-drag +/- controls. Each activity rating can be skipped.
-- 48 half-hour calendar blocks per day; multiple activities per block. Each entry has an independent ID so editing or deleting one cannot overwrite a sibling.
-- Green activity screens and blue relaxation screens. One-minute paced breathing with pause/resume, plus click-to-load YouTube visualization/stretching videos.
-- Most app text remains large; compact mobile activity rows and bottom navigation use smaller labels so their controls fit horizontally.
+## Accounts and saved logs
 
-## Data and migration
+The configured Supabase project supports unique name and password accounts. Signing in on another device loads the same private log. Saves use revision checks so simultaneous changes cannot silently overwrite each other. Settings offers a choice when both devices have unsynced changes. A per-account browser cache supports temporary connection loss.
 
-`my-day-v2` stores the local profile, activity IDs, local dates, minutes from midnight, independent activity ratings, recent choices, daily mood, values, sleep periods, mindfulness sessions, and the report email address. On first load, old `my-day-v1` data is migrated when v2 is absent: hourly entries become :00 entries and existing enjoyment and daily ratings remain intact. The old storage key is preserved as a migration backup. Start over clears v2 data and removes the v1 backup so it cannot be reimported.
+Existing browser logs remain on the device. An empty account can import that browser's log from Settings. Sign-in names are case insensitive and separate from the editable display name. There is no password recovery flow yet. See [account setup](docs/account-setup.md).
 
-Daily mood is available from Home and stored in `Data.ratings`. Per-activity mood is a separate field.
+Without cloud configuration, the app uses the existing `my-day-v2` local log and migrates `my-day-v1` if needed. Older entries remain readable. Historical completed entries without source metadata are treated as logged activities because their original scheduling intent was not recorded.
+
+## Activities and values
+
+- Logging asks for activity, day, exact time, mood, enjoyment and importance. Ratings can be skipped. Editing a logged activity preserves its time.
+- Scheduling asks for activity, life area/value, day and exact time. People with no saved values can continue without one. Future activities show a locked clock. Due activities offer completion with ratings, or not completed. Back exits ratings without changing the schedule.
+- Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple.
+- Values use five life areas. Patients create values and link activities from the week or catalogue.
+- Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
+
+## Mindfulness and accessibility
+
+Breathing supports one, three or five minutes, with pause and resume. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Missing audio shows a message; audio never starts automatically.
+
+Text and time fields have optional microphone buttons. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
+
+## Reports
+
+Settings provides daily and weekly PDF downloads and manual email delivery. Weekly PDFs include mood graphs, activity, sleep and mindfulness charts, statistics and activity tables. Averages exclude missing ratings. The current week's activity average uses elapsed calendar days. Sleep averages include days with recorded sleep; sleep belongs to its wake-up day. Completion rates include due scheduled activities and exclude future plans.
+
+Email requires server-side SMTP configuration. The Vercel endpoint authenticates hosted requests and limits sending per account. See [email setup](docs/email-report-setup.md).
 
 ## Editable areas
 
 - `src/activities.ts`: activity choices.
-- `src/RatingSlider.tsx`: rating interaction and face.
-- `src/Relaxation.tsx`: breathing guide and video IDs.
-- `src/style.css`: spacing and shared section colors.
-- `docs/content-and-licensing.md`: relaxation sources and future picture-library options.
-- `docs/welcome-illustration.md`: generated asset and prompt.
+- `src/RatingSlider.tsx`: rating interaction and images.
+- `src/Relaxation.tsx`: exercise themes and breathing guide.
+- `src/style.css`: layout and colors.
+- `src/cloud-config.ts`: public connection settings only.
+- `supabase/schema.sql`: private log storage and revision-checked saves.
+- `docs/content-and-licensing.md`: illustration and exercise sources.
 
-Videos are review candidates, not aphasia-specific clinical validation. See the content review notes before patient use.
-
-## October design review
-
-- Activity Log uses 30-minute slots with direct delete, edit, and completion controls. Logging from a selected time goes from activity to mood, enjoyment, and importance (all 0–10). Editing a completed activity revisits those questions without asking for its time again.
-- Daily mood is restored. Activities open by category, with global search, recent choices, and suggestions based on recorded enjoyment/importance and linked values.
-- My values contains five life areas. People create their own values, then link an activity from the current week or the catalogue without adding questions to logging.
-- Completing an activity named “sleep,” “went to bed,” “nap,” or a similar phrase starts a sleep period. Completing “wake up,” “woke up,” or a similar phrase fills empty half-hour slots between those times as sleep.
-- Breathing completion is recorded automatically at the end of the timer. Video exercise completion is self-reported.
-- Settings creates a daily PDF and can email it after local SMTP configuration. See [email setup](docs/email-report-setup.md). No automatic emails, facial recognition, accounts, or public admin service were added.
-
-The v2 storage format is extended compatibly; prior saved activities and ratings are preserved. New fields default to empty on older data.
-
-To try automatic sleep filling in the app, open Activity Log and choose two past slots. Log “Sleep” at the first slot (for example, yesterday at 10:00 PM), then “Wake up” at the second (for example, today at 7:00 AM). The empty half-hour slots between them show “Sleeping.” `npm run test:sleep` verifies the same behavior across midnight without changing browser data.
+PDF text supports English and common Western accented characters. Other characters use `?` until a Unicode font is embedded.

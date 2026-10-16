@@ -1561,7 +1561,26 @@ h1:focus {
   display: flex;
   justify-content: center;
   gap: 10px;
+}
+.wizard-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   margin: -12px 0 32px;
+}
+.wizard-navigation button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  height: 48px;
+  border: 2px solid var(--section-border);
+  border-radius: 12px;
+  background: var(--section-soft);
+  color: var(--section);
+}
+.wizard-navigation button:disabled {
+  opacity: 0.4;
 }
 .wizard-progress span {
   height: 8px;
@@ -1848,8 +1867,7 @@ h1:focus {
   gap: 12px;
   overflow-wrap: anywhere;
 }
-.timeline-entry strong,
-.timeline-entry span {
+.timeline-entry strong {
   font-size: 23px;
 }
 .home-activity + .home-activity {
@@ -2571,3 +2589,222 @@ nav button:nth-child(2).active {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Calm, focused choices for mindfulness exercises. */
+.visualization-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.visualization-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  min-height: 166px;
+  padding: 17px;
+  border: 2px solid var(--section-border);
+  border-radius: 18px;
+  background: #f5f9fc;
+  color: var(--section);
+  text-align: left;
+}
+.visualization-card strong {
+  font-size: 22px;
+  line-height: 1.2;
+}
+.visualization-icon,
+.visualization-scene {
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #e2eef8;
+  color: #225e8a;
+}
+.visualization-icon {
+  width: 54px;
+  height: 54px;
+}
+.visualization-guide {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+}
+.visualization-scene {
+  width: 100%;
+  min-height: 220px;
+}
+.visualization-guide p {
+  margin: 0;
+  color: #314d60;
+  font-size: 24px;
+  line-height: 1.5;
+}
+.breathing-setup img {
+  display: block;
+  width: min(100%, 300px);
+  max-height: 300px;
+  object-fit: contain;
+  margin: 0 auto 20px;
+}
+.breathing-setup p {
+  margin: 0 0 10px;
+  color: #314d60;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+.breathing-setup h2 {
+  margin: 32px 0 15px;
+}
+.breathing-durations {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.breathing-durations button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 82px;
+  padding: 8px 3px;
+  border: 2px solid var(--section-border);
+  border-radius: 14px;
+  background: #f5f9fc;
+  color: var(--section);
+  font-weight: 700;
+}
+.breathing-durations strong {
+  font-size: 29px;
+  line-height: 1;
+}
+.breathing-durations span {
+  font-size: 18px;
+}
+
+/* Keep value linking to one question and one set of choices. */
+main:has(.value-link-screen) > .topbar,
+main:has(.value-link-screen) > .page-title {
+  display: none;
+}
+.value-link-screen .back {
+  margin-bottom: 22px;
+}
+
+/* Filled action buttons: red delete, gray edit or planned, green complete. */
+.entry-icon-control,
+.value-row-action {
+  border: 2px solid #556a60;
+  background: #556a60;
+  color: white;
+}
+.entry-icon-control.is-delete,
+.theme-values .value-row-action.is-delete {
+  border-color: #a45246;
+  background: #a45246;
+  color: white;
+}
+.theme-values .value-row-action svg {
+  color: inherit;
+}
+.completion-toggle.is-planned {
+  background: #61766b;
+  border-color: #61766b;
+  color: white;
+}
+.completion-toggle.is-complete {
+  background: #356c48;
+  border-color: #356c48;
+  color: white;
+}
+@media (max-width: 430px) {
+  nav .nav-mindfulness-full {
+    display: none;
+  }
+  nav .nav-mindfulness-short {
+    display: block;
+  }
+}
+@media (max-width: 360px) {
+  .breathing-setup img {
+    max-height: 220px;
+  }
+}
+
+/* Exact times and planned activities retain their meaning in every calendar view. */
+.entry-name-time { display: flex; align-items: baseline; gap: 10px; min-width: 0; width: 100%; }
+.entry-name-time strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.entry-name-time time { flex-shrink: 0; font-size: 18px; white-space: nowrap; }
+.home-entry-description { flex: 1; min-width: 0; text-align: left; }
+.schedule-label { display: block; margin-top: 6px; font-size: 16px; color: #674a86; }
+.home-activity.scheduled-entry, .timeline-entry.scheduled-entry { background: #f4eef9; border-color: #b69ccb; }
+.timeline-entry.scheduled-entry { border-width: 2px; }
+.schedule-locked { display: flex; align-items: center; gap: 1px; padding: 10px 6px; border-radius: 12px; background: #674a86; color: white; }
+.completion-toggle:not(.is-complete) { background: #edf3ed; color: #356c48; }
+.completion-toggle.is-missed { background: #eeeae5; color: #59635d; border-color: #b2b9b4; }
+.completion-toggle.is-missed.selected { background: #59635d; color: white; border-color: #59635d; }
+.schedule-values .entry-row[aria-pressed="true"], .schedule-values button[aria-pressed="true"] { outline: 3px solid #674a86; outline-offset: 2px; }
+.wizard-navigation { width: 100%; }
+.wizard-progress { flex: 1; min-width: 0; max-width: 260px; gap: 6px; }
+.wizard-progress span { flex: 1; min-width: 0; max-width: 28px; }
+.wizard-progress span.active { flex: 1.5; max-width: 44px; }
+
+.speech-field { display: flex; align-items: flex-start; gap: 8px; width: 100%; min-width: 0; margin-bottom: 16px; }
+.speech-field input { flex: 1; min-width: 0; width: 0; margin-bottom: 0; }
+.microphone-control { display: inline-flex; position: relative; flex: 0 0 48px; }
+.microphone { display: grid; place-items: center; width: 48px; min-height: 54px; border: 2px solid var(--section-border, #9cb7a6); border-radius: 12px; background: #eef4ed; color: #356c48; }
+.microphone.listening { color: #fff; background: #a45246; border-color: #a45246; }
+.speech-message { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; width: min(280px, 75vw); padding: 12px; border: 1px solid #9cb7a6; border-radius: 10px; background: #fffefa; color: #203c31; font-size: 18px; line-height: 1.4; box-shadow: 0 4px 15px #203c3122; }
+.activity-search .speech-field { margin-bottom: 0; }
+.activity-search .speech-field input { padding-right: 45px; }
+.activity-search .microphone { position: static; }
+.activity-search > button { right: 61px; }
+.read-highlight { outline: 3px solid #a97518 !important; outline-offset: 3px; background-color: #fff3c8 !important; color: #233b31 !important; }
+.read-aloud-settings, .account-settings { margin-top: 36px; padding-top: 22px; border-top: 1px solid #d9dfd7; }
+.read-aloud-settings p, .account-settings p { font-size: 21px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.typed-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.typed-time label { min-width: 0; }
+.typed-time .period-blocks { grid-column: 1 / -1; justify-content: center; }
+.typed-time .period-blocks button { min-width: 90px; }
+.mobile-time-wheels { display: none; }
+.time-input-switch { display: none; }
+.time-dictation { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 24px; }
+.time-dictation > span { font-size: 24px; font-weight: 700; }
+.precise-time-picker .speech-field input { padding: 12px 6px; text-align: center; font-size: 27px; }
+.precise-time-picker .speech-field { gap: 4px; }
+.report-period { display: flex; gap: 14px; margin-bottom: 24px; }
+.report-period button { flex: 1; margin: 0; }
+.report-period button[aria-pressed="true"] { background: #356c48; color: white; }
+.visualization-guide audio { width: 100%; }
+.account-page { margin: 0 auto; width: min(100%, 500px); padding: 28px 24px 56px; }
+.account-page .account-illustration { display: block; width: 200px; max-height: 240px; object-fit: contain; margin: 0 auto 24px; }
+.account-page form { margin-top: 24px; }
+.account-page p { font-size: 21px; line-height: 1.5; }
+.sync-banner { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 8; display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff3d5; border: 1px solid #ad881d; border-radius: 12px; font-size: 18px; }
+.sync-banner button { background: none; text-decoration: underline; color: #203c31; padding: 5px; }
+@media (max-width: 767px) {
+  .typed-time:not(.show) { display: none; }
+  .mobile-time-wheels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; background: #eee7f5; border: 2px solid #b69ccb; border-radius: 16px; position: relative; }
+  .mobile-time-wheels::before { content: ""; position: absolute; top: 96px; left: 0; right: 0; height: 48px; pointer-events: none; background: #c8b5d855; border-block: 1px solid #b69ccb; }
+  .is-typing .mobile-time-wheels { display: none; }
+  .time-wheel { height: 240px; padding-block: 96px; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; position: relative; }
+  .time-wheel::-webkit-scrollbar { display: none; }
+  .time-wheel button { display: block; width: 100%; height: 48px; min-height: 48px; padding: 0; scroll-snap-align: center; color: #655b6d; background: none; font-size: 25px; border-radius: 8px; }
+  .time-wheel button.selected { color: #49345e; font-weight: 800; }
+  .time-input-switch { display: flex; margin-top: 20px; }
+  .entry-name-time { gap: 6px; }
+  .entry-name-time time { font-size: 15px; }
+  .home-activity.scheduled-entry .entry-controls, .timeline-entry.scheduled-entry .entry-controls { gap: 3px; }
+  .scheduled-entry .entry-icon-control, .scheduled-entry .completion-toggle { width: 32px; flex-basis: 32px; min-height: 44px; height: 44px; border-radius: 9px; padding: 3px; }
+  .scheduled-entry .entry-controls svg { width: 20px; height: 20px; }
+  .scheduled-entry .timeline-entry-info .activity-illustration, .home-activity.scheduled-entry .activity-art { display: none; }
+  .home-activity.scheduled-entry .entry-name-time, .timeline-entry.scheduled-entry .entry-name-time { flex-wrap: wrap; }
+  .home-activity.scheduled-entry .entry-name-time strong, .timeline-entry.scheduled-entry .entry-name-time strong { flex-basis: auto; }
+  .schedule-label { font-size: 14px; }
+}
+::highlight(read-word) { background-color: #ffe59b; color: #233b31; }

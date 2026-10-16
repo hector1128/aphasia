@@ -1,16 +1,22 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import nodemailer from "nodemailer";
+import type { SendMailOptions } from "nodemailer";
 import { readData, dateKey } from "../src/model";
 import { buildReportPdf } from "../src/report";
 import { reportData } from "../src/report-data";
+import { weeklyReportData } from "../src/weekly";
+import { buildWeeklyReportPdf } from "../src/report-week";
+import { cloudConfig } from "../src/cloud-config";
+import { createClient } from "@supabase/supabase-js";
 export type MailConfig = Record<string, string>;
 export function validateRequest(body: unknown) {
-  const b = body as { to: string; date: string; data: unknown };
+  const b = body as { to: string; date: string; period?: unknown; data: unknown };
   if (
     !b ||
     typeof b.to !== "string" ||
     !/^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(b.to) ||
     b.to.length > 254 ||
+    (b.period !== undefined && b.period !== "day" && b.period !== "week") ||
     typeof b.date !== "string" ||
     !/^\d{4}-\d{2}-\d{2}$/.test(b.date) ||
     dateKey(new Date(`${b.date}T12:00`)) !== b.date
@@ -31,16 +37,17 @@ export function validateRequest(body: unknown) {
     Object.values(data.entries).some((e) => e.name.length > 200)
   )
     throw Error("Invalid report data.");
-  return { to: b.to, date: b.date, data: reportData(data, b.date) };
+  const period = b.period === "week" ? "week" : "day";
+  return { to: b.to, date: b.date, period, data: period === "week" ? weeklyReportData(data, b.date) : reportData(data, b.date) };
 }
 export function reportMiddleware(
   config: MailConfig,
-  sendMail?: (message: any) => Promise<any>,
+  sendMail?: (message: SendMailOptions) => Promise<{ accepted?: unknown[]; rejected?: unknown[] }>,
 ) {
   let sending = false,
     lastSend = 0;
   return async (
-    req: IncomingMessage,
+    req: IncomingMessage & { body?: unknown },
     res: ServerResponse,
     next: () => void,
   ) => {
@@ -54,7 +61,7 @@ export function reportMiddleware(
     };
     if (req.method !== "POST")
       return reply(405, { error: "Use Send today's report in Settings." });
-    // Local prototype only: no anonymous public email relay or cross-origin requests.
+    // Hosted requests need an account; localhost also supports SMTP setup tests.
     const remote = req.socket.remoteAddress ?? "";
     const origin = req.headers.origin;
     let originUrl: URL;
@@ -64,14 +71,29 @@ export function reportMiddleware(
       return reply(403, { error: "Invalid origin." });
     }
     if (
-      !["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(remote) ||
       !origin ||
-      !["localhost", "127.0.0.1", "[::1]"].includes(originUrl.hostname) ||
       originUrl.host !== req.headers.host
     )
       return reply(403, {
-        error: "Send reports from this computer's localhost app.",
+        error: "Send reports from this app.",
       });
+    const local = ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(remote) &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(originUrl.hostname);
+    const supabaseUrl = config.SUPABASE_URL || cloudConfig.url;
+    const supabaseKey = config.SUPABASE_PUBLISHABLE_KEY || cloudConfig.publishableKey;
+    if (!local && supabaseUrl && supabaseKey) {
+      const token = req.headers.authorization?.replace(/^Bearer /, "");
+      if (!token) return reply(401, { error: "Sign in to send your report." });
+      const client = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false },
+      });
+      try {
+        const { data: user, error } = await client.auth.getUser(token);
+        if (error || !user.user) return reply(401, { error: "Sign in again to send your report." });
+        const { error: rateError } = await client.rpc("claim_report_slot");
+        if (rateError) return reply(429, { error: "Please wait a minute before sending again." });
+      } catch { return reply(503, { error: "Could not check your account. Please try again." }); }
+    } else if (!local) return reply(403, { error: "Email service needs account configuration." });
     if (!req.headers["content-type"]?.startsWith("application/json"))
       return reply(415, { error: "Invalid request." });
     if (sending || Date.now() - lastSend < 10000)
@@ -92,21 +114,23 @@ export function reportMiddleware(
       });
     sending = true;
     try {
-      let raw = "";
-      for await (const chunk of req) {
-        raw += chunk;
-        if (Buffer.byteLength(raw) > 1000000) {
-          reply(413, { error: "Report is too large." });
-          return;
+      // Vercel parses JSON into req.body; Vite supplies the original Node stream.
+      // https://vercel.com/docs/functions/runtimes/node-js
+      let raw = req.body === undefined ? "" : JSON.stringify(req.body);
+      if (req.body === undefined) {
+        for await (const chunk of req) {
+          raw += chunk;
+          if (Buffer.byteLength(raw) > 1000000) break;
         }
       }
+      if (Buffer.byteLength(raw) > 1000000) return reply(413, { error: "Report is too large." });
       let input;
       try {
         input = validateRequest(JSON.parse(raw));
       } catch {
         return reply(400, { error: "Enter a valid email and report details." });
       }
-      const pdf = await buildReportPdf(input.data, input.date);
+      const pdf = input.period === "week" ? await buildWeeklyReportPdf(input.data, input.date) : await buildReportPdf(input.data, input.date);
       const transport = sendMail
         ? null
         : nodemailer.createTransport({
@@ -123,11 +147,11 @@ export function reportMiddleware(
       const result = await (sendMail ?? transport!.sendMail.bind(transport))({
         from: config.REPORT_FROM,
         to: input.to,
-        subject: `My Day report - ${input.date}`,
-        text: `The daily prototype report for ${input.date} is attached as a PDF. Missing information is marked Not completed.`,
+        subject: `My Day ${input.period === "week" ? "weekly" : "daily"} report - ${input.date}`,
+        text: `The ${input.period === "week" ? "weekly" : "daily"} report for ${input.date} is attached as a PDF. Missing information is marked in the report.`,
         attachments: [
           {
-            filename: `my-day-${input.date}.pdf`,
+            filename: `my-day-${input.period}-${input.date}.pdf`,
             content: Buffer.from(pdf),
             contentType: "application/pdf",
           },

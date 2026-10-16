@@ -31,7 +31,7 @@ export function reportSections(data: Data, date: string) {
   done.forEach((e) => freq.set(e.name, (freq.get(e.name) ?? 0) + 1));
   const maxCount = Math.max(0, ...freq.values());
   const maxEnjoy = Math.max(-1, ...rated.map((e) => e.rating!));
-  const covered = new Set(entries.map((e) => e.startMinute));
+  const covered = new Set(entries.map((e) => Math.floor(e.startMinute / 30)));
   return [
     {
       title: "Day overview",
@@ -51,7 +51,7 @@ export function reportSections(data: Data, date: string) {
             (e) =>
               e.sleepBoundary
                 ? `${timeLabel(e.startMinute)} | ${e.name}\nSleep period ${e.sleepBoundary === "sleep" ? "started" : "ended"}`
-                : `${timeLabel(e.startMinute)} | ${e.name}\n${e.status === "done" ? "Completed" : "Planned - not completed"}\nMood: ${score(e.mood)}    Enjoyment: ${score(e.rating)}    Importance: ${score(e.importance)}`,
+                : `${timeLabel(e.startMinute)} | ${e.name}\n${e.status === "done" ? "Completed" : e.status === "missed" ? "Not completed" : "Planned - unanswered"}\nMood: ${score(e.status === "done" ? e.mood : undefined)}    Enjoyment: ${score(e.status === "done" ? e.rating : undefined)}    Importance: ${score(e.status === "done" ? e.importance : undefined)}`,
           )
         : [missing],
     },

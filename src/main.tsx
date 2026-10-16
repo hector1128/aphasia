@@ -16,7 +16,6 @@ import {
   Trash2,
   Pencil,
   Clock,
-  Play,
   Heart,
   House,
   Smile,
@@ -34,7 +33,7 @@ import {
   currentSlot,
   timeLabel,
   saveActivity,
-  toggleEntryStatus,
+  setScheduledStatus,
   sleepBoundary,
   removeEntry,
   slotDate,
@@ -47,8 +46,21 @@ import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 import { ActivityPicker } from "./ActivityPicker";
 import { RatingSlider } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
-import { BreathingGuide, RelaxationVideo } from "./Relaxation";
-import { Values } from "./Values";
+import {
+  BreathingGuide,
+  RelaxationVideo,
+  VisualizationChoices,
+  VisualizationGuide,
+  VisualizationTheme,
+  breathingDurations,
+} from "./Relaxation";
+import { SpeechField } from "./SpeechField";
+import { Accounts, type Account } from "./Accounts";
+import { useCloudSync } from "./useCloudSync";
+import { cloud } from "./cloud";
+import { useReadAloud } from "./useReadAloud";
+import { ScheduleControls } from "./ScheduleControls";
+import { Values, ScheduleValuePicker } from "./Values";
 import { ReportSettings } from "./ReportSettings";
 import { DailyMood } from "./DailyMood";
 import "./style.css";
@@ -64,9 +76,10 @@ type Screen =
   | "settings"
   | "dailyMood"
   | "values";
-type Step = "activity" | "day" | "time" | "mood" | "enjoyment" | "importance";
+type Step = "activity" | "value" | "day" | "time" | "mood" | "enjoyment" | "importance";
 const stepTitles: Record<Step, string> = {
   activity: "What activity?",
+  value: "What matters to you?",
   day: "Which day?",
   time: "What time?",
   mood: "How did you feel?",
@@ -74,8 +87,9 @@ const stepTitles: Record<Step, string> = {
   importance: "How important was it?",
 };
 
-function App() {
+function App({ account }: { account?: Account }) {
   const [data, setData] = useState<Data>(() => {
+    if (account) return account.initial.data;
     try {
       return readData(
         localStorage.getItem(STORAGE_KEY) ??
@@ -85,6 +99,7 @@ function App() {
       return emptyData();
     }
   });
+  const sync = useCloudSync(account, data, setData);
   const [screen, setScreen] = useState<Screen>("home");
   const [name, setName] = useState(data.name);
   const [clock, setClock] = useState(() => new Date());
@@ -94,7 +109,12 @@ function App() {
   const [storageError, setStorageError] = useState(false);
   const [draft, setDraft] = useState<Entry | null>(null);
   const [step, setStep] = useState<Step>("activity");
+  const [completingPlan, setCompletingPlan] = useState(false);
+  const [timeValid, setTimeValid] = useState(true);
+  useReadAloud(data.readAloud);
   const [returnTo, setReturnTo] = useState<"home" | "plan">("home");
+  const [breathingDuration, setBreathingDuration] = useState<number | null>(null);
+  const [visualizationTheme, setVisualizationTheme] = useState<VisualizationTheme | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const today = dateKey(clock);
   const homeEntries = entriesInSlot(data, today, minute);
@@ -105,25 +125,28 @@ function App() {
     "stretching",
   ].includes(screen);
   const editingEntry = Boolean(draft && data.entries[draft.id]);
-  const steps: Step[] = draft?.status === "planned"
-    ? editingEntry ? ["activity"] : ["activity", "day", "time"]
-    : [
-        "activity",
-        ...(draft && sleepBoundary(draft.name) ? [] : ["mood", "enjoyment", "importance"] as Step[]),
-      ];
+  const planning = draft?.source === "scheduled" && draft.status !== "done" && !completingPlan;
+  const valueMissing = step === "value" && data.values.length > 0 && !draft?.lifeArea;
+  const steps: Step[] = completingPlan
+    ? ["mood", "enjoyment", "importance"]
+    : planning
+      ? ["activity", "value", "day", "time"]
+      : ["activity", ...(editingEntry ? [] : ["day", "time"] as Step[]),
+          ...(draft && sleepBoundary(draft.name) ? [] : ["mood", "enjoyment", "importance"] as Step[])];
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 15000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
+    if (account) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       setStorageError(false);
     } catch {
       setStorageError(true);
     }
-  }, [data]);
+  }, [account, data]);
   useEffect(() => {
     window.scrollTo(0, 0);
     heading.current?.focus({ preventScroll: true });
@@ -159,7 +182,7 @@ function App() {
     setScreen(next);
   };
   const newEntry = (
-    status: Entry["status"],
+    status: "planned" | "done",
     selectedDate = today,
     selectedMinute = minute,
     origin: "home" | "plan" = "home",
@@ -171,13 +194,18 @@ function App() {
       date: selectedDate,
       startMinute: selectedMinute,
       status,
+      source: status === "planned" ? "scheduled" : "logged",
     });
+    setCompletingPlan(false);
+    setTimeValid(true);
     setReturnTo(origin);
     setStep("activity");
     go("edit");
   };
   const editEntry = (entry: Entry, origin: "home" | "plan") => {
     setDraft({ ...entry });
+    setCompletingPlan(false);
+    setTimeValid(true);
     setReturnTo(origin);
     setStep("activity");
     go("edit");
@@ -186,13 +214,19 @@ function App() {
     setData((previous) => removeEntry(previous, id));
     setNotice("Activity deleted");
   };
-  const toggleStatus = (id: string) => {
+  const scheduleOutcome = (id: string, outcome: "done" | "missed", origin: "home" | "plan") => {
     const entry = data.entries[id];
-    if (!entry || entry.sleepId) return;
-    if (entry.status === "planned" && slotDate(entry.date, entry.startMinute) > new Date())
+    if (!entry || entry.source !== "scheduled" || slotDate(entry.date, entry.startMinute) > new Date()) return;
+    if (outcome === "missed") {
+      setData((previous) => setScheduledStatus(previous, id, outcome));
+      setNotice("Activity marked not completed");
       return;
-    setData((previous) => toggleEntryStatus(previous, id));
-    setNotice(entry.status === "planned" ? "Activity completed" : "Activity planned");
+    }
+    setDraft({ ...entry, status: "done" });
+    setCompletingPlan(true);
+    setReturnTo(origin);
+    setStep("mood");
+    go("edit");
   };
   const chooseActivity = (choice: ActivityChoice) => {
     setDraft((prev) => (prev ? { ...prev, ...choice } : prev));
@@ -208,7 +242,7 @@ function App() {
     const old = data.entries[entry.id];
     const unchanged =
       old && old.date === entry.date && old.startMinute === entry.startMinute;
-    if (entry.status === "planned" && !unchanged && !future) {
+    if (entry.source === "scheduled" && entry.status !== "done" && !unchanged && !future) {
       setNotice("Choose a later time.");
       return false;
     }
@@ -218,21 +252,19 @@ function App() {
     if (!entry.name.trim() || !validateTime(entry)) return;
     setData((prev) => saveActivity(prev, { ...entry, name: entry.name.trim() }));
     setDate(entry.date);
-    if (entry.date === today) setMinute(entry.startMinute);
-    go(returnTo === "plan" || entry.status === "planned" ? "plan" : "home");
+    if (entry.date === today) setMinute(Math.floor(entry.startMinute / 30) * 30);
+    go(returnTo === "plan" || entry.source === "scheduled" ? "plan" : "home");
     setNotice("Activity saved");
   };
   const nextStep = () => {
     if (!draft) return;
-    if (step === "activity" && editingEntry && draft.status === "planned") {
+    if (valueMissing) return;
+    if (step === "time" && (!timeValid || !validateTime(draft))) return;
+    if ((step === "activity" && editingEntry && draft.source === "logged" && sleepBoundary(draft.name)) ||
+        (step === "time" && (planning || Boolean(sleepBoundary(draft.name))))) {
       save(draft);
       return;
     }
-    if (step === "activity" && draft.status === "done" && sleepBoundary(draft.name)) {
-      save(draft);
-      return;
-    }
-    if (step === "time" && !validateTime(draft)) return;
     if (step === "mood") {
       setDraft({ ...draft, mood: draft.mood ?? 5 });
       setStep("enjoyment");
@@ -247,10 +279,6 @@ function App() {
       save({ ...draft, importance: draft.importance ?? 5 });
       return;
     }
-    if (step === "time" && (draft.status === "planned" || Boolean(sleepBoundary(draft.name)))) {
-      save(draft);
-      return;
-    }
     setStep(steps[steps.indexOf(step) + 1]);
   };
   const previousStep = () => {
@@ -259,7 +287,7 @@ function App() {
     else go(returnTo);
   };
   const reset = () => {
-    setData(emptyData());
+    setData({ ...emptyData(), name: account ? data.name : "" });
     setName("");
     setDraft(null);
     setStep("activity");
@@ -268,7 +296,7 @@ function App() {
     go("home");
     // Keep old data from being re-imported if the current storage key is later removed.
     try {
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      if (!account) localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch {
       setStorageError(true);
     }
@@ -294,7 +322,7 @@ function App() {
   );
 
   return (
-    <div className={`app-shell ${relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
+    <div className={`app-shell ${screen === "edit" && planning ? "theme-values" : relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
       <main>
         {!data.name ? (
           <div className="welcome">
@@ -316,13 +344,13 @@ function App() {
               }}
             >
               <label htmlFor="name">What’s your name?</label>
-              <input
+              <SpeechField
                 id="name"
                 autoComplete="given-name"
                 placeholder="Your first name"
                 value={name}
                 maxLength={40}
-                onChange={(event) => setName(event.target.value)}
+                onValueChange={setName}
               />
               <button className="primary" disabled={!name.trim()}>
                 Let’s begin <ArrowRight size={24} />
@@ -389,7 +417,7 @@ function App() {
                   {homeEntries.map((entry) => (
                     <div
                       key={entry.id}
-                      className="activity-card home-activity"
+                      className={`activity-card home-activity ${entry.source === "scheduled" ? "scheduled-entry" : ""}`}
                     >
                       <button
                         className="home-activity-open"
@@ -402,7 +430,7 @@ function App() {
                             <ActivityIcon id={entry.icon} size={48} name={entry.name} />
                           </span>
                         )}
-                        <strong>{entry.name}</strong>
+                        <div className="home-entry-description"><div className="entry-name-time"><strong>{entry.name}</strong><time>{timeLabel(entry.startMinute)}</time></div>{entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}</div>
                       </button>
                       <div className="entry-controls">
                         {!entry.sleepId && (
@@ -411,16 +439,7 @@ function App() {
                             <button className="entry-icon-control" aria-label={`Edit ${entry.name}`} onClick={() => editEntry(entry, "home")}><Pencil /></button>
                           </>
                         )}
-                        <button
-                          type="button"
-                          className={`completion-toggle ${entry.status === "done" ? "is-complete" : "is-planned"}`}
-                          aria-label={entry.sleepId ? "Automatic sleep entry" : `Mark ${entry.name} as ${entry.status === "done" ? "planned" : "completed"}`}
-                          aria-pressed={entry.status === "done"}
-                          disabled={Boolean(entry.sleepId) || (entry.status === "planned" && slotDate(entry.date, entry.startMinute) > clock)}
-                          onClick={() => toggleStatus(entry.id)}
-                        >
-                          {entry.status === "done" ? <Check /> : <Clock />}
-                        </button>
+                        <ScheduleControls entry={entry} now={clock} onOutcome={(id, outcome) => scheduleOutcome(id, outcome, "home")} />
                       </div>
                     </div>
                   ))}
@@ -458,7 +477,7 @@ function App() {
                     <span className="tile-icon">
                       <CalendarDays size={30} />
                     </span>
-                    <h3>Schedule activity</h3>
+                    <h3>Activity Log</h3>
                     <ChevronRight className="tile-arrow" size={23} />
                   </button>
                   <button
@@ -511,7 +530,7 @@ function App() {
                   data={data}
                   onEdit={(entry) => editEntry(entry, "plan")}
                   onDelete={deleteEntry}
-                  onToggle={toggleStatus}
+                  onToggle={(id, outcome) => scheduleOutcome(id, outcome, "plan")}
                   onAdd={(selectedMinute) =>
                     newEntry(
                       slotDate(date, selectedMinute) > new Date()
@@ -542,17 +561,39 @@ function App() {
             )}
             {screen === "edit" && draft && (
               <>
-                {header(stepTitles[step], previousStep, "Back")}
-                <div
-                  className="wizard-progress"
-                  aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}
-                >
-                  {steps.map((item) => (
-                    <span
-                      key={item}
-                      className={item === step ? "active" : ""}
-                    />
-                  ))}
+                {header(
+                  stepTitles[step],
+                  completingPlan ? () => go(returnTo) : draft.status === "done" && !editingEntry ? () => go("home") : previousStep,
+                  completingPlan ? "Back" : draft.status === "done" && !editingEntry ? "Home" : "Back",
+                )}
+                <div className="wizard-navigation">
+                  <button
+                    type="button"
+                    aria-label="Previous question"
+                    disabled={steps.indexOf(step) === 0}
+                    onClick={previousStep}
+                  >
+                    <ChevronLeft />
+                  </button>
+                  <div
+                    className="wizard-progress"
+                    aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}
+                  >
+                    {steps.map((item) => (
+                      <span
+                        key={item}
+                        className={item === step ? "active" : ""}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Next question"
+                    disabled={steps.indexOf(step) === steps.length - 1 || valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
+                    onClick={nextStep}
+                  >
+                    <ChevronRight />
+                  </button>
                 </div>
                 {step === "activity" && (
                   <ActivityPicker
@@ -563,11 +604,13 @@ function App() {
                     onChange={chooseActivity}
                   />
                 )}
+                {step === "value" && <ScheduleValuePicker data={data} area={draft.lifeArea} valueId={draft.valueId}
+                  onChange={(selection) => setDraft({ ...draft, ...selection, valueId: selection.valueId })} />}
                 {step === "day" && (
                   <WeekPicker
                     value={draft.date}
                     min={
-                      draft.status === "planned"
+                      planning
                         ? data.entries[draft.id]?.date < today
                           ? data.entries[draft.id].date
                           : today
@@ -584,6 +627,7 @@ function App() {
                     </div>
                     <TimePicker
                       value={draft.startMinute}
+                      onValidityChange={setTimeValid}
                       onChange={(startMinute) =>
                         setDraft({ ...draft, startMinute })
                       }
@@ -613,17 +657,16 @@ function App() {
                     }
                   />
                 )}
+                {step === "time" && !timeValid && <p role="alert">Enter an hour from 1 to 12 and minutes from 00 to 59.</p>}
                 <div className="wizard-actions">
                   <button
                     className="primary"
-                    disabled={step === "activity" && !draft.name.trim()}
+                    disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
                     onClick={nextStep}
                   >
                     {step === "importance" ||
-                    (step === "activity" && editingEntry && draft.status === "planned") ||
-                    (step === "activity" && draft.status === "done" && !!sleepBoundary(draft.name)) ||
-                    (step === "time" &&
-                      (draft.status === "planned" || !!sleepBoundary(draft.name))) ? (
+                    (step === "activity" && editingEntry && draft.source === "logged" && !!sleepBoundary(draft.name)) ||
+                    (step === "time" && (planning || !!sleepBoundary(draft.name))) ? (
                       <>
                         <Check /> Save activity
                       </>
@@ -658,7 +701,10 @@ function App() {
               <>
                 {header("Mindfulness")}
                 <div className="relaxation-options">
-                  <button className="entry-row" onClick={() => go("breathing")}>
+                  <button className="entry-row" onClick={() => {
+                    setBreathingDuration(null);
+                    go("breathing");
+                  }}>
                     <span className="entry-picture">
                       <ActivityIcon id="mindfulness" size={48} />
                     </span>
@@ -667,7 +713,10 @@ function App() {
                   </button>
                   <button
                     className="entry-row"
-                    onClick={() => go("visualization")}
+                    onClick={() => {
+                      setVisualizationTheme(null);
+                      go("visualization");
+                    }}
                   >
                     <span className="entry-picture">
                       <ActivityIcon id="mindfulness" size={48} />
@@ -690,26 +739,41 @@ function App() {
             )}
             {screen === "breathing" && (
               <>
-                {header("Breathing", () => go("relax"), "Back")}
-                <BreathingGuide onSession={recordMindfulness} />
+                {header("Breathing", () => breathingDuration ? setBreathingDuration(null) : go("relax"), "Back")}
+                {breathingDuration ? (
+                  <BreathingGuide key={breathingDuration} minutes={breathingDuration} onSession={recordMindfulness} />
+                ) : (
+                  <div className="breathing-setup">
+                    <img src="/images/breathing-adult.jpg" alt="An adult sitting comfortably with hands on their abdomen" />
+                    <p>Be still.</p>
+                    <p>Bring attention to your breath.</p>
+                    <h2>How long?</h2>
+                    <div className="breathing-durations">
+                      {breathingDurations.map((minutes) => (
+                        <button key={minutes} onClick={() => setBreathingDuration(minutes)}>
+                          <strong>{minutes}</strong>
+                          <span>{minutes === 1 ? "minute" : "minutes"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
             {screen === "visualization" && (
               <>
-                {header("Visualization", () => go("relax"), "Back")}
-                <RelaxationVideo
-                  kind="visualization"
-                  onSession={recordMindfulness}
-                />
+                {header(visualizationTheme?.title ?? "Visualization", () => visualizationTheme ? setVisualizationTheme(null) : go("relax"), "Back")}
+                {visualizationTheme ? (
+                  <VisualizationGuide key={visualizationTheme.id} theme={visualizationTheme} onSession={recordMindfulness} />
+                ) : (
+                  <VisualizationChoices onChoose={setVisualizationTheme} />
+                )}
               </>
             )}
             {screen === "stretching" && (
               <>
                 {header("Gentle stretching", () => go("relax"), "Back")}
-                <RelaxationVideo
-                  kind="stretching"
-                  onSession={recordMindfulness}
-                />
+                <RelaxationVideo onSession={recordMindfulness} />
               </>
             )}
             {screen === "dailyMood" && (
@@ -746,16 +810,51 @@ function App() {
                   }}
                 >
                   <label htmlFor="edit-name">Your name</label>
-                  <input
+                  <SpeechField
                     id="edit-name"
+                    aria-label="Your name"
                     value={name}
                     maxLength={40}
-                    onChange={(event) => setName(event.target.value)}
+                    onValueChange={setName}
                   />
                   <button className="primary" disabled={!name.trim()}>
                     Save name <Check />
                   </button>
                 </form>
+                <section className="read-aloud-settings">
+                  <h2>Read aloud</h2>
+                  <button className="secondary" role="switch" aria-checked={data.readAloud}
+                    onClick={() => setData((previous) => ({ ...previous, readAloud: !previous.readAloud }))}>
+                    {data.readAloud ? "Read aloud: On" : "Read aloud: Off"}
+                  </button>
+                  <p>Touch: tap to listen, then tap again to choose. Mouse: pause over a label to listen.</p>
+                </section>
+                <section className="account-settings">
+                  <h2>Account</h2>
+                  {account ? <>
+                    <p>Username: {account.username}</p>
+                    <p role="status">{sync.status === "saved" ? "Your log is synced." : sync.status === "saving" ? "Saving your changes…" : sync.status === "offline" ? "Changes are saved on this device. Connect to sync." : "Another device changed your log."}</p>
+                    {sync.status === "offline" && <button className="secondary" onClick={() => void sync.sync()}>Try syncing</button>}
+                    {sync.status === "conflict" && <>
+                      <p>Choose which version to keep. Loading the synced log also downloads a backup of this device’s changes.</p>
+                      <button className="secondary" onClick={() => sync.resolve("cloud")}>Save backup and load synced log</button>
+                      <button className="secondary" onClick={() => sync.resolve("device")}>Keep this device’s changes</button>
+                    </>}
+                    {!Object.keys(data.entries).length && !data.values.length && !Object.keys(data.ratings).length && !data.sleeps.length && !data.mindfulness.length && <button className="secondary" onClick={() => {
+                      try {
+                        const previous = readData(localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY));
+                        if (Object.keys(previous.entries).length || previous.values.length || Object.keys(previous.ratings).length || previous.sleeps.length || previous.mindfulness.length) setData({ ...previous, name: data.name });
+                        else setNotice("No existing browser log to import.");
+                      } catch { setNotice("Could not read the existing browser log."); }
+                    }}>Import this browser’s existing log</button>}
+                    <button className="secondary" disabled={sync.status !== "saved"} onClick={async () => {
+                      if (await sync.sync()) {
+                        const result = await cloud?.auth.signOut();
+                        if (result?.error) setNotice("Could not sign out. Try again.");
+                      }
+                    }}>Sign out</button>
+                  </> : <p>Cloud accounts need setup. See docs/account-setup.md.</p>}
+                </section>
                 <ReportSettings data={data} onChange={setData} />
                 <button className="secondary reset-button" onClick={reset}>
                   Start over
@@ -767,7 +866,13 @@ function App() {
             )}
           </>
         )}
-        {storageError && (
+        {account && (sync.status === "offline" || sync.status === "conflict") && screen !== "settings" && (
+          <div className="sync-banner" role="status">
+            <span>{sync.status === "offline" ? "Waiting to sync" : "Review sync changes"}</span>
+            <button onClick={() => go("settings")}>Settings</button>
+          </div>
+        )}
+        {(storageError || sync.localError) && (
           <div className="error" role="alert">
             Could not save. Keep this page open.
           </div>
@@ -822,4 +927,4 @@ function App() {
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<Accounts>{(account) => <App key={account?.session.user.id ?? "local"} account={account} />}</Accounts>);

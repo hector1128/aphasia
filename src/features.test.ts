@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import type { SendMailOptions } from "nodemailer";
 import assert from "node:assert/strict";
 import {
   emptyData,
@@ -12,7 +13,7 @@ import {
   addSleep,
   removeSleep,
   removeEntry,
-  toggleEntryStatus,
+  setScheduledStatus,
   suggestedActivities,
   Entry,
 } from "./model";
@@ -25,7 +26,7 @@ import {
 } from "./activities";
 import { PDFDocument } from "pdf-lib";
 import { validateRequest, reportMiddleware } from "../server/report-api";
-import { createServer } from "node:http";
+import { createServer, request } from "node:http";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
@@ -37,6 +38,7 @@ const make = (id: string, changes: Partial<Entry> = {}): Entry => ({
   date: "2026-10-01",
   startMinute: 540,
   status: "done",
+  source: changes.status === "planned" || changes.status === "missed" ? "scheduled" : "logged",
   ...changes,
 });
 test("custom activities without a matching picture have no fallback icon", () => {
@@ -169,30 +171,30 @@ test("confirming a scheduled wake-up closes its sleep period", () => {
 test("completion toggle preserves ratings and can be reversed", () => {
   const planned = make("plan", { status: "planned", mood: 6, rating: 8, importance: 9 });
   const original = saveActivity(emptyData(), planned);
-  const completed = toggleEntryStatus(original, "plan");
+  const completed = setScheduledStatus(original, "plan", "done");
   assert.equal(completed.entries.plan.status, "done");
   assert.deepEqual(
     [completed.entries.plan.mood, completed.entries.plan.rating, completed.entries.plan.importance],
     [6, 8, 9],
   );
-  assert.equal(toggleEntryStatus(completed, "plan").entries.plan.status, "planned");
+  assert.equal(setScheduledStatus(completed, "plan", "planned").entries.plan.status, "planned");
   assert.equal(original.entries.plan.status, "planned");
 });
 test("sleep markers rebuild the interval when their completion changes", () => {
   let data = saveActivity(emptyData(), make("bed", {
-    name: "Went to bed", date: "2026-09-30", startMinute: 1320,
+    name: "Went to bed", date: "2026-09-30", startMinute: 1320, source: "scheduled",
   }));
   data = saveActivity(data, make("wake", {
-    name: "Wake up", date: "2026-10-01", startMinute: 390,
+    name: "Wake up", date: "2026-10-01", startMinute: 390, source: "scheduled",
   }));
   assert.equal(data.sleeps.length, 1);
-  data = toggleEntryStatus(data, "wake");
+  data = setScheduledStatus(data, "wake", "planned");
   assert.equal(data.entries.wake.status, "planned");
   assert.equal(data.sleeps.length, 0);
   assert.equal(Object.values(data.entries).filter((entry) => entry.sleepId).length, 0);
-  data = toggleEntryStatus(data, "wake");
+  data = setScheduledStatus(data, "wake", "done");
   assert.equal(data.sleeps.length, 1);
-  data = toggleEntryStatus(data, "bed");
+  data = setScheduledStatus(data, "bed", "planned");
   assert.equal(data.sleeps.length, 0);
 });
 test("every activity is in exactly one category", () => {
@@ -237,7 +239,7 @@ test("suggestions prefer enjoyed and valued activities, ignore planned/sleep, de
   assert.deepEqual(suggestedActivities(emptyData()), []);
 });
 test("report isolates selected day, distinguishes missing from zero and includes all life areas", () => {
-  let data = saveEntry(
+  const data = saveEntry(
     saveEntry(
       emptyData(),
       make("today", { mood: 0, rating: 0, importance: 0 }),
@@ -285,7 +287,7 @@ test("email rejects malformed addresses and attaches an actual PDF using a mock 
       data,
     }),
   );
-  let message: any;
+  let message: SendMailOptions | undefined;
   const middleware = reportMiddleware(
     { REPORT_FROM: "sender@example.com" },
     async (m) => {
@@ -327,12 +329,59 @@ test("email rejects malformed addresses and attaches an actual PDF using a mock 
       }),
     });
     assert.equal(result.status, 200);
+    assert.ok(message);
     assert.equal(message.to, "recipient@example.com");
-    assert.equal(
-      message.attachments[0].content.subarray(0, 4).toString(),
-      "%PDF",
-    );
+    const content = message.attachments?.[0].content;
+    assert.ok(Buffer.isBuffer(content));
+    assert.equal(content.subarray(0, 4).toString(), "%PDF");
   } finally {
     await new Promise<void>((r) => server.close(() => r()));
+  }
+});
+
+test("weekly email attaches a weekly PDF and hosted sending requires sign-in", async () => {
+  const data = { ...emptyData(), name: "Weekly Test" };
+  const messages: SendMailOptions[] = [];
+  const middleware = reportMiddleware({ REPORT_FROM: "sender@example.com" }, async (mail) => {
+    messages.push(mail);
+    return { accepted: [mail.to], rejected: [] };
+  });
+  const server = createServer(async (req, res) => {
+    if (req.headers["x-test-preparsed"]) {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      Object.assign(req, { body: JSON.parse(raw) });
+    }
+    await middleware(req, res, () => res.end());
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const url = `http://127.0.0.1:${address.port}`;
+    const unauthorized = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request(`${url}/api/report`, {
+        method: "POST", headers: { Origin: "https://app.example", Host: "app.example", "Content-Type": "application/json" },
+      }, (res) => { res.resume(); resolve(res.statusCode); });
+      req.on("error", reject); req.end("{}");
+    });
+    assert.equal(unauthorized, 401);
+    assert.equal(messages.length, 0);
+    const result = await fetch(`${url}/api/report`, {
+      method: "POST", headers: { Origin: url, "Content-Type": "application/json", "X-Test-Preparsed": "true" },
+      body: JSON.stringify({ to: "recipient@example.com", date: "2026-10-14", period: "week", data }),
+    });
+    assert.equal(result.status, 200);
+    const message = messages[0];
+    assert.ok(message);
+    assert.match(message.subject ?? "", /weekly/);
+    const filename = message.attachments?.[0].filename;
+    assert.equal(typeof filename, "string");
+    assert.match(String(filename), /my-day-week/);
+    const content = message.attachments?.[0].content;
+    assert.ok(Buffer.isBuffer(content));
+    assert.ok((await PDFDocument.load(content)).getPageCount() >= 3);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });

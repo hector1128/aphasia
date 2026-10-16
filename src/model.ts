@@ -3,7 +3,10 @@ export type Entry = ActivityChoice & {
   id: string;
   date: string;
   startMinute: number;
-  status: "planned" | "done";
+  source: "logged" | "scheduled";
+  status: "planned" | "done" | "missed";
+  lifeArea?: LifeArea;
+  valueId?: string;
   mood?: number;
   rating?: number;
   importance?: number;
@@ -20,6 +23,7 @@ export type Data = {
   sleeps: SleepRecord[];
   ratings: Record<string, number>;
   recentActivities: ActivityChoice[];
+  readAloud: boolean;
   pendingSleepStart?: string;
 };
 export const STORAGE_KEY = "my-day-v2";
@@ -34,6 +38,7 @@ export const emptyData = (): Data => ({
   entries: {},
   ratings: {},
   recentActivities: [],
+  readAloud: false,
 });
 export const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -51,8 +56,7 @@ export const validMinute = (v: unknown): v is number =>
   typeof v === "number" &&
   Number.isInteger(v) &&
   v >= 0 &&
-  v <= 1410 &&
-  v % 30 === 0;
+  v <= 1439;
 const validDate = (v: unknown): v is string =>
   typeof v === "string" &&
   /^\d{4}-\d{2}-\d{2}$/.test(v) &&
@@ -76,6 +80,7 @@ export function readData(raw: string | null): Data {
       return emptyData();
     const data = emptyData();
     data.name = d.name;
+    data.readAloud = d.readAloud === true;
     data.email = typeof d.email === "string" ? d.email : "";
     if (typeof d.pendingSleepStart === "string" && Number.isFinite(Date.parse(d.pendingSleepStart)))
       data.pendingSleepStart = d.pendingSleepStart;
@@ -124,7 +129,7 @@ export function readData(raw: string | null): Data {
       if (
         !validChoice(source) ||
         !validDate(source.date) ||
-        !["planned", "done"].includes(source.status)
+        !["planned", "done", "missed"].includes(source.status)
       )
         continue;
       const startMinute =
@@ -139,7 +144,10 @@ export function readData(raw: string | null): Data {
         startMinute,
         name: source.name,
         icon: source.icon,
+        source: source.source === "scheduled" || source.status !== "done" ? "scheduled" : "logged",
         status: source.status,
+        ...(lifeAreas.includes(source.lifeArea!) ? { lifeArea: source.lifeArea } : {}),
+        ...(typeof source.valueId === "string" ? { valueId: source.valueId } : {}),
         ...(validRating(source.rating) ? { rating: source.rating } : {}),
         ...(validRating(source.mood) ? { mood: source.mood } : {}),
         ...(validRating(source.importance)
@@ -207,13 +215,16 @@ export function saveActivity(data: Data, entry: Entry): Data {
     next = reconcileSleep(next);
   return next;
 }
-export function toggleEntryStatus(data: Data, id: string): Data {
+export function setScheduledStatus(
+  data: Data,
+  id: string,
+  status: "planned" | "done" | "missed",
+  now = new Date(),
+): Data {
   const entry = data.entries[id];
-  if (!entry || entry.sleepId) return data;
-  return saveActivity(data, {
-    ...entry,
-    status: entry.status === "done" ? "planned" : "done",
-  });
+  if (!entry || entry.source !== "scheduled" || slotDate(entry.date, entry.startMinute) > now)
+    return data;
+  return saveActivity(data, { ...entry, status });
 }
 export function completeEntry(data: Data, id: string): Data {
   const entry = data.entries[id];
@@ -225,8 +236,8 @@ export function entriesInSlot(
   minute: number,
 ): Entry[] {
   return Object.values(data.entries).filter(
-    (entry) => entry.date === date && entry.startMinute === minute,
-  );
+    (entry) => entry.date === date && Math.floor(entry.startMinute / 30) === Math.floor(minute / 30),
+  ).sort((a, b) => a.startMinute - b.startMinute || a.name.localeCompare(b.name));
 }
 
 export const lifeAreas = [
@@ -268,18 +279,16 @@ export function addSleep(
     !Number.isFinite(duration) ||
     duration <= 0 ||
     duration > 24 * 60 * 60 * 1000 ||
-    end > now ||
-    start.getMinutes() % 30 ||
-    end.getMinutes() % 30
+    end > now
   )
     throw new Error(
-      "Choose a past sleep period of up to 24 hours, in 30-minute steps.",
+      "Choose a past sleep period of up to 24 hours.",
     );
   if (data.sleeps.some((s) => s.start === record.start && s.end === record.end))
     return data;
   const entries = { ...data.entries };
   for (
-    const time = new Date(start);
+    const time = new Date(start.getFullYear(), start.getMonth(), start.getDate(), start.getHours(), Math.floor(start.getMinutes() / 30) * 30);
     time < end;
     time.setMinutes(time.getMinutes() + 30)
   ) {
@@ -287,7 +296,7 @@ export function addSleep(
       startMinute = currentSlot(time);
     if (
       Object.values(entries).some(
-        (e) => e.date === date && e.startMinute === startMinute,
+        (e) => e.date === date && Math.floor(e.startMinute / 30) === Math.floor(startMinute / 30),
       )
     )
       continue;
@@ -296,6 +305,7 @@ export function addSleep(
       id,
       date,
       startMinute,
+      source: "logged",
       status: "done",
       name: "Sleeping",
       icon: "rest",

@@ -172,7 +172,7 @@ export async function buildReportPdf(data: Data, date: string): Promise<Uint8Arr
   section("Activities and ratings", paleGreen, 70);
   table(
     [{ label: "Time", width: 74 }, { label: "Activity", width: 177 }, { label: "Status", width: 76 }, { label: "Mood", width: 61 }, { label: "Enjoy.", width: 62 }, { label: "Value", width: 61 }],
-    entries.map((entry: Entry) => [timeLabel(entry.startMinute), entry.name, entry.status === "done" ? "Done" : "Planned", score(entry.mood), score(entry.rating), score(entry.importance)]),
+    entries.map((entry: Entry) => [timeLabel(entry.startMinute), entry.name, entry.status === "done" ? "Done" : entry.status === "missed" ? "Not done" : "Planned", score(entry.status === "done" ? entry.mood : undefined), score(entry.status === "done" ? entry.rating : undefined), score(entry.status === "done" ? entry.importance : undefined)]),
   );
 
   section("Sleep", palePurple, 70);

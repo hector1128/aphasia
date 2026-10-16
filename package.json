@@ -8,9 +8,12 @@
     "build": "tsc -b && vite build",
     "test": "node --import tsx --test src/*.test.ts",
     "test:sleep": "node --import tsx --test --test-name-pattern=sleep src/features.test.ts",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^0.468.0",
     "nodemailer": "^10.0.13",
     "pdf-lib": "^1.17.1",
@@ -18,12 +21,16 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.71.2",
     "vite": "^6.1.0"
   }
 }

@@ -21,6 +21,7 @@ const entry = (id: string, changes: Partial<Entry> = {}): Entry => ({
   name: "Walking",
   icon: "walk",
   status: "done",
+  source: changes.status === "planned" || changes.status === "missed" ? "scheduled" : "logged",
   ...changes,
 });
 
@@ -92,7 +93,7 @@ test("malformed storage recovers and invalid slots cannot enter the calendar", (
   const data = emptyData();
   data.entries.x = entry("x", { startMinute: 1440 });
   data.entries.y = entry("y", { date: "2026-02-31" });
-  data.entries.z = entry("z", { startMinute: 15 });
+  data.entries.z = entry("z", { startMinute: -1 });
   assert.equal(Object.keys(readData(JSON.stringify(data)).entries).length, 0);
 });
 test("recents are persisted, deduplicated and limited without changing activities", () => {

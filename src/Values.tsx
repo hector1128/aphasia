@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronRight, Plus, Heart, Pencil, Trash2 } from "lucide-react";
+import { SpeechField } from "./SpeechField";
+import { ArrowLeft, ChevronRight, Plus, Pencil, Trash2, HeartHandshake, Brain, GraduationCap, Palette, ListChecks } from "lucide-react";
 import {
   Data,
   LifeArea,
@@ -11,6 +12,20 @@ import {
 import { weekDates } from "./date-time";
 import { ActivityPicker } from "./ActivityPicker";
 import { ActivityIcon } from "./ActivityIcon";
+
+const areaIcons = {
+  "Personal relationships": HeartHandshake,
+  "Mind/body/spirit": Brain,
+  "Education/career": GraduationCap,
+  "Recreation/interests": Palette,
+  "Daily responsibilities": ListChecks,
+} satisfies Record<LifeArea, typeof HeartHandshake>;
+const areaLabel = (area: LifeArea) => area.replaceAll("/", " | ");
+function AreaIcon({ area }: { area: LifeArea }) {
+  const Icon = areaIcons[area];
+  return <Icon size={30} />;
+}
+
 export function Values({
   data,
   onChange,
@@ -58,8 +73,8 @@ export function Values({
       <div className="value-list">
         {lifeAreas.map((a) => (
           <button className="entry-row" key={a} onClick={() => setArea(a)}>
-            <span className="value-heart"><Heart size={30} /></span>
-            <strong>{a.replaceAll("/", "/ ")}</strong>
+            <span className="value-heart"><AreaIcon area={a} /></span>
+            <strong>{areaLabel(a)}</strong>
             <ChevronRight />
           </button>
         ))}
@@ -105,17 +120,55 @@ export function Values({
           Back
         </button>
         <label htmlFor="value-name">What matters to you?</label>
-        <input
+        <SpeechField
           id="value-name"
+          aria-label="What matters to you?"
           value={name}
           maxLength={120}
-          onChange={(e) => setName(e.target.value)}
+          onValueChange={setName}
           autoFocus
         />
         <button className="primary" disabled={!name.trim()}>
           Save value
         </button>
       </form>
+    );
+  if (selected && linkMode)
+    return (
+      <div className="value-link-screen">
+        <button className="back" onClick={() => setLinkMode(null)}>
+          <ArrowLeft />
+          Back to value
+        </button>
+        <h1 className="sr-only">
+          {linkMode === "week" ? "Choose an activity from this week" : "Add an activity to this value"}
+        </h1>
+        {linkMode === "week" ? (
+          weekChoices.length ? (
+            <div className="week-activity-list">{weekChoices.map((a) => (
+              <button className="activity-choice" key={a.id} onClick={() => link(a)}>
+                <ActivityIcon id={a.icon} name={a.name} />
+                {a.name}
+                <Plus />
+              </button>
+            ))}</div>
+          ) : (
+            <p>No activities this week.</p>
+          )
+        ) : (
+          <>
+            <ActivityPicker
+              value={choice}
+              recent={data.recentActivities}
+              suggestions={suggestedActivities(data)}
+              onChange={setChoice}
+            />
+            <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>
+              Link activity
+            </button>
+          </>
+        )}
+      </div>
     );
   if (selected)
     return (
@@ -128,85 +181,38 @@ export function Values({
           }}
         >
           <ArrowLeft />
-          {area}
+          {areaLabel(area)}
         </button>
         <h2>{selected.name}</h2>
-        {linkMode ? (
-          <>
-            <button className="back" onClick={() => setLinkMode(null)}>
-              <ArrowLeft />
-              Back to value
+        {selected.activities.map((a) => (
+          <div className="linked-row" key={a.name}>
+            <ActivityIcon id={a.icon} name={a.name} />
+            <span>{a.name}</span>
+            <button
+              className="value-row-action is-delete"
+              aria-label={`Unlink ${a.name}`}
+              onClick={() =>
+                update({
+                  ...selected,
+                  activities: selected.activities.filter(
+                    (c) => c.name !== a.name,
+                  ),
+                })
+              }
+            >
+              <Trash2 />
             </button>
-            {linkMode === "week" ? (
-              <>
-                <h2>This week</h2>
-                {weekChoices.length ? (
-                  <div className="week-activity-list">{weekChoices.map((a) => (
-                    <button
-                      className="activity-choice"
-                      key={a.id}
-                      onClick={() => link(a)}
-                    >
-                      <ActivityIcon id={a.icon} name={a.name} />
-                      {a.name}
-                      <Plus />
-                    </button>
-                  ))}</div>
-                ) : (
-                  <p>No activities this week.</p>
-                )}
-              </>
-            ) : (
-              <>
-                <ActivityPicker
-                  value={choice}
-                  recent={data.recentActivities}
-                  suggestions={suggestedActivities(data)}
-                  onChange={setChoice}
-                />
-                <button
-                  className="primary"
-                  disabled={!choice.name}
-                  onClick={() => link(choice)}
-                >
-                  Link activity
-                </button>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            {selected.activities.map((a) => (
-              <div className="linked-row" key={a.name}>
-                <ActivityIcon id={a.icon} name={a.name} />
-                <span>{a.name}</span>
-                <button
-                  className="icon-button"
-                  aria-label={`Unlink ${a.name}`}
-                  onClick={() =>
-                    update({
-                      ...selected,
-                      activities: selected.activities.filter(
-                        (c) => c.name !== a.name,
-                      ),
-                    })
-                  }
-                >
-                  <Trash2 />
-                </button>
-              </div>
-            ))}
-            <div className="value-link-actions">
-              <button className="primary" onClick={() => setLinkMode("week")}>
-                Choose from this week
-              </button>
-              <button className="secondary" onClick={() => setLinkMode("add")}>
-                <Plus />
-                Add activity
-              </button>
-            </div>
-          </>
-        )}
+          </div>
+        ))}
+        <div className="value-link-actions">
+          <button className="primary" onClick={() => setLinkMode("week")}>
+            Choose activity from this week
+          </button>
+          <button className="secondary" onClick={() => setLinkMode("add")}>
+            <Plus />
+            Add activity
+          </button>
+        </div>
       </>
     );
   return (
@@ -215,14 +221,14 @@ export function Values({
         <ArrowLeft />
         Life areas
       </button>
-      <h2>{area}</h2>
+      <h2>{areaLabel(area)}</h2>
       <div className="value-list">
         {data.values
           .filter((v) => v.area === area)
           .map((v) => (
             <div key={v.id} className="entry-row value-entry-row">
               <button className="value-row-main" onClick={() => setId(v.id)}>
-                <span className="value-heart"><Heart size={30} /></span>
+                <span className="value-heart"><AreaIcon area={v.area} /></span>
                 <strong>{v.name}</strong>
               </button>
               <button
@@ -270,4 +276,23 @@ export function Values({
       </button>
     </>
   );
+}
+
+export function ScheduleValuePicker({ data, area, valueId, onChange }: {
+  data: Data; area?: LifeArea; valueId?: string;
+  onChange: (selection: { lifeArea?: LifeArea; valueId?: string }) => void;
+}) {
+  return <div className="schedule-values">
+    <p>{data.values.length ? "Choose a life area for this activity. You can also link a value." : "Choose a life area, or continue without one."}</p>
+    <div className="value-list">{lifeAreas.map((item) => <button type="button" className="entry-row"
+      key={item} aria-pressed={area === item} onClick={() => onChange({ lifeArea: item })}>
+      <span className="value-heart"><AreaIcon area={item} /></span><strong>{areaLabel(item)}</strong>
+    </button>)}</div>
+    {(area || !data.values.length) && <section>
+      {data.values.filter((value) => value.area === area).length ? data.values.filter((value) => value.area === area).map((value) =>
+        <button type="button" className="secondary" key={value.id} aria-pressed={valueId === value.id}
+          onClick={() => onChange({ lifeArea: value.area, valueId: value.id })}>{value.name}</button>)
+        : <p>No values so far.</p>}
+    </section>}
+  </div>;
 }

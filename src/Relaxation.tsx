@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { Play, Pause, RotateCcw, ExternalLink } from "lucide-react";
+import { Play, Pause, RotateCcw, ExternalLink, Waves, Trees, MoonStar, Sparkles, Flame } from "lucide-react";
 
 type SessionCallback = (
   id: string,
   kind: "breathing" | "visualization" | "stretching",
   status: "started" | "completed",
 ) => void;
-export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
+export const breathingDurations = [1, 3, 5] as const;
+
+export function BreathingGuide({ onSession, minutes }: { onSession: SessionCallback; minutes: number }) {
   const sessionId = useRef(crypto.randomUUID());
   const callback = useRef(onSession);
   callback.current = onSession;
@@ -14,7 +16,8 @@ export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
     callback.current(sessionId.current, "breathing", "started");
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const finished = elapsed >= 60000;
+  const duration = minutes * 60000;
+  const finished = elapsed >= duration;
   const inhale = elapsed % 10000 < 5000;
   const progress = (elapsed % 5000) / 5000;
   const scale = 0.65 + 0.35 * (inhale ? progress : 1 - progress);
@@ -22,9 +25,9 @@ export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
     if (!running) return;
     const start = performance.now() - elapsed;
     const timer = window.setInterval(() => {
-      const next = Math.min(performance.now() - start, 60000);
+      const next = Math.min(performance.now() - start, duration);
       setElapsed(next);
-      if (next >= 60000) {
+      if (next >= duration) {
         setRunning(false);
         callback.current(sessionId.current, "breathing", "completed");
       }
@@ -37,7 +40,7 @@ export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", pauseWhenHidden);
     };
-  }, [running]);
+  }, [running, duration]);
   return (
     <div className="breathing-guide">
       <p className="breathing-instruction">Breathe gently. Do not force it.</p>
@@ -68,7 +71,7 @@ export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
               ? "Paused"
               : "Ready"}
       </h2>
-      <p className="center">{Math.ceil((60000 - elapsed) / 1000)} seconds</p>
+      <p className="center">{Math.ceil((duration - elapsed) / 1000)} seconds left</p>
       {finished ? (
         <button
           className="primary"
@@ -109,42 +112,124 @@ export function BreathingGuide({ onSession }: { onSession: SessionCallback }) {
     </div>
   );
 }
-export const relaxationVideos = {
-  visualization: {
-    id: "0TUq88f0jn4",
-    title: "Visualization",
-    provider: "Herefordshire & Worcestershire NHS",
-    source: "https://www.youtube.com/watch?v=0TUq88f0jn4",
+
+function BalloonIcon({ size = 36 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <ellipse cx="18" cy="12" rx="8" ry="10" />
+      <path d="m16 22 2 3 2-3M18 25c-4 4 4 5 0 9" />
+    </svg>
+  );
+}
+
+export const visualizationThemes = [
+  {
+    id: "beach",
+    label: "Ocean shore",
+    title: "Ocean Shore | Beach Scene",
+    description: "Imagine a quiet beach. Watch the waves roll in and out. Feel the warm sand beneath your feet.",
+    icon: Waves,
   },
-  stretching: {
-    id: "GcPujVayIbI",
-    title: "Gentle stretching",
-    provider: "Cambridge University Hospitals NHS",
-    source:
-      "https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/shoulder/seated-stretches/",
+  {
+    id: "forest",
+    label: "Lush forest",
+    title: "Lush Forest | Woodland Stroll",
+    description: "Picture a gentle path through tall trees. Notice the leaves, the shade, and the fresh air.",
+    icon: Trees,
   },
+  {
+    id: "lake",
+    label: "Moonlit lake",
+    title: "Boundless Lake | Moonlit Water",
+    description: "Picture a still lake at night. Notice the moonlight resting on the water.",
+    icon: MoonStar,
+  },
+  {
+    id: "light",
+    label: "White light",
+    title: "Healing | White Light Bath",
+    description: "Imagine a soft white light around you. Let it move gently from your head to your feet.",
+    icon: Sparkles,
+  },
+  {
+    id: "balloon",
+    label: "Balloon release",
+    title: "Floating Balloon Release",
+    description: "Picture a balloon in your hands. When you are ready, imagine it floating slowly into the sky.",
+    icon: BalloonIcon,
+  },
+  {
+    id: "candle",
+    label: "Candle flame",
+    title: "Candle Flame Focus",
+    description: "Picture a small candle flame. Watch its gentle movement while you breathe at your own pace.",
+    icon: Flame,
+  },
+] as const;
+export type VisualizationTheme = (typeof visualizationThemes)[number];
+
+export function VisualizationChoices({ onChoose }: { onChoose: (theme: VisualizationTheme) => void }) {
+  return (
+    <div className="visualization-grid">
+      {visualizationThemes.map((theme) => {
+        const Icon = theme.icon;
+        return (
+          <button className="visualization-card" key={theme.id} onClick={() => onChoose(theme)} aria-label={theme.title}>
+            <span className="visualization-icon"><Icon size={38} /></span>
+            <strong>{theme.label}</strong>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function VisualizationGuide({ theme, onSession }: { theme: VisualizationTheme; onSession: SessionCallback }) {
+  const [completed, setCompleted] = useState(false);
+  const [audioMissing, setAudioMissing] = useState(false);
+  const sessionId = useRef(crypto.randomUUID());
+  const Icon = theme.icon;
+  return (
+    <div className="visualization-guide">
+      <span className="visualization-scene"><Icon size={92} /></span>
+      <p>{theme.description}</p>
+      {/* Drop the matching MP3 in public/audio/visualization/; filenames are documented there. */}
+      {!audioMissing ? <audio controls preload="metadata" aria-label={`${theme.label} guided audio`}
+        src={`/audio/visualization/${theme.id}.mp3`} onError={() => setAudioMissing(true)}
+        onPlay={() => { if (!completed) onSession(sessionId.current, "visualization", "started"); }}
+        onEnded={() => { onSession(sessionId.current, "visualization", "completed"); setCompleted(true); }} />
+        : <p className="audio-placeholder">Audio coming soon.</p>}
+      <p>Take your time. Stop if uncomfortable.</p>
+      <button className="primary" disabled={completed} onClick={() => {
+        onSession(sessionId.current, "visualization", "completed");
+        setCompleted(true);
+      }}>
+        {completed ? "Activity recorded" : "I did this activity"}
+      </button>
+    </div>
+  );
+}
+const stretchingVideo = {
+  id: "GcPujVayIbI",
+  title: "Gentle stretching",
+  provider: "Cambridge University Hospitals NHS",
+  source:
+    "https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/shoulder/seated-stretches/",
 };
 export function RelaxationVideo({
-  kind,
   onSession,
 }: {
-  kind: keyof typeof relaxationVideos;
   onSession: SessionCallback;
 }) {
-  const video = relaxationVideos[kind];
+  const video = stretchingVideo;
   const [loaded, setLoaded] = useState(false);
   const [completed, setCompleted] = useState(false);
   const sessionId = useRef(crypto.randomUUID());
   return (
     <div className="relaxation-video">
-      {kind === "stretching" && (
-        <p>
-          Sit in a sturdy chair. Only do movements your therapist has approved.
-        </p>
-      )}
-      {kind === "visualization" && (
-        <p>Sit comfortably. Picture a calm place.</p>
-      )}
+      <p>
+        Sit in a sturdy chair. Only do movements your therapist has approved.
+      </p>
       {loaded ? (
         <iframe
           className="youtube-player"
@@ -172,7 +257,7 @@ export function RelaxationVideo({
         className="primary"
         disabled={completed}
         onClick={() => {
-          onSession(sessionId.current, kind, "completed");
+          onSession(sessionId.current, "stretching", "completed");
           setCompleted(true);
         }}
       >

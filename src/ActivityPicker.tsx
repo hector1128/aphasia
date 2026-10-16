@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { X, Check, ArrowLeft, ChevronRight } from "lucide-react";
+import { SpeechField } from "./SpeechField";
+import { X, CalendarDays, ArrowLeft, ChevronRight } from "lucide-react";
 import {
   activities,
   filterActivities,
@@ -32,7 +33,6 @@ export function ActivityPicker({
           ]
         : categoryActivities(category);
   const matches = query ? filterActivities(query) : choices;
-  const recents = filterActivities(query, recent);
   const renderChoice = (choice: ActivityChoice) => (
     <button
       type="button"
@@ -43,7 +43,7 @@ export function ActivityPicker({
     >
       <ActivityIcon id={choice.icon} name={choice.name} />
       <span>{choice.name}</span>
-      {value.name === choice.name && <Check size={24} />}
+      {value.name === choice.name && <CalendarDays size={24} />}
     </button>
   );
   return (
@@ -52,12 +52,12 @@ export function ActivityPicker({
         <label className="sr-only" htmlFor="activity-search">
           Search activities
         </label>
-        <input
+        <SpeechField
           id="activity-search"
           placeholder="Search activities"
           value={query}
           maxLength={100}
-          onChange={(e) => setQuery(e.target.value)}
+          onValueChange={setQuery}
         />
         {query && (
           <button
@@ -71,7 +71,7 @@ export function ActivityPicker({
       </div>
       {value.name && (
         <div className="selected-activity" role="status">
-          <Check size={24} />
+          <CalendarDays size={24} />
           <span>{value.name}</span>
         </div>
       )}
