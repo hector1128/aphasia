@@ -9,6 +9,7 @@
 - Live Supabase synthetic-account checks: signup, password login, independent-session reads and writes, stale-revision rejection, anonymous rejection, per-user isolation, direct-write rejection and report-send throttling.
 - Browser checks: login in Chrome and the in-app browser; desktop numeric time entry; mobile wheels with rapid hour/minute changes; exact time displayed in the correct half-hour row; future schedule lock; due-plan rating completion; Back cancellation; not-completed outcome; logged entries without completion controls; weekly PDF download; value edit cancellation; focused weekly activity picker; missing-audio message.
 - Responsive checks at 320, 390, 768 and 1280 pixels. Weekly PDF pages were rendered and inspected.
+- Hosted app sign-in loaded the activities saved locally. The deployed report function rejected an unauthenticated request with 401 and returned the expected SMTP-setup message with 503 for an authenticated test account.
 
 All cloud and browser checks used fictional Design Test accounts. No patient data or real email was used.
 
@@ -23,4 +24,3 @@ A review suggested the second read-aloud tap remained intercepted. Inspection fo
 - Real dictation and audible read-aloud on physical iPhone/iPad, Android and Safari, including touch first-tap/second-tap behavior. The microphone start/stop UI was exercised, but recognition accuracy and sound output were not certified.
 - Real narration playback after the owner supplies the six MP3 files.
 - Actual inbox delivery after server-side SMTP credentials are configured. Automated email transport tests do not establish inbox delivery.
-- Hosted function execution after deployment. Local tests cover both raw and Vercel-style parsed request bodies.
