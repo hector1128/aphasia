@@ -1532,7 +1532,7 @@ nav button.active > svg :is(line, polyline), nav button.active > svg.lucide-hous
   stroke: #fffefa;
   paint-order: fill stroke;
 }
-nav button > svg { transition: fill 260ms ease, stroke 260ms ease; }
+nav button > svg { flex-shrink: 0; transition: fill 260ms ease, stroke 260ms ease; }
 .week-selector button.active {
   box-shadow: 0 0 0 2px var(--section);
 }
@@ -2478,7 +2478,7 @@ nav button:nth-child(2).active {
 @media (min-width: 1024px) {
   .app-shell {
     display: grid;
-    grid-template-columns: 210px minmax(0, 1fr);
+    grid-template-columns: 230px minmax(0, 1fr);
     max-width: 1050px;
     overflow: visible;
   }
@@ -2767,7 +2767,7 @@ main:has(.value-link-screen) > .page-title {
   .time-wheel button.selected { color: #49345e; font-weight: 800; }
   .entry-name-time { gap: 6px; }
   .entry-name-time time { font-size: 15px; }
-  .home-activity.scheduled-entry .entry-controls, .timeline-entry.scheduled-entry .entry-controls { gap: 3px; }
+  .home-activity.scheduled-entry .entry-controls { gap: 3px; }
   .scheduled-entry .entry-icon-control, .scheduled-entry .completion-toggle { width: 32px; flex-basis: 32px; min-height: 44px; height: 44px; border-radius: 9px; padding: 3px; }
   .scheduled-entry .entry-controls svg { width: 20px; height: 20px; }
   .scheduled-entry .timeline-entry-info .activity-illustration, .home-activity.scheduled-entry .activity-art { display: none; }
@@ -2856,7 +2856,17 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
   .home-activity.activity-card:has(strong) { padding-inline: 12px; }
   .home-entry-description > strong { font-size: 20px; line-height: 1.35; }
   .entry-controls { gap: 6px; }
-  .timeline-entry-info .entry-name-time { flex-wrap: wrap; gap: 2px 6px; }
+  .timeline-entry { padding: 14px 12px; gap: 12px; }
+  .timeline-entry-info { gap: 12px; }
+  .timeline-entry-info > div { flex: 1; }
+  .timeline-entry-info .entry-name-time { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .timeline-entry-info strong { line-height: 1.35; }
+  .timeline-entry-info .entry-name-time time { font-size: 16px; line-height: 1.5; }
+  .timeline-entry .entry-controls { gap: 8px; }
+}
+@media (max-width: 360px) {
+  .timeline-entry { flex-direction: column; align-items: stretch; }
+  .timeline-entry .entry-controls { align-self: flex-end; }
 }
 @media (prefers-reduced-motion: reduce) {
   .app-shell *, .app-shell *::before, .app-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
