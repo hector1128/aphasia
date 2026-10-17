@@ -22,7 +22,7 @@ A review suggested the second read-aloud tap remained intercepted. Inspection fo
 ## Remaining acceptance checks
 
 - Real dictation and audible read-aloud on physical iPhone/iPad, Android and Safari, including touch first-tap/second-tap behavior. The microphone start/stop UI was exercised, but recognition accuracy and sound output were not certified.
-- Real narration playback after the owner supplies the six MP3 files.
+- Real narration playback and physical-device sound checks. Beach narration is now included; the other five MP3 files remain to be supplied.
 - Actual inbox delivery after server-side SMTP credentials are configured. Automated email transport tests do not establish inbox delivery.
 
 ## Evening interface changes
@@ -37,3 +37,16 @@ A review suggested the second read-aloud tap remained intercepted. Inspection fo
 - Motion respects the system's reduced-motion preference.
 
 Strict review findings about narrow footers and clipped action menus were inspected and fixed. Removing Home's repeated times and replacing separate completion/missed controls are intentional user-requested behavior changes.
+
+
+## Main activity catalogue and recommendations
+
+- 41 automated tests pass, plus the compiled server smoke check, type checking, linting and production build. The existing main-bundle size warning remains nonblocking.
+- The main catalogue contains the 21 named tracker activities under the five life areas. Search retains the larger library and custom names. Recent activities and up to five recommendations appear directly, without menu tiles.
+- The recommendation graph joins activities to descriptive features and life areas. Completed history contributes with a 14-day recency scale and repeated activities accumulate weight. Specific shared features carry more weight than broad life areas. Explicitly selected life areas take precedence over catalogue defaults. Known wider-library history also contributes; custom artwork alone never invents a relationship.
+- Name equivalence excludes completed main activities even when an older label was used. Related experiences such as resting and mindfulness share graph features without being treated as identical. Sleep markers and generated sleep slots do not influence the profile; pending scheduled activities are excluded from recommendations. Exhaustion returns fewer than five choices rather than repeats. New users receive five general starters.
+- Browser checks with a synthetic review account verified direct recents/suggestions, wider-library piano search, life-area filtering, the personal-value grid, inline value creation, selection, and preservation of the Cook activity while moving back and forward. Saving and independently reading the cloud snapshot confirmed the new value ID, life area, activity, date and time.
+- Responsive checks at 320, 390, 820 and 1280 pixels showed no horizontal document overflow. Settings is above the page content, and the two-column value grid adapts on narrow screens. Scheduled calendar cards retain exact times, purple shading and their accessible completion controls without visible status captions.
+- Strict correctness and Ponytail maintainability review found and addressed related-name equivalence, catalogue metadata leaking into activity choices, the wider library's contribution to recommendations, and the new value field's microphone label. No dependencies or database migrations were added. Physical-device speech and Safari acceptance checks remain listed above.
+
+The owner-added `public/audio/visualization/beach.mp3` is included in this change. A native browser audio element loaded the expected path with no media error, readyState 4 and a duration of approximately 615.6 seconds. This verifies decoding and loading, not a complete listening or physical-speaker test. The temporary audio check page and synthetic-account credentials were removed.

@@ -74,7 +74,6 @@ export function DayTimeline({
                     {hasActivityIcon(entry.icon, entry.name) && <span className="activity-art"><ActivityIcon id={entry.icon} name={entry.name} /></span>}
                     <div>
                       <div className="entry-name-time"><strong>{entry.name}</strong><time>{timeLabel(entry.startMinute)}</time></div>
-                      {entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}
                     </div>
                   </div>
                   <div className="entry-controls">

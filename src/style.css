@@ -2740,7 +2740,6 @@ main:has(.value-link-screen) > .page-title {
 .entry-name-time strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .entry-name-time time { flex-shrink: 0; font-size: 18px; white-space: nowrap; }
 .home-entry-description { flex: 1; min-width: 0; text-align: left; }
-.schedule-label { display: block; margin-top: 6px; font-size: 16px; color: #674a86; }
 .home-activity.scheduled-entry, .timeline-entry.scheduled-entry { background: #f4eef9; border-color: #b69ccb; }
 .timeline-entry.scheduled-entry { border-width: 2px; }
 .completion-toggle:not(.is-complete) { background: #edf3ed; color: #356c48; }
@@ -2801,7 +2800,6 @@ main:has(.value-link-screen) > .page-title {
   .scheduled-entry .timeline-entry-info .activity-illustration, .home-activity.scheduled-entry .activity-art { display: none; }
   .home-activity.scheduled-entry .entry-name-time, .timeline-entry.scheduled-entry .entry-name-time { flex-wrap: wrap; }
   .home-activity.scheduled-entry .entry-name-time strong, .timeline-entry.scheduled-entry .entry-name-time strong { flex-basis: auto; }
-  .schedule-label { font-size: 14px; }
 }
 ::highlight(read-word) { background-color: #ffe59b; color: #233b31; }
 
@@ -2811,6 +2809,20 @@ main:has(.value-link-screen) > .page-title {
   to { opacity: 1; transform: none; }
 }
 .screen-transition { animation: screen-appear 380ms ease-out both; }
+.page-topbar { position: static; justify-content: flex-end; margin: 0 0 18px; min-height: 48px; }
+.schedule-value-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.schedule-value-grid .entry-row { min-width: 0; min-height: 100px; margin: 0; padding: 16px; gap: 14px; border: 1px solid var(--section-border); }
+.schedule-value-grid strong { min-width: 0; overflow-wrap: anywhere; }
+.add-schedule-value { justify-content: center; color: var(--section); background: var(--section-soft); }
+.schedule-value-create h2 { margin-bottom: 20px; }
+.screen-transition:has(.schedule-value-create) > :is(.wizard-actions, .wizard-navigation) { display: none; }
+.activity-choice .area-icon { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: var(--section-soft); color: var(--section); }
+@media (max-width: 600px) {
+  .schedule-value-grid .entry-row { flex-direction: column; align-items: flex-start; padding: 12px; font-size: 20px; }
+  .schedule-value-grid .add-schedule-value { align-items: center; }
+  .schedule-area-grid { grid-template-columns: 1fr; }
+  .schedule-area-grid .entry-row { flex-direction: row; align-items: center; }
+}
 .app-shell :is(button, input) { transition: background-color 260ms ease, border-color 260ms ease, color 260ms ease, box-shadow 260ms ease; }
 
 .app-shell.account-shell { display: block; max-width: 520px; margin: 28px auto; border: 1px solid #d9e3d8; border-radius: 24px; overflow: hidden; min-height: calc(100dvh - 56px); }

@@ -27,13 +27,15 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 
 - Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Ratings can be skipped. Editing a logged activity preserves its time.
 - Scheduling from a selected slot uses that date/time; the separate Plan activity button includes date and exact-time choices. People with no saved values can continue without one. Future activities show a disabled clock. Due activities have an empty box that opens ratings, then becomes a green check. Unchecking marks the activity not completed. Back exits ratings without changing the schedule.
-- Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple.
+- Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple, without extra status text. Settings has its own space above the content on pages outside Home.
+- The 21 tracker activities are the main choices under five life areas. The larger original library remains searchable, and custom names still work. Recent choices and five suggestions appear directly in the picker. Suggestions use a curated activity-to-feature graph, recency and frequency, exclude previously completed equivalents and pending plans, and start with general activities for new users.
+- Scheduling shows personal values in a responsive grid. Its plus tile creates a value under a life area, selects it and returns to the current activity.
 - Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions.
 - Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
 
 ## Mindfulness and accessibility
 
-Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Missing audio shows a message; audio never starts automatically.
+Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Beach narration is included. The remaining themes show a message until their files are supplied; audio never starts automatically.
 
 Text and time fields have optional microphone buttons. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
 
@@ -45,7 +47,8 @@ Email requires server-side SMTP configuration. The Vercel endpoint authenticates
 
 ## Editable areas
 
-- `src/activities.ts`: activity choices.
+- `src/activity-catalogue.ts`: main tracker choices, life-area mapping, equivalent names, graph features and recommendation ranking.
+- `src/activities.ts`: wider searchable activity library.
 - `src/RatingSlider.tsx`: rating interaction and images.
 - `src/Relaxation.tsx`: exercise themes and breathing guide.
 - `src/style.css`: layout and colors.

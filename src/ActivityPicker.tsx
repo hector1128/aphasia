@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
 import { X, CalendarDays, ArrowLeft, ChevronRight } from "lucide-react";
-import {
-  activities,
-  filterActivities,
-  activityCategories,
-  categoryActivities,
-} from "./activities";
+import { filterActivities } from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
-import type { ActivityChoice } from "./model";
+import { lifeAreas, type ActivityChoice, type LifeArea } from "./model";
+import { mainActivities, searchableActivities } from "./activity-catalogue";
+import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
 export function ActivityPicker({
   value,
@@ -22,24 +19,16 @@ export function ActivityPicker({
   onChange: (choice: ActivityChoice) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const choices =
-    category === "Most recent"
-      ? recent
-      : category === "Suggestions"
-        ? [
-            { name: "Wake up", icon: "sleep" },
-            ...suggestions.filter((choice) => choice.name.toLowerCase() !== "wake up"),
-          ]
-        : categoryActivities(category);
-  const matches = query ? filterActivities(query) : choices;
+  const [category, setCategory] = useState<LifeArea | null>(null);
+  const choices = mainActivities.filter((activity) => category && activity.areas.includes(category));
+  const matches = query.trim() ? filterActivities(query, searchableActivities) : choices;
   const renderChoice = (choice: ActivityChoice) => (
     <button
       type="button"
       className={`activity-choice ${value.name === choice.name ? "selected" : ""}`}
       key={choice.name}
       aria-pressed={value.name === choice.name}
-      onClick={() => onChange(choice)}
+      onClick={() => onChange({ name: choice.name, icon: choice.icon })}
     >
       <ActivityIcon id={choice.icon} name={choice.name} />
       <span>{choice.name}</span>
@@ -82,62 +71,38 @@ export function ActivityPicker({
         aria-label="Activity choices"
         key={query}
       >
-        {!query && !category ? (
-          <div className="activity-options">
-            {recent.length > 0 && (
-              <button
-                type="button"
-                className="activity-choice"
-                onClick={() => setCategory("Most recent")}
-              >
-                Most recent <ChevronRight />
-              </button>
-            )}
-            <button
-              type="button"
-              className="activity-choice"
-              onClick={() => setCategory("Suggestions")}
-            >
-              Need suggestions? <ChevronRight />
-            </button>
-            {activityCategories.map((c) => (
-              <button
-                type="button"
-                className="activity-choice"
-                key={c.name}
-                onClick={() => setCategory(c.name)}
-              >
-                <ActivityIcon id={c.icon} />
-                <span>{c.name}</span>
-                <ChevronRight />
-              </button>
-            ))}
-          </div>
+        {!query.trim() && !category ? (
+          <>
+            <section>
+              <h2>Most recent</h2>
+              {recent.length ? <div className="activity-options">{recent.slice(0, 5).map(renderChoice)}</div> : <p>No recent activities yet.</p>}
+            </section>
+            <section>
+              <h2>Suggestions</h2>
+              {suggestions.length ? <div className="activity-options">{suggestions.map(renderChoice)}</div> : <p>You have tried all the suggested activities. Choose a life area or search for something else.</p>}
+            </section>
+            <section>
+              <h2>Choose a life area</h2>
+              <div className="activity-options life-area-options">
+                {lifeAreas.map((area) => (
+                  <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
+                    <span className="area-icon"><AreaIcon area={area} /></span>
+                    <span>{areaLabel(area)}</span><ChevronRight />
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
         ) : (
           <section>
-            {!query && (
-              <button
-                type="button"
-                className="back"
-                onClick={() => setCategory("")}
-              >
-                <ArrowLeft />
-                Categories
-              </button>
-            )}
-            <h2>{query ? "Matching activities" : category}</h2>
+            {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />Life areas</button>}
+            <h2>{query.trim() ? "Matching activities" : category && areaLabel(category)}</h2>
             <div className="activity-options">{matches.map(renderChoice)}</div>
-            {!matches.length && (
-              <p>
-                {category === "Suggestions" && !query
-                  ? "Log an activity or link a value to get suggestions."
-                  : "No activities found."}
-              </p>
-            )}
+            {!matches.length && <p>No activities found.</p>}
           </section>
         )}
         {query.trim() &&
-          !activities.some(
+          !searchableActivities.some(
             (a) => a.name.toLowerCase() === query.trim().toLowerCase(),
           ) && (
             <button

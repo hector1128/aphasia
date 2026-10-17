@@ -14,16 +14,13 @@ import {
   removeSleep,
   removeEntry,
   setScheduledStatus,
-  suggestedActivities,
   Entry,
 } from "./model";
 import { reportData, reportSections } from "./report-data";
 import { buildReportPdf } from "./report";
-import {
-  activities,
-  activityCategories,
-  categoryActivities,
-} from "./activities";
+import { mainActivities, searchableActivities, catalogueActivity, suggestedActivities } from "./activity-catalogue";
+import { ActivityPicker } from "./ActivityPicker";
+import { ScheduleValuePicker } from "./Values";
 import { PDFDocument } from "pdf-lib";
 import { validateRequest, reportMiddleware } from "../server/report-api";
 import { createServer, request } from "node:http";
@@ -112,7 +109,8 @@ test("completed sleep and wake phrases create a sleep interval automatically", (
   assert.equal(data.sleeps.length, 1);
   assert.equal(data.sleeps[0].end, "2026-10-01T10:30:00.000Z");
   assert.ok(Object.values(data.entries).some((e) => e.sleepId === data.sleeps[0].id));
-  assert.equal(suggestedActivities(data).length, 0);
+  assert.equal(suggestedActivities(data).length, 5);
+  assert.ok(suggestedActivities(data).every((a) => !sleepBoundary(a.name)));
   const withoutBed = removeEntry(data, "bed");
   assert.equal(withoutBed.sleeps.length, 0);
   assert.equal(Object.values(withoutBed.entries).some((e) => e.sleepId), false);
@@ -197,11 +195,14 @@ test("sleep markers rebuild the interval when their completion changes", () => {
   data = setScheduledStatus(data, "bed", "planned");
   assert.equal(data.sleeps.length, 0);
 });
-test("every activity is in exactly one category", () => {
-  const all = activityCategories.flatMap((c) => categoryActivities(c.name));
-  assert.equal(all.length, activities.length);
-  assert.equal(new Set(all.map((a) => a.name)).size, activities.length);
-  assert.ok(categoryActivities("Rest & quiet").some((a) => a.name === "Wake up"));
+test("main tracker catalogue covers life areas and preserves the searchable library", () => {
+  assert.equal(mainActivities.length, 21);
+  assert.ok(mainActivities.every((activity) => activity.areas.length && activity.features.length));
+  assert.ok(searchableActivities.some((activity) => activity.name === "Playing piano"));
+  assert.ok(searchableActivities.some((activity) => activity.name === "Participate in research"));
+  assert.equal(new Set(searchableActivities.map((activity) => activity.name.toLowerCase())).size, searchableActivities.length);
+  assert.equal(catalogueActivity(" Reading ")?.name, "Read");
+  assert.equal(catalogueActivity("Cleaning/Doing chores")?.name, "Cleaning | Doing chores");
 });
 test("calendar entries show the activity name without a rating", () => {
   const data = saveEntry(emptyData(), make("rated", { rating: 5 }));
@@ -216,27 +217,66 @@ test("calendar entries show the activity name without a rating", () => {
   assert.match(html, /Walking/);
   assert.doesNotMatch(html, /Enjoyment 5/);
 });
-test("suggestions prefer enjoyed and valued activities, ignore planned/sleep, deduplicate", () => {
-  let data = saveEntry(
-    saveEntry(emptyData(), make("low", { rating: 0 })),
-    make("high", { name: "Reading", rating: 10 }),
-  );
-  data = saveEntry(
-    data,
-    make("planned", { name: "Shopping", status: "planned", rating: 10 }),
-  );
-  data.values = [
-    {
-      id: "v",
-      area: "Mind/body/spirit",
-      name: "Calm",
-      activities: [{ name: "Reading", icon: "read" }],
-    },
-  ];
-  const suggestions = suggestedActivities(data);
-  assert.equal(suggestions[0].name, "Reading");
-  assert.equal(suggestions.length, 2);
-  assert.deepEqual(suggestedActivities(emptyData()), []);
+test("suggestions discover five unseen activities and exclude equivalent names and pending plans", () => {
+  const data = saveEntry(saveEntry(emptyData(), make("read", { name: "Reading" })),
+    make("planned", { name: "Watching television", source: "scheduled", status: "planned" }));
+  const suggestions = suggestedActivities(data, new Date("2026-10-02T12:00:00"));
+  assert.equal(suggestions.length, 5);
+  assert.equal(new Set(suggestions.map((a) => a.name)).size, 5);
+  assert.ok(suggestions.every((a) => !["Read", "Watch TV", "Sleep", "Wake up"].includes(a.name)));
+  assert.ok(suggestions.some((a) => a.name === "Write in journal"));
+});
+test("similar experiences influence recommendations without counting as the same activity", () => {
+  assert.equal(catalogueActivity("Taking a bus"), undefined);
+  assert.equal(catalogueActivity("Resting"), undefined);
+  const data = saveEntry(emptyData(), make("rest", { name: "Resting" }));
+  assert.ok(suggestedActivities(data).some((choice) => choice.name === "Practicing mindfulness"));
+});
+test("new users get general starters; exhausted catalogues never repeat tried activities", () => {
+  assert.deepEqual(suggestedActivities(emptyData()).map((a) => a.name),
+    ["Eat a meal", "Call | On the phone", "Read", "Practicing mindfulness", "Spending time with loved ones"]);
+  const data = emptyData();
+  for (const [index, activity] of mainActivities.entries()) data.entries[String(index)] = make(String(index), activity);
+  assert.deepEqual(suggestedActivities(data), []);
+});
+test("recent and repeated activity features influence suggestions", () => {
+  const now = new Date("2026-10-16T12:00:00");
+  const data = saveEntry(saveEntry(emptyData(), make("read", { name: "Read", date: "2020-01-01" })),
+    make("family", { name: "Visiting family", date: "2026-10-16" }));
+  assert.equal(suggestedActivities(data, now)[0].name, "Call | On the phone");
+  for (let index = 0; index < 10; index++) data.entries[`read-${index}`] = make(`read-${index}`, { name: "Read", date: "2026-10-16" });
+  assert.notEqual(suggestedActivities(data, now)[0].name, "Call | On the phone");
+});
+test("custom activities can contribute an explicit life area without inventing name matches", () => {
+  const data = saveEntry(emptyData(), make("custom", { name: "My own activity", lifeArea: "Personal relationships" }));
+  assert.ok(suggestedActivities(data).slice(0, 2).every((choice) => catalogueActivity(choice.name)?.areas.includes("Personal relationships")));
+});
+test("full-library history contributes meaningful features without trusting custom artwork", () => {
+  const now = new Date("2026-10-16T12:00:00");
+  const music = saveEntry(emptyData(), make("music", { name: "Playing piano", icon: "custom", date: "2026-10-16" }));
+  const suggestions = suggestedActivities(music, now);
+  assert.ok(suggestions.some((choice) => choice.name === "Cook"));
+  assert.ok(suggestions.some((choice) => choice.name === "Watch TV"));
+  const custom = saveEntry(emptyData(), make("custom", { name: "My own activity", icon: "music", date: "2026-10-16" }));
+  assert.deepEqual(suggestedActivities(custom, now), suggestedActivities(emptyData(), now));
+});
+test("picker opens with actual recent and suggested choices; scheduling shows personal values", () => {
+  const data = emptyData();
+  const html = renderToStaticMarkup(createElement(ActivityPicker, {
+    value: { name: "", icon: "custom" }, recent: [{ name: "Playing piano", icon: "music" }],
+    suggestions: suggestedActivities(data), onChange: () => {},
+  }));
+  assert.ok(html.indexOf("Playing piano") < html.indexOf("Eat a meal"));
+  assert.match(html, /Choose a life area/);
+  assert.doesNotMatch(html, /Need suggestions/);
+  data.values = [{ id: "family", area: "Personal relationships", name: "Stay connected", activities: [] }];
+  const values = renderToStaticMarkup(createElement(ScheduleValuePicker, {
+    data, onChange: () => {}, onDataChange: () => {}, valueId: "family", area: "Personal relationships",
+  }));
+  assert.match(values, /Stay connected/);
+  assert.match(values, /aria-pressed="true"/);
+  assert.match(values, /Add a value/);
+  assert.doesNotMatch(values, />Personal relationships</);
 });
 test("report isolates selected day, distinguishes missing from zero and includes all life areas", () => {
   const data = saveEntry(

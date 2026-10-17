@@ -374,26 +374,3 @@ export function removeEntry(data: Data, id: string): Data {
   delete entries[id];
   return reconcileSleep({ ...data, entries });
 }
-export function suggestedActivities(data: Data): ActivityChoice[] {
-  const ranked = new Map<string, { choice: ActivityChoice; score: number }>();
-  for (const e of Object.values(data.entries)) {
-    if (e.status !== "done" || e.sleepId || e.sleepBoundary) continue;
-    const key = e.name.toLowerCase(),
-      prev = ranked.get(key);
-    const score = (e.rating ?? 0) + (e.importance ?? 0) / 2;
-    if (!prev || score > prev.score)
-      ranked.set(key, { choice: { name: e.name, icon: e.icon }, score });
-  }
-  for (const v of data.values)
-    for (const a of v.activities) {
-      const key = a.name.toLowerCase(),
-        prev = ranked.get(key);
-      ranked.set(key, { choice: a, score: (prev?.score ?? 0) + 5 });
-    }
-  return [...ranked.values()]
-    .sort(
-      (a, b) => b.score - a.score || a.choice.name.localeCompare(b.choice.name),
-    )
-    .slice(0, 6)
-    .map((r) => r.choice);
-}

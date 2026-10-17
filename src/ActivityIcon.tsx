@@ -1,5 +1,6 @@
 import {
   Footprints,
+  Phone, PawPrint, Monitor, NotebookPen, Car, HandHeart, ClipboardList,
   BookOpen,
   Utensils,
   Users,
@@ -32,6 +33,13 @@ const illustrations: Record<string, string> = {
   sleep: "/illustrations/sleep.svg",
 };
 const icons: Record<string, typeof Footprints> = {
+  phone: Phone,
+  pets: PawPrint,
+  computer: Monitor,
+  journal: NotebookPen,
+  car: Car,
+  "aphasia-house": HandHeart,
+  research: ClipboardList,
   walk: Footprints,
   read: BookOpen,
   eat: Utensils,

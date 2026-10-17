@@ -1,3 +1,4 @@
+import { suggestedActivities } from "./activity-catalogue";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -37,7 +38,6 @@ import {
   slotDate,
   entriesInSlot,
   rememberActivity,
-  suggestedActivities,
 } from "./model";
 import { WeekPicker, TimePicker } from "./DateTimePicker";
 import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
@@ -348,7 +348,7 @@ function App({ account }: { account?: Account }) {
           </div>
         ) : (
           <>
-            <div className="topbar">
+            <div className={`topbar ${screen === "home" ? "" : "page-topbar"}`}>
               <button
                 className="icon-button"
                 aria-label="Settings"
@@ -416,7 +416,7 @@ function App({ account }: { account?: Account }) {
                             <ActivityIcon id={entry.icon} size={48} name={entry.name} />
                           </span>
                         )}
-                        <div className="home-entry-description"><strong>{entry.name}</strong>{entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}</div>
+                        <div className="home-entry-description"><strong>{entry.name}</strong></div>
                       </div>
                       <div className="entry-controls">
                         <ScheduleControls entry={entry} now={clock} onOutcome={(id, outcome) => scheduleOutcome(id, outcome, "home")} />
@@ -588,7 +588,7 @@ function App({ account }: { account?: Account }) {
                     onChange={chooseActivity}
                   />
                 )}
-                {step === "value" && <ScheduleValuePicker data={data} area={draft.lifeArea} valueId={draft.valueId}
+                {step === "value" && <ScheduleValuePicker data={data} onDataChange={setData} area={draft.lifeArea} valueId={draft.valueId}
                   onChange={(selection) => setDraft({ ...draft, ...selection, valueId: selection.valueId })} />}
                 {step === "day" && (
                   <WeekPicker

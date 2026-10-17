@@ -1,6 +1,7 @@
+import { suggestedActivities } from "./activity-catalogue";
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
-import { ArrowLeft, ChevronRight, Plus, HeartHandshake, Brain, GraduationCap, Palette, ListChecks } from "lucide-react";
+import { ArrowLeft, ChevronRight, Plus } from "lucide-react";
 import { ItemActions } from "./ItemActions";
 import {
   Data,
@@ -8,24 +9,12 @@ import {
   LifeValue,
   lifeAreas,
   dateKey,
-  suggestedActivities,
 } from "./model";
 import { weekDates } from "./date-time";
 import { ActivityPicker } from "./ActivityPicker";
 import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 
-const areaIcons = {
-  "Personal relationships": HeartHandshake,
-  "Mind/body/spirit": Brain,
-  "Education/career": GraduationCap,
-  "Recreation/interests": Palette,
-  "Daily responsibilities": ListChecks,
-} satisfies Record<LifeArea, typeof HeartHandshake>;
-const areaLabel = (area: LifeArea) => area.replaceAll("/", " | ");
-function AreaIcon({ area }: { area: LifeArea }) {
-  const Icon = areaIcons[area];
-  return <Icon size={30} />;
-}
+import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
 export function Values({
   data,
@@ -230,21 +219,49 @@ export function Values({
   );
 }
 
-export function ScheduleValuePicker({ data, area, valueId, onChange }: {
+export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChange }: {
   data: Data; area?: LifeArea; valueId?: string;
   onChange: (selection: { lifeArea?: LifeArea; valueId?: string }) => void;
+  onDataChange: (data: Data) => void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [newArea, setNewArea] = useState<LifeArea | null>(null);
+  const [name, setName] = useState("");
+  if (adding) return <div className="schedule-values schedule-value-create">
+    <button type="button" className="back" onClick={() => {
+      if (newArea) setNewArea(null);
+      else setAdding(false);
+    }}><ArrowLeft />{newArea ? "Back to life areas" : "Back to values"}</button>
+    {!newArea ? <>
+      <h2>Choose a life area</h2>
+      <div className="schedule-value-grid schedule-area-grid">{lifeAreas.map((item) =>
+        <button type="button" className="entry-row" key={item} onClick={() => setNewArea(item)}>
+          <span className="value-heart"><AreaIcon area={item} /></span><strong>{areaLabel(item)}</strong><ChevronRight />
+        </button>)}</div>
+    </> : <form onSubmit={(event) => {
+      event.preventDefault();
+      if (!name.trim()) return;
+      const value: LifeValue = { id: crypto.randomUUID(), area: newArea, name: name.trim(), activities: [] };
+      onDataChange({ ...data, values: [...data.values, value] });
+      onChange({ lifeArea: newArea, valueId: value.id });
+      setAdding(false); setNewArea(null); setName("");
+    }}>
+      <h2>{areaLabel(newArea)}</h2>
+      <label htmlFor="schedule-value-name">What matters to you?</label>
+      <SpeechField id="schedule-value-name" aria-label="What matters to you?" value={name} maxLength={120} onValueChange={setName} autoFocus />
+      <button className="primary" disabled={!name.trim()}>Save value</button>
+    </form>}
+  </div>;
   return <div className="schedule-values">
-    <p>{data.values.length ? "Choose a life area for this activity. You can also link a value." : "Choose a life area, or continue without one."}</p>
-    <div className="value-list">{lifeAreas.map((item) => <button type="button" className="entry-row"
-      key={item} aria-pressed={area === item} onClick={() => onChange({ lifeArea: item })}>
-      <span className="value-heart"><AreaIcon area={item} /></span><strong>{areaLabel(item)}</strong>
-    </button>)}</div>
-    {(area || !data.values.length) && <section>
-      {data.values.filter((value) => value.area === area).length ? data.values.filter((value) => value.area === area).map((value) =>
-        <button type="button" className="secondary" key={value.id} aria-pressed={valueId === value.id}
-          onClick={() => onChange({ lifeArea: value.area, valueId: value.id })}>{value.name}</button>)
-        : <p>No values so far.</p>}
-    </section>}
+    <p>Choose a value for this activity.</p>
+    {!data.values.length && <p>No values so far. Add a value, or continue without one.</p>}
+    <div className="schedule-value-grid">
+      {data.values.map((value) => <button type="button" className="entry-row" key={value.id}
+        autoFocus={valueId === value.id} aria-pressed={valueId === value.id} onClick={() => onChange({ lifeArea: value.area, valueId: value.id })}>
+        <span className="value-heart"><AreaIcon area={value.area} /></span><strong>{value.name}</strong>
+      </button>)}
+      <button type="button" className="entry-row add-schedule-value" onClick={() => setAdding(true)}><Plus /><span>Add a value</span></button>
+    </div>
+    {!valueId && area && <p>Life area: {areaLabel(area)}</p>}
   </div>;
 }
