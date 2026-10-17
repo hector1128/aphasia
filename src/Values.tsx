@@ -65,7 +65,7 @@ export function Values({
     );
   if (!area)
     return (
-      <div className="value-list">
+      <div className="value-list view-transition" key="life-areas">
         {lifeAreas.map((a) => (
           <button className="entry-row" key={a} onClick={() => setArea(a)}>
             <span className="value-heart"><AreaIcon area={a} /></span>
@@ -78,6 +78,8 @@ export function Values({
   if (editing)
     return (
       <form
+        className="view-transition"
+        key={`edit-${id ?? "new"}`}
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
@@ -120,7 +122,7 @@ export function Values({
     );
   if (selected && linkMode)
     return (
-      <div className="value-link-screen">
+      <div className="value-link-screen" key={`link-${linkMode}`}>
         <button className="back" onClick={() => { setLinkMode(null); setId(null); setReplacing(null); setChoice({ name: "", icon: "custom" }); }}>
           <ArrowLeft />
           Back to value
@@ -157,7 +159,7 @@ export function Values({
       </div>
     );
   return (
-    <>
+    <div className="view-transition" key={area}>
       <button className="back" onClick={() => setArea(null)}>
         <ArrowLeft />
         Life areas
@@ -215,7 +217,7 @@ export function Values({
         <Plus />
         Add a value
       </button>
-    </>
+    </div>
   );
 }
 
@@ -227,14 +229,14 @@ export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChang
   const [adding, setAdding] = useState(false);
   const [newArea, setNewArea] = useState<LifeArea | null>(null);
   const [name, setName] = useState("");
-  if (adding) return <div className="schedule-values schedule-value-create">
+  if (adding) return <div className="schedule-values schedule-value-create view-transition" key={newArea ?? "areas"}>
     {!newArea ? <>
       <h2>Choose a life area</h2>
       <div className="schedule-value-grid schedule-area-grid">{lifeAreas.map((item) =>
         <button type="button" className="entry-row" key={item} onClick={() => setNewArea(item)}>
           <span className="value-heart"><AreaIcon area={item} /></span><strong>{areaLabel(item)}</strong><ChevronRight />
         </button>)}</div>
-      <div className="value-create-actions"><button type="button" className="wizard-back" onClick={() => setAdding(false)}>Back</button></div>
+      <div className="value-create-actions"><button type="button" className="wizard-back" onClick={() => setAdding(false)}><ArrowLeft aria-hidden="true" />Back</button></div>
     </> : <form onSubmit={(event) => {
       event.preventDefault();
       if (!name.trim()) return;
@@ -247,12 +249,12 @@ export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChang
       <label htmlFor="schedule-value-name">What matters to you?</label>
       <SpeechField id="schedule-value-name" aria-label="What matters to you?" value={name} maxLength={120} onValueChange={setName} autoFocus />
       <div className="value-create-actions">
-        <button type="button" className="wizard-back" onClick={() => setNewArea(null)}>Back</button>
+        <button type="button" className="wizard-back" onClick={() => setNewArea(null)}><ArrowLeft aria-hidden="true" />Back</button>
         <button className="wizard-next" disabled={!name.trim()}>Save value</button>
       </div>
     </form>}
   </div>;
-  return <div className="schedule-values">
+  return <div className="schedule-values view-transition" key="values">
     <p>Choose a value for this activity.</p>
     {/* {!data.values.length && <p>No values so far. Add a value, or continue without one.</p>} */}
     <div className="schedule-value-grid">

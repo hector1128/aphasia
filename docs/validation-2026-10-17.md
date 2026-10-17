@@ -25,3 +25,15 @@
 Physical dictation, audible read-aloud and physical Safari/touch-device acceptance checks were not run. Dictation success-message removal was inspected in the speech callbacks; browser recognition and permission behavior still need a real microphone check. No report email was sent. The pre-existing main-bundle size warning remains.
 
 The broader issues documented in functionality-review-2026-10-16.md are unchanged by these interface revisions.
+
+## Afternoon spacing and navigation refinements
+
+- Selected activities remain in the textbox and now also show their activity card. Editing the text clears that card and disables Next until another choice is confirmed.
+- Link activity has 28 px of separation from the activity picker. Home rows have 12 px horizontal padding on mobile and 16 px on larger screens.
+- Settings sits alongside page headings without reserving an empty row. Heading text reserves room for the settings button. The Values subtitle has a smaller gap below its title.
+- Removed the shared label's flex growth from Add a value. On mobile, both the plus and label centers match the tile center.
+- Bottom Back actions include a left arrow. The step indicator sits 40 px below the actions.
+- Active navigation icons use a solid fill on every viewport. Existing screen motion also covers value creation, life-area navigation, activity categories and selected cards. Reduced-motion overrides remain in effect.
+- Checked the rendered layouts at 280, 390, 640, 820 and 1280 px widths. No horizontal overflow in the checked scheduling views. Checked mobile activity-log headings, desktop linking, home padding, and filled navigation icons.
+- Saved a fictional scheduled activity and linked it to a value through the UI. An independent cloud read confirmed its 8:00 PM slot, scheduled source, value ID and linked activity. No real patient data was used.
+- All 43 tests, the compiled server check, type checking and linting passed. The production build passed with the existing bundle-size warning. A focused maintainability review found no further changes needed; no unrelated refactors were applied.

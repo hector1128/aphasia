@@ -72,11 +72,16 @@ export function ActivityPicker({
           </button>
         )}
       </div>
-      {!value.name && <div
+      {value.name ? <div className="activity-selection view-transition" key={value.name}>
+        <div className="activity-choice" role="status" aria-label="Selected activity">
+          <ActivityIcon id={value.icon} name={value.name} />
+          <span>{value.name}</span>
+        </div>
+      </div> : <div
         className="activity-library"
         role="region"
         aria-label="Activity choices"
-        key={query}
+        key={category ?? "all"}
       >
         {!query.trim() && !category ? (
           <div className="activity-options">

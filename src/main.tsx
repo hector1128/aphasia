@@ -616,7 +616,7 @@ function App({ account }: { account?: Account }) {
                 <div className="wizard-footer">
                   <div className="wizard-actions">
                     {(steps.indexOf(step) > 0 || completingPlan || editingEntry || lastStep) && (
-                      <button type="button" className="wizard-back" onClick={previousStep}>Back</button>
+                      <button type="button" className="wizard-back" onClick={previousStep}><ArrowLeft aria-hidden="true" />Back</button>
                     )}
                     <button type="button" className="wizard-next"
                       disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}

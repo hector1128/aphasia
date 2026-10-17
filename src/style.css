@@ -1524,9 +1524,16 @@ nav .values-nav.active {
 nav .nav-mindfulness-short {
   display: none;
 }
-nav button.active svg {
-  fill: var(--section-soft);
+nav button.active > svg {
+  fill: currentColor;
+  stroke: #fffefa;
+  paint-order: stroke fill;
 }
+nav button.active > svg :is(line, polyline), nav button.active > svg.lucide-house path:last-child {
+  stroke: #fffefa;
+  paint-order: fill stroke;
+}
+nav button > svg { transition: fill 260ms ease, stroke 260ms ease; }
 .week-selector button.active {
   box-shadow: 0 0 0 2px var(--section);
 }
@@ -1577,12 +1584,12 @@ h1:focus {
 .wizard-footer { margin-top: auto; padding-top: 32px; }
 .wizard-actions, .value-create-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .value-create-actions { margin-top: 28px; }
-.wizard-back { padding: 12px 0; background: transparent; color: var(--section); font-size: 21px; }
+.wizard-back { display: inline-flex; align-items: center; gap: 8px; padding: 12px 0; background: transparent; color: var(--section); font-size: 21px; }
 .wizard-next { display: flex; align-items: center; justify-content: center; gap: 10px; margin-left: auto; padding: 14px 18px; min-height: 60px; border-radius: 32px; background: var(--section); color: white; font-size: 20px; font-weight: 700; }
 .wizard-next svg { width: 22px; flex-shrink: 0; }
 .wizard-next:hover { filter: brightness(.93); }
 .wizard-skip { display: block; align-self: flex-start; margin-top: 16px; padding: 8px 0; background: transparent; color: var(--section); text-decoration: underline; font-size: 19px; }
-.wizard-footer .wizard-progress { width: 100%; margin: 24px auto 0; }
+.wizard-footer .wizard-progress { width: 100%; margin: 40px auto 0; }
 @media (min-width: 600px) {
   .activity-wizard { min-height: calc(100dvh - 202px); }
 }
@@ -1612,9 +1619,10 @@ h1:focus {
   display: grid;
   place-items: center;
 }
-.activity-library {
+.activity-library, .activity-selection {
   margin-top: 24px;
 }
+.activity-library, .view-transition { animation: screen-appear 380ms ease-out both; }
 .activity-library h2 {
   margin: 0 0 16px;
   font-size: 23px;
@@ -1940,7 +1948,7 @@ h1:focus {
   align-items: center;
   gap: 14px;
   min-height: 88px;
-  padding: 18px 12px;
+  padding: 18px 16px;
   text-align: left;
 }
 .home-activity.activity-card:has(strong) .activity-art {
@@ -2775,10 +2783,14 @@ main:has(.value-link-screen) > .page-title {
   to { opacity: 1; transform: none; }
 }
 .screen-transition { animation: screen-appear 380ms ease-out both; }
-.page-topbar { position: static; justify-content: flex-end; margin: 0 0 18px; min-height: 48px; }
+.screen-transition:has(> .page-topbar) { position: relative; }
+.page-topbar { top: 0; right: 0; justify-content: flex-end; min-height: 44px; }
+.screen-transition:has(> .page-topbar) > :is(.page-title, .back) { padding-right: 64px; }
+.screen-transition:has(> .schedule-values) > .page-title { margin-bottom: 12px; }
 .schedule-value-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
 .schedule-value-grid .entry-row { min-width: 0; min-height: 100px; margin: 0; padding: 16px; gap: 14px; border: 1px solid var(--section-border); }
 .schedule-value-grid strong { min-width: 0; overflow-wrap: anywhere; }
+.schedule-value-grid .add-schedule-value > span { flex: 0 1 auto; text-align: center; }
 .add-schedule-value { justify-content: center; color: var(--section); background: var(--section-soft); }
 .schedule-value-create h2 { margin-bottom: 20px; }
 .screen-transition:has(.schedule-value-create) > .wizard-footer > .wizard-actions { display: none; }
@@ -2842,6 +2854,7 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
   .account-footer { padding-top: 60px; }
   .home-activity.scheduled-entry .activity-art, .scheduled-entry .timeline-entry-info .activity-illustration { display: grid; }
   .home-activity.activity-card:has(strong), .timeline-entry { gap: 10px; }
+  .home-activity.activity-card:has(strong) { padding-inline: 12px; }
   .home-entry-description > strong { font-size: 20px; line-height: 1.35; }
   .entry-controls { gap: 6px; }
   .timeline-entry-info .entry-name-time { flex-wrap: wrap; gap: 2px 6px; }
@@ -2880,6 +2893,7 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
 .value-add-activity { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 12px; min-height: 100px; padding: 16px; border: 1px solid #c9b9da; text-align: left; border-radius: 14px; background: #f5eff9; color: #674a86; font-size: 18px; font-weight: 650; }
 .value-add-activity svg { width: 32px; height: 32px; }
 .value-link-screen .choose-week { margin: 24px 0; }
+.value-link-screen > .primary { margin-top: 28px; }
 
 .breathing-setup, .breathing-guide, .visualization-grid, .visualization-guide, .value-link-screen { animation: screen-appear 380ms ease-out both; }
 .account-footer { flex-wrap: wrap; row-gap: 18px; }
