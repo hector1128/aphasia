@@ -210,7 +210,6 @@ main {
   place-items: center;
   position: relative;
   margin: 0 auto 16px;
-  transform: rotate(-3deg);
 }
 .art-plus {
   position: absolute;
