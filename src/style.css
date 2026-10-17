@@ -2717,7 +2717,7 @@ main:has(.value-link-screen) > .page-title {
 .entry-name-time strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .entry-name-time time { flex-shrink: 0; font-size: 18px; white-space: nowrap; }
 .home-entry-description { flex: 1; min-width: 0; text-align: left; }
-.home-activity.scheduled-entry, .timeline-entry.scheduled-entry { background: #f4eef9; border-color: #b69ccb; }
+.home-activity.scheduled-entry, .timeline-entry.scheduled-entry { --section: #674a86; --section-soft: #f0eafa; --section-border: #c9b9da; background: #f4eef9; border-color: #b69ccb; }
 .timeline-entry.scheduled-entry { border-width: 2px; }
 .completion-toggle:not(.is-complete) { background: #edf3ed; color: #356c48; }
 .schedule-values .entry-row[aria-pressed="true"], .schedule-values button[aria-pressed="true"] { outline: 3px solid #674a86; outline-offset: 2px; }
