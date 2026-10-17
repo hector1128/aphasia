@@ -144,7 +144,6 @@ export function Values({
           )
         ) : (
           <>
-            <button className="secondary choose-week" onClick={() => setLinkMode("week")}>Choose activity from this week</button>
             <ActivityPicker
               value={choice}
               recent={data.recentActivities}
@@ -152,8 +151,9 @@ export function Values({
               onChange={setChoice}
             />
             <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>
-              {replacing ? "Save activity" : "Link activity"}
+              {replacing ? "Save activity" : "+ Add activity"}
             </button>
+            <button className="secondary choose-week" onClick={() => setLinkMode("week")}>Choose from this week</button>
           </>
         )}
       </div>
@@ -255,7 +255,7 @@ export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChang
     </form>}
   </div>;
   return <div className="schedule-values view-transition" key="values">
-    <p>Choose a value for this activity.</p>
+    <p> What is your goal for this activity</p>
     {/* {!data.values.length && <p>No values so far. Add a value, or continue without one.</p>} */}
     <div className="schedule-value-grid">
       {data.values.map((value) => <button type="button" className="entry-row" key={value.id}

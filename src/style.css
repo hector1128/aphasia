@@ -2919,4 +2919,5 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
   .activity-choice { position: relative; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 14px 10px; font-size: 19px; }
   .activity-choice > span:not(.area-icon) { flex: 0 1 auto; }
   .activity-choice > svg:last-child:not(:first-child) { position: absolute; top: 14px; right: 10px; }
+  nav button.active, nav button:nth-child(2).active, nav .values-nav.active { background: transparent; }
 }
