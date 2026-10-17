@@ -12,6 +12,13 @@ export function spokenNumber(text: string): number | undefined {
   if (!words.length || words.some((word) => !(word in numbers))) return undefined;
   return words.reduce((sum, word) => sum + numbers[word], 0);
 }
+export function breathingMinutes(text: string): number | undefined {
+  const value = text.toLowerCase().trim().replace(/\s*(minutes?|mins?)\s*[.!?]?$/, "").replace(/[.!?]+$/, "").trim();
+  const half = value.match(/^(.+) and a half$/);
+  const amount = /^(\d+(\.\d+)?|\.\d+)$/.test(value) ? Number(value)
+    : value === "half" ? .5 : half ? (spokenNumber(half[1]) ?? NaN) + .5 : /[\d.]/.test(value) ? undefined : spokenNumber(value);
+  return amount !== undefined && Number.isFinite(amount) && amount > 0 && amount * 60000 <= Number.MAX_SAFE_INTEGER ? amount : undefined;
+}
 export function parseSpokenTime(text: string): number | undefined {
   const value = text.toLowerCase().replace(/a\.?\s*m\.?/g, "am").replace(/p\.?\s*m\.?/g, "pm")
     .replace(/o['’]?clock/g, "").replace(/\b(please|at)\b/g, "").trim();

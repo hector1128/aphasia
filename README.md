@@ -25,15 +25,15 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 
 ## Activities and values
 
-- Logging asks for activity, day, exact time, mood, enjoyment and importance. Ratings can be skipped. Editing a logged activity preserves its time.
-- Scheduling asks for activity, life area/value, day and exact time. People with no saved values can continue without one. Future activities show a locked clock. Due activities offer completion with ratings, or not completed. Back exits ratings without changing the schedule.
+- Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Ratings can be skipped. Editing a logged activity preserves its time.
+- Scheduling from a selected slot uses that date/time; the separate Plan activity button includes date and exact-time choices. People with no saved values can continue without one. Future activities show a disabled clock. Due activities have an empty box that opens ratings, then becomes a green check. Unchecking marks the activity not completed. Back exits ratings without changing the schedule.
 - Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple.
-- Values use five life areas. Patients create values and link activities from the week or catalogue.
+- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions.
 - Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
 
 ## Mindfulness and accessibility
 
-Breathing supports one, three or five minutes, with pause and resume. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Missing audio shows a message; audio never starts automatically.
+Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Missing audio shows a message; audio never starts automatically.
 
 Text and time fields have optional microphone buttons. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
 

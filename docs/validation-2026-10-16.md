@@ -24,3 +24,16 @@ A review suggested the second read-aloud tap remained intercepted. Inspection fo
 - Real dictation and audible read-aloud on physical iPhone/iPad, Android and Safari, including touch first-tap/second-tap behavior. The microphone start/stop UI was exercised, but recognition accuracy and sound output were not certified.
 - Real narration playback after the owner supplies the six MP3 files.
 - Actual inbox delivery after server-side SMTP credentials are configured. Automated email transport tests do not establish inbox delivery.
+
+## Evening interface changes
+
+- 35 automated tests pass, plus the compiled server smoke test, type checking, linting and build.
+- Sign-in now uses the app's colors and typography. Sign-up footer wrapping was checked at 280 pixels; the desktop card was checked at 1280 pixels.
+- Home no longer repeats the activity time. Adding from Home/calendar uses the selected slot, verified against the saved synthetic entries. Standalone scheduling retains date/time choices.
+- Activity/value menus expand edit/delete actions, close with Escape or outside click, and stay inside the calendar scroll area. Scheduled items use a disabled future clock or an empty/green due box. Rating completion, Back cancellation and unchecking were exercised.
+- Value activities now expand inline into a two-column grid. Creation, linking from the week, editing a linked activity, unlinking, collapse and narrow-grid menu positioning were checked in the browser. Saved value IDs and activity links keep the same data format.
+- Custom breathing accepts decimal minutes and common dictated phrases. A 2.05-minute selection displayed 123 seconds, and a short custom timer reached Finished. Real-device speech recognition remains an acceptance check.
+- The replacement Eleni Fit YouTube embed and external link use the supplied video ID; the embedded player loaded successfully without autoplay.
+- Motion respects the system's reduced-motion preference.
+
+Strict review findings about narrow footers and clipped action menus were inspected and fixed. Removing Home's repeated times and replacing separate completion/missed controls are intentional user-requested behavior changes.

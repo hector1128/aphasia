@@ -4,16 +4,11 @@ Reviewed October 1, 2026. These notes are for design and content review, outside
 
 ## Relaxation content
 
-The breathing guide uses a one-minute visual cycle: five seconds in and five seconds out, without breath holds. It has start, pause, resume, restart, and reduced-motion support. It pauses when the page is hidden. This is a visual design trial, not a prescribed pace or treatment. The instructions emphasize gentle, unforced breathing. The [NHS breathing guidance](https://www.nhs.uk/mental-health/self-help/guides-tools-and-activities/breathing-exercises-for-stress/) supports gentle breathing and optional counting; the one-minute duration is our prototype choice, not that source's suggested practice duration.
+The breathing guide uses five seconds in and five seconds out, without breath holds. It offers one-, three- and five-minute presets plus a custom minutes field with dictation. It supports pause, resume, restart and reduced motion, and pauses when the page is hidden. The duration and visual pace are prototype choices.
 
-The videos below are sourced from health providers. Neither is claimed to be clinically validated for aphasia. People with aphasia have different language comprehension and mobility needs; review the specific videos with the intended participants and their clinician before clinical use. The iframe requests English captions where available; captions are not guaranteed by that setting. Videos load only on request, do not autoplay, and have a separate YouTube link if embedding is blocked. No video is downloaded or rehosted.
+Visualization offers six illustrated scenes with drop-in narration files. See `public/audio/visualization/README.md` for filenames.
 
-| Screen | Selected source | Selection reasoning and limitations |
-| --- | --- | --- |
-| Visualization | [Relaxation and visualisation — Herefordshire & Worcestershire Health and Care NHS](https://www.youtube.com/watch?v=0TUq88f0jn4) | Health-provider relaxation resource. The selected video is 4:47 long and YouTube currently reports captions unavailable. Guided visualization depends on understanding spoken language; this is a candidate for supported use and review, not an aphasia-specific endorsement. |
-| Gentle stretching | [Seated stretches — Cambridge University Hospitals](https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/shoulder/seated-stretches/) — [upper back and shoulders video](https://www.youtube.com/watch?v=GcPujVayIbI) | A short seated demonstration with an accompanying transcript. Selected over longer, more equipment-heavy routines. The in-app reminder limits use to therapist-approved movements, especially where stroke affects shoulder movement. |
-
-Also considered: [American Stroke Foundation seated stretching](https://afterstroke.org/spasticity-stroke-seated-stretching-routine/). It addresses stroke, but has a longer routine and additional equipment, so the shorter CUH demonstration was selected for this initial interface.
+On October 16, 2026, the owner selected [Eleni Fit's stretching video](https://www.youtube.com/watch?v=48jIXvwXmeQ) to replace the previous CUH video. YouTube metadata identifies Eleni Fit as its creator. The app keeps manual loading, no autoplay, an external YouTube link, and a reminder to use only therapist-approved movements. The video is embedded, not downloaded or rehosted.
 
 ## Future picture libraries
 

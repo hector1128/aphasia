@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import { ItemActions } from "./ItemActions";
 import {
   Entry,
   Data,
@@ -9,7 +10,7 @@ import {
   timeLabel,
 } from "./model";
 import { ScheduleControls } from "./ScheduleControls";
-import { ActivityIcon } from "./ActivityIcon";
+import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 export function DayTimeline({
   date,
   data,
@@ -70,20 +71,17 @@ export function DayTimeline({
               {entries.map((entry) => (
                 <div className={`timeline-entry ${entry.source === "scheduled" ? "scheduled-entry" : ""}`} key={entry.id}>
                   <div className="timeline-entry-info">
-                    <ActivityIcon id={entry.icon} name={entry.name} />
+                    {hasActivityIcon(entry.icon, entry.name) && <span className="activity-art"><ActivityIcon id={entry.icon} name={entry.name} /></span>}
                     <div>
                       <div className="entry-name-time"><strong>{entry.name}</strong><time>{timeLabel(entry.startMinute)}</time></div>
                       {entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}
                     </div>
                   </div>
                   <div className="entry-controls">
-                    {!entry.sleepId && (
-                      <>
-                        <button className="entry-icon-control is-delete" aria-label={`Delete ${entry.name}`} onClick={() => onDelete(entry.id)}><Trash2 /></button>
-                        <button className="entry-icon-control" aria-label={`Edit ${entry.name}`} onClick={() => onEdit(entry)}><Pencil /></button>
-                      </>
-                    )}
                     <ScheduleControls entry={entry} now={now} onOutcome={onToggle} />
+                    {!entry.sleepId && (
+                      <ItemActions name={entry.name} onDelete={() => onDelete(entry.id)} onEdit={() => onEdit(entry)} />
+                    )}
                   </div>
                 </div>
               ))}

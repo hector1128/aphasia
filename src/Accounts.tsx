@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Leaf } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { cloud, loadSnapshot, type Snapshot } from "./cloud";
 import { usernameAlias } from "./account-identity";
@@ -55,7 +56,7 @@ export function Accounts({ children }: { children: (account?: Account) => ReactN
     // Token refreshes keep the mounted account and its in-progress draft intact.
   }, [userId, retry]);
   if (!cloud) return children();
-  if (loading) return <main className="account-page"><p role="status">Opening your log…</p></main>;
+  if (loading || (session && !account && !error)) return <div className="app-shell theme-activity account-shell"><main className="account-page"><p role="status">Opening your log…</p></main></div>;
   if (!session) return <Login error={error} />;
   if (!account) return <main className="account-page"><p role="alert">{error}</p><button className="primary" onClick={() => setRetry((v) => v + 1)}>Try again</button><button className="secondary" onClick={() => void cloud?.auth.signOut()}>Sign out</button></main>;
   return children(account);
@@ -66,10 +67,17 @@ function Login({ error: initialError }: { error: string }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
-  return <main className="account-page">
-    <img className="account-illustration" src="/images/welcome-adult.png" alt="An adult relaxing beside a book and plant" />
-    <h1>{creating ? "Create your account" : "Welcome back"}</h1>
-    <form onSubmit={async (event) => {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, [creating]);
+  return <div className="app-shell theme-activity account-shell"><main className="account-page">
+    <div className="account-brand"><span className="brand-icon"><Leaf aria-hidden="true" /></span>My Day</div>
+    <div className="account-content screen-transition" key={creating ? "create" : "sign-in"}>
+    <header className="account-heading">
+      {creating && <button type="button" className="back" disabled={busy} onClick={() => { setCreating(false); setError(""); }}><ArrowLeft /> Sign in</button>}
+      <h1 ref={heading} tabIndex={-1}>{creating ? "Create account" : "Sign in"}</h1>
+      <p>{creating ? "A place for your day, your activities, and what matters to you." : "Welcome back. Your day is ready when you are."}</p>
+    </header>
+    <form className="account-form" onSubmit={async (event) => {
       event.preventDefault(); if (!cloud) return;
       setBusy(true); setError("");
       try {
@@ -86,17 +94,24 @@ function Login({ error: initialError }: { error: string }) {
       } catch (error) { setError(error instanceof Error ? error.message : "Could not sign in. Try again."); }
       finally { setBusy(false); }
     }}>
-      <label htmlFor="account-name">Your name (username)</label>
+      <div className="account-fields">
+      <label htmlFor="account-name">Your name</label>
       <SpeechField id="account-name" aria-label="Your name for sign-in" autoComplete="username" required minLength={2} maxLength={60}
         value={name} onValueChange={setName} disabled={busy} />
       <label htmlFor="account-password">Password</label>
       <input id="account-password" type="password" autoComplete={creating ? "new-password" : "current-password"} required
         minLength={creating ? 8 : undefined} value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} />
       {creating && <p>Choose at least 8 characters. Keep your password somewhere safe.</p>}
-      <button className="primary" disabled={busy}>{busy ? "Please wait…" : creating ? "Create account" : "Sign in"}</button>
+      {error && <p className="account-error" role="alert">{error}</p>}
+      </div>
+      <div className="account-footer">
+        <button type="button" className="account-switch" disabled={busy} onClick={() => { setCreating(!creating); setError(""); }}>
+          {creating ? "Sign in instead" : "Sign up"}</button>
+        <button className="account-submit" disabled={busy}>
+          <span>{busy ? "Please wait…" : creating ? "Create account" : "Sign in"}</span><ArrowRight aria-hidden="true" />
+        </button>
+      </div>
     </form>
-    <button className="secondary" disabled={busy} onClick={() => { setCreating(!creating); setError(""); }}>
-      {creating ? "I already have an account" : "Create an account"}</button>
-    {error && <p role="alert">{error}</p>}
-  </main>;
+    </div>
+  </main></div>;
 }

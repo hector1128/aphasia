@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
-import { ArrowLeft, ChevronRight, Plus, Pencil, Trash2, HeartHandshake, Brain, GraduationCap, Palette, ListChecks } from "lucide-react";
+import { ArrowLeft, ChevronRight, Plus, HeartHandshake, Brain, GraduationCap, Palette, ListChecks } from "lucide-react";
+import { ItemActions } from "./ItemActions";
 import {
   Data,
   LifeArea,
@@ -11,7 +12,7 @@ import {
 } from "./model";
 import { weekDates } from "./date-time";
 import { ActivityPicker } from "./ActivityPicker";
-import { ActivityIcon } from "./ActivityIcon";
+import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 
 const areaIcons = {
   "Personal relationships": HeartHandshake,
@@ -35,6 +36,8 @@ export function Values({
 }) {
   const [area, setArea] = useState<LifeArea | null>(null);
   const [id, setId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [linkMode, setLinkMode] = useState<"week" | "add" | null>(null);
@@ -51,11 +54,14 @@ export function Values({
         ...selected,
         activities: [
           ...selected.activities.filter(
-            (c) => c.name.toLowerCase() !== a.name.toLowerCase(),
+            (c) => c.name !== replacing && c.name.toLowerCase() !== a.name.toLowerCase(),
           ),
           a,
         ],
       });
+    setExpanded(id);
+    setId(null);
+    setReplacing(null);
     setLinkMode(null);
     setChoice({ name: "", icon: "custom" });
   };
@@ -86,23 +92,13 @@ export function Values({
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          if (selected) {
-            update({ ...selected, name: name.trim() });
-            setId(null);
-          }
-          else
-            onChange({
-              ...data,
-              values: [
-                ...data.values,
-                {
-                  id: crypto.randomUUID(),
-                  area,
-                  name: name.trim(),
-                  activities: [],
-                },
-              ],
-            });
+          const value: LifeValue = selected
+            ? { ...selected, name: name.trim() }
+            : { id: crypto.randomUUID(), area, name: name.trim(), activities: [] };
+          if (selected) update(value);
+          else onChange({ ...data, values: [...data.values, value] });
+          setExpanded(value.id);
+          setId(null);
           setEditing(false);
           setName("");
         }}
@@ -136,7 +132,7 @@ export function Values({
   if (selected && linkMode)
     return (
       <div className="value-link-screen">
-        <button className="back" onClick={() => setLinkMode(null)}>
+        <button className="back" onClick={() => { setLinkMode(null); setId(null); setReplacing(null); setChoice({ name: "", icon: "custom" }); }}>
           <ArrowLeft />
           Back to value
         </button>
@@ -157,6 +153,7 @@ export function Values({
           )
         ) : (
           <>
+            <button className="secondary choose-week" onClick={() => setLinkMode("week")}>Choose activity from this week</button>
             <ActivityPicker
               value={choice}
               recent={data.recentActivities}
@@ -164,56 +161,11 @@ export function Values({
               onChange={setChoice}
             />
             <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>
-              Link activity
+              {replacing ? "Save activity" : "Link activity"}
             </button>
           </>
         )}
       </div>
-    );
-  if (selected)
-    return (
-      <>
-        <button
-          className="back"
-          onClick={() => {
-            setId(null);
-            setLinkMode(null);
-          }}
-        >
-          <ArrowLeft />
-          {areaLabel(area)}
-        </button>
-        <h2>{selected.name}</h2>
-        {selected.activities.map((a) => (
-          <div className="linked-row" key={a.name}>
-            <ActivityIcon id={a.icon} name={a.name} />
-            <span>{a.name}</span>
-            <button
-              className="value-row-action is-delete"
-              aria-label={`Unlink ${a.name}`}
-              onClick={() =>
-                update({
-                  ...selected,
-                  activities: selected.activities.filter(
-                    (c) => c.name !== a.name,
-                  ),
-                })
-              }
-            >
-              <Trash2 />
-            </button>
-          </div>
-        ))}
-        <div className="value-link-actions">
-          <button className="primary" onClick={() => setLinkMode("week")}>
-            Choose activity from this week
-          </button>
-          <button className="secondary" onClick={() => setLinkMode("add")}>
-            <Plus />
-            Add activity
-          </button>
-        </div>
-      </>
     );
   return (
     <>
@@ -226,47 +178,47 @@ export function Values({
         {data.values
           .filter((v) => v.area === area)
           .map((v) => (
-            <div key={v.id} className="entry-row value-entry-row">
-              <button className="value-row-main" onClick={() => setId(v.id)}>
-                <span className="value-heart"><AreaIcon area={v.area} /></span>
-                <strong>{v.name}</strong>
-              </button>
-              <button
-                className="value-row-action is-delete"
-                aria-label={`Delete ${v.name}`}
-                onClick={() => {
-                  onChange({
-                    ...data,
-                    values: data.values.filter((item) => item.id !== v.id),
-                  });
-                }}
-              >
-                <Trash2 size={25} />
-              </button>
-              <button
-                className="value-row-action"
-                aria-label={`Edit ${v.name}`}
-                onClick={() => {
-                  setId(v.id);
-                  setName(v.name);
-                  setEditing(true);
-                }}
-              >
-                <Pencil size={25} />
-              </button>
-              <button
-                className="value-row-next"
-                aria-label={`Open ${v.name}`}
-                onClick={() => setId(v.id)}
-              >
-                <ChevronRight size={26} />
-              </button>
-            </div>
+            <section key={v.id} className={`value-accordion ${expanded === v.id ? "is-expanded" : ""}`}>
+              <div className="entry-row value-entry-row">
+                <button className="value-row-main" aria-expanded={expanded === v.id} aria-controls={`value-activities-${v.id}`}
+                  onClick={() => setExpanded(expanded === v.id ? null : v.id)}>
+                  <span className="value-heart"><AreaIcon area={v.area} /></span>
+                  <strong>{v.name}</strong>
+                </button>
+                <ItemActions name={v.name}
+                  onDelete={() => onChange({ ...data, values: data.values.filter((item) => item.id !== v.id) })}
+                  onEdit={() => { setId(v.id); setName(v.name); setEditing(true); }} />
+                <button className="value-row-next" aria-label={`Activities for ${v.name}`} aria-expanded={expanded === v.id}
+                  aria-controls={`value-activities-${v.id}`} onClick={() => setExpanded(expanded === v.id ? null : v.id)}>
+                  <ChevronRight size={26} />
+                </button>
+              </div>
+              <div id={`value-activities-${v.id}`} className="value-accordion-body" aria-hidden={expanded !== v.id} inert={expanded !== v.id}>
+                <div className="value-accordion-inner">
+                  <div className="value-activity-grid">
+                    {v.activities.map((a) => (
+                      <div className="value-activity-card" key={a.name}>
+                        {hasActivityIcon(a.icon, a.name) && <span className="activity-art"><ActivityIcon id={a.icon} name={a.name} /></span>}
+                        <strong>{a.name}</strong>
+                        <ItemActions name={a.name} deleteLabel={`Unlink ${a.name}`}
+                          onDelete={() => update({ ...v, activities: v.activities.filter((activity) => activity.name !== a.name) })}
+                          onEdit={() => { setId(v.id); setReplacing(a.name); setChoice(a); setLinkMode("add"); }} />
+                      </div>
+                    ))}
+                    <button className="value-add-activity" aria-label={`Add activity to ${v.name}`}
+                      onClick={() => { setId(v.id); setReplacing(null); setChoice({ name: "", icon: "custom" }); setLinkMode("add"); }}>
+                      <Plus aria-hidden="true" /><span>Add activity</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
           ))}
       </div>
       <button
         className="primary"
         onClick={() => {
+          setId(null);
           setName("");
           setEditing(true);
         }}

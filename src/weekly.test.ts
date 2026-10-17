@@ -32,10 +32,11 @@ test("only due scheduled activities offer outcomes and future plans cannot be co
   const now = new Date("2026-10-14T17:00");
   const render = (value: Entry) => renderToStaticMarkup(createElement(ScheduleControls, { entry: value, now, onOutcome: () => {} }));
   assert.equal(render(entry("log")), "");
-  assert.match(render(entry("future", { source: "scheduled", status: "planned", startMinute: 1200 })), /Completion locked/);
-  assert.doesNotMatch(render(entry("future", { source: "scheduled", status: "planned", startMinute: 1200 })), /<button/);
+  assert.match(render(entry("future", { source: "scheduled", status: "planned", startMinute: 1200 })), /scheduled for later/);
+  assert.match(render(entry("future", { source: "scheduled", status: "planned", startMinute: 1200 })), /disabled/);
   assert.match(render(entry("due", { source: "scheduled", status: "planned" })), /Complete and rate Walking/);
-  assert.match(render(entry("due", { source: "scheduled", status: "planned" })), /not completed/);
+  assert.doesNotMatch(render(entry("due", { source: "scheduled", status: "planned" })), /<svg/);
+  assert.match(render(entry("completed", { source: "scheduled", status: "done" })), /Mark Walking as not completed/);
   const data = saveEntry(emptyData(), entry("future", { source: "scheduled", status: "planned", startMinute: 1200 }));
   assert.equal(setScheduledStatus(data, "future", "done", now), data);
   const logged = saveEntry(data, entry("log"));

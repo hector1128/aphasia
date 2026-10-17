@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { Play, Pause, RotateCcw, ExternalLink, Waves, Trees, MoonStar, Sparkles, Flame } from "lucide-react";
+import { Play, Pause, RotateCcw, ExternalLink, Waves, Trees, MoonStar, Sparkles, Flame, ArrowRight } from "lucide-react";
+import { SpeechField } from "./SpeechField";
+import { breathingMinutes } from "./speech";
 
 type SessionCallback = (
   id: string,
@@ -7,6 +9,23 @@ type SessionCallback = (
   status: "started" | "completed",
 ) => void;
 export const breathingDurations = [1, 3, 5] as const;
+
+export function BreathingDurationField({ onChoose }: { onChoose: (minutes: number) => void }) {
+  const [text, setText] = useState("");
+  const minutes = breathingMinutes(text);
+  return <form className="custom-breathing-duration" onSubmit={(event) => {
+    event.preventDefault(); if (minutes !== undefined) onChoose(minutes);
+  }}>
+    <label htmlFor="breathing-minutes">Or choose your own time</label>
+    <div className="duration-input-row">
+      <SpeechField id="breathing-minutes" aria-label="Breathing duration in minutes" inputMode="decimal" placeholder="Minutes"
+        value={text} onValueChange={setText} />
+      <span>minutes</span>
+    </div>
+    {text && minutes === undefined && <p role="alert">Enter minutes greater than 0, such as 2 or 2.5.</p>}
+    <button className="primary" disabled={minutes === undefined}>Continue <ArrowRight aria-hidden="true" /></button>
+  </form>;
+}
 
 export function BreathingGuide({ onSession, minutes }: { onSession: SessionCallback; minutes: number }) {
   const sessionId = useRef(crypto.randomUUID());
@@ -210,11 +229,9 @@ export function VisualizationGuide({ theme, onSession }: { theme: VisualizationT
   );
 }
 const stretchingVideo = {
-  id: "GcPujVayIbI",
+  id: "48jIXvwXmeQ",
   title: "Gentle stretching",
-  provider: "Cambridge University Hospitals NHS",
-  source:
-    "https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/shoulder/seated-stretches/",
+  provider: "Eleni Fit",
 };
 export function RelaxationVideo({
   onSession,
@@ -228,7 +245,7 @@ export function RelaxationVideo({
   return (
     <div className="relaxation-video">
       <p>
-        Sit in a sturdy chair. Only do movements your therapist has approved.
+        Move gently. Only do movements your therapist has approved.
       </p>
       {loaded ? (
         <iframe

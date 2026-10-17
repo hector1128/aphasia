@@ -13,8 +13,6 @@ import {
   Sun,
   CloudSun,
   MoonStar,
-  Trash2,
-  Pencil,
   Clock,
   Heart,
   House,
@@ -53,6 +51,7 @@ import {
   VisualizationGuide,
   VisualizationTheme,
   breathingDurations,
+  BreathingDurationField,
 } from "./Relaxation";
 import { SpeechField } from "./SpeechField";
 import { Accounts, type Account } from "./Accounts";
@@ -60,6 +59,8 @@ import { useCloudSync } from "./useCloudSync";
 import { cloud } from "./cloud";
 import { useReadAloud } from "./useReadAloud";
 import { ScheduleControls } from "./ScheduleControls";
+import { ItemActions } from "./ItemActions";
+import { activitySteps, type ActivityStep } from "./activity-flow";
 import { Values, ScheduleValuePicker } from "./Values";
 import { ReportSettings } from "./ReportSettings";
 import { DailyMood } from "./DailyMood";
@@ -76,7 +77,7 @@ type Screen =
   | "settings"
   | "dailyMood"
   | "values";
-type Step = "activity" | "value" | "day" | "time" | "mood" | "enjoyment" | "importance";
+type Step = ActivityStep;
 const stepTitles: Record<Step, string> = {
   activity: "What activity?",
   value: "What matters to you?",
@@ -111,6 +112,7 @@ function App({ account }: { account?: Account }) {
   const [step, setStep] = useState<Step>("activity");
   const [completingPlan, setCompletingPlan] = useState(false);
   const [timeValid, setTimeValid] = useState(true);
+  const [chooseTime, setChooseTime] = useState(false);
   useReadAloud(data.readAloud);
   const [returnTo, setReturnTo] = useState<"home" | "plan">("home");
   const [breathingDuration, setBreathingDuration] = useState<number | null>(null);
@@ -127,12 +129,8 @@ function App({ account }: { account?: Account }) {
   const editingEntry = Boolean(draft && data.entries[draft.id]);
   const planning = draft?.source === "scheduled" && draft.status !== "done" && !completingPlan;
   const valueMissing = step === "value" && data.values.length > 0 && !draft?.lifeArea;
-  const steps: Step[] = completingPlan
-    ? ["mood", "enjoyment", "importance"]
-    : planning
-      ? ["activity", "value", "day", "time"]
-      : ["activity", ...(editingEntry ? [] : ["day", "time"] as Step[]),
-          ...(draft && sleepBoundary(draft.name) ? [] : ["mood", "enjoyment", "importance"] as Step[])];
+  const steps = activitySteps({ planning, completing: completingPlan, chooseTime, sleep: Boolean(draft && sleepBoundary(draft.name)) });
+  const lastStep = step === steps[steps.length - 1];
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 15000);
@@ -186,6 +184,7 @@ function App({ account }: { account?: Account }) {
     selectedDate = today,
     selectedMinute = minute,
     origin: "home" | "plan" = "home",
+    chooseDateAndTime = false,
   ) => {
     setDraft({
       id: crypto.randomUUID(),
@@ -197,6 +196,7 @@ function App({ account }: { account?: Account }) {
       source: status === "planned" ? "scheduled" : "logged",
     });
     setCompletingPlan(false);
+    setChooseTime(chooseDateAndTime);
     setTimeValid(true);
     setReturnTo(origin);
     setStep("activity");
@@ -205,6 +205,7 @@ function App({ account }: { account?: Account }) {
   const editEntry = (entry: Entry, origin: "home" | "plan") => {
     setDraft({ ...entry });
     setCompletingPlan(false);
+    setChooseTime(entry.source === "scheduled" && entry.status !== "done");
     setTimeValid(true);
     setReturnTo(origin);
     setStep("activity");
@@ -253,32 +254,19 @@ function App({ account }: { account?: Account }) {
     setData((prev) => saveActivity(prev, { ...entry, name: entry.name.trim() }));
     setDate(entry.date);
     if (entry.date === today) setMinute(Math.floor(entry.startMinute / 30) * 30);
-    go(returnTo === "plan" || entry.source === "scheduled" ? "plan" : "home");
+    go(returnTo);
     setNotice("Activity saved");
   };
   const nextStep = () => {
     if (!draft) return;
     if (valueMissing) return;
     if (step === "time" && (!timeValid || !validateTime(draft))) return;
-    if ((step === "activity" && editingEntry && draft.source === "logged" && sleepBoundary(draft.name)) ||
-        (step === "time" && (planning || Boolean(sleepBoundary(draft.name))))) {
-      save(draft);
-      return;
-    }
-    if (step === "mood") {
-      setDraft({ ...draft, mood: draft.mood ?? 5 });
-      setStep("enjoyment");
-      return;
-    }
-    if (step === "enjoyment") {
-      setDraft({ ...draft, rating: draft.rating ?? 5 });
-      setStep("importance");
-      return;
-    }
-    if (step === "importance") {
-      save({ ...draft, importance: draft.importance ?? 5 });
-      return;
-    }
+    const updated = { ...draft,
+      ...(step === "mood" ? { mood: draft.mood ?? 5 } : {}),
+      ...(step === "enjoyment" ? { rating: draft.rating ?? 5 } : {}),
+      ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}) };
+    if (lastStep) { save(updated); return; }
+    setDraft(updated);
     setStep(steps[steps.indexOf(step) + 1]);
   };
   const previousStep = () => {
@@ -324,6 +312,7 @@ function App({ account }: { account?: Account }) {
   return (
     <div className={`app-shell ${screen === "edit" && planning ? "theme-values" : relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
       <main>
+        <div className="screen-transition" key={`${screen}-${step}`}>
         {!data.name ? (
           <div className="welcome">
             <img
@@ -419,27 +408,21 @@ function App({ account }: { account?: Account }) {
                       key={entry.id}
                       className={`activity-card home-activity ${entry.source === "scheduled" ? "scheduled-entry" : ""}`}
                     >
-                      <button
+                      <div
                         className="home-activity-open"
-                        aria-label={`Edit ${entry.name}`}
-                        disabled={Boolean(entry.sleepId)}
-                        onClick={() => editEntry(entry, "home")}
                       >
                         {hasActivityIcon(entry.icon, entry.name) && (
                           <span className="activity-art">
                             <ActivityIcon id={entry.icon} size={48} name={entry.name} />
                           </span>
                         )}
-                        <div className="home-entry-description"><div className="entry-name-time"><strong>{entry.name}</strong><time>{timeLabel(entry.startMinute)}</time></div>{entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}</div>
-                      </button>
+                        <div className="home-entry-description"><strong>{entry.name}</strong>{entry.source === "scheduled" && <span className="schedule-label">Scheduled{entry.status === "missed" ? " · Not completed" : entry.status === "done" ? " · Completed" : ""}</span>}</div>
+                      </div>
                       <div className="entry-controls">
-                        {!entry.sleepId && (
-                          <>
-                            <button className="entry-icon-control is-delete" aria-label={`Delete ${entry.name}`} onClick={() => deleteEntry(entry.id)}><Trash2 /></button>
-                            <button className="entry-icon-control" aria-label={`Edit ${entry.name}`} onClick={() => editEntry(entry, "home")}><Pencil /></button>
-                          </>
-                        )}
                         <ScheduleControls entry={entry} now={clock} onOutcome={(id, outcome) => scheduleOutcome(id, outcome, "home")} />
+                        {!entry.sleepId && (
+                          <ItemActions name={entry.name} onDelete={() => deleteEntry(entry.id)} onEdit={() => editEntry(entry, "home")} />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -552,6 +535,7 @@ function App({ account }: { account?: Account }) {
                       selectedDate,
                       selectedDate === today ? later : 540,
                       "plan",
+                      true,
                     );
                   }}
                 >
@@ -664,9 +648,7 @@ function App({ account }: { account?: Account }) {
                     disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
                     onClick={nextStep}
                   >
-                    {step === "importance" ||
-                    (step === "activity" && editingEntry && draft.source === "logged" && !!sleepBoundary(draft.name)) ||
-                    (step === "time" && (planning || !!sleepBoundary(draft.name))) ? (
+                    {lastStep ? (
                       <>
                         <Check /> Save activity
                       </>
@@ -756,6 +738,7 @@ function App({ account }: { account?: Account }) {
                         </button>
                       ))}
                     </div>
+                    <BreathingDurationField onChoose={setBreathingDuration} />
                   </div>
                 )}
               </>
@@ -886,6 +869,7 @@ function App({ account }: { account?: Account }) {
             </button>
           </div>
         )}
+        </div>
       </main>
       {data.name && (
         <nav aria-label="Main navigation">
