@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
-import { X, CalendarDays, ArrowLeft, ChevronRight } from "lucide-react";
+import { X, ArrowLeft, ChevronRight } from "lucide-react";
 import { filterActivities } from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
 import { lifeAreas, type ActivityChoice, type LifeArea } from "./model";
@@ -29,17 +29,24 @@ export function ActivityPicker({
     seen.add(key);
     return true;
   });
+  const selectChoice = (choice: ActivityChoice) => {
+    setQuery("");
+    onChange({ name: choice.name, icon: choice.icon });
+    document.getElementById("activity-search")?.focus();
+  };
+  const editQuery = (text: string) => {
+    setQuery(text);
+    onChange({ name: "", icon: "custom" });
+  };
   const renderChoice = (choice: ActivityChoice) => (
     <button
       type="button"
-      className={`activity-choice ${value.name === choice.name ? "selected" : ""}`}
+      className="activity-choice"
       key={choice.name}
-      aria-pressed={value.name === choice.name}
-      onClick={() => onChange({ name: choice.name, icon: choice.icon })}
+      onClick={() => selectChoice(choice)}
     >
       <ActivityIcon id={choice.icon} name={choice.name} />
       <span>{choice.name}</span>
-      {value.name === choice.name && <CalendarDays size={24} />}
     </button>
   );
   return (
@@ -51,27 +58,21 @@ export function ActivityPicker({
         <SpeechField
           id="activity-search"
           placeholder="Search activities"
-          value={query}
+          value={query || value.name}
           maxLength={100}
-          onValueChange={setQuery}
+          onValueChange={editQuery}
         />
-        {query && (
+        {(query || value.name) && (
           <button
             type="button"
             aria-label="Clear search"
-            onClick={() => setQuery("")}
+            onClick={() => editQuery("")}
           >
             <X />
           </button>
         )}
       </div>
-      {value.name && (
-        <div className="selected-activity" role="status">
-          <CalendarDays size={24} />
-          <span>{value.name}</span>
-        </div>
-      )}
-      <div
+      {!value.name && <div
         className="activity-library"
         role="region"
         aria-label="Activity choices"
@@ -102,12 +103,12 @@ export function ActivityPicker({
             <button
               type="button"
               className="secondary custom-activity"
-              onClick={() => onChange({ name: query.trim(), icon: "custom" })}
+              onClick={() => selectChoice({ name: query.trim(), icon: "custom" })}
             >
               Use “{query.trim()}”
             </button>
           )}
-      </div>
+      </div>}
     </>
   );
 }

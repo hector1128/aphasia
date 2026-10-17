@@ -25,12 +25,12 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 
 ## Activities and values
 
-- Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Ratings can be skipped. Editing a logged activity preserves its time.
+- Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Activity choices populate the textbox, which can be edited or cleared to reopen choices. Bottom Back/Next or Back/Save controls replace the top navigation arrows; the step indicator is below the controls. Ratings can be skipped. Editing a logged activity preserves its time.
 - Scheduling from a selected slot uses that date/time; the separate Plan activity button includes date and exact-time choices. People with no saved values can continue without one. Future activities show a disabled clock. Due activities have an empty box that opens ratings, then becomes a green check. Unchecking marks the activity not completed. Back exits ratings without changing the schedule.
 - Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple, without extra status text. Settings has its own space above the content on pages outside Home.
 - The 21 tracker activities are the main choices under five life areas. The larger original library remains searchable, and custom names still work. Recent choices, five suggestions and life areas appear together as one growing grid without section headings or a nested scroll area. Suggestions use a curated activity-to-feature graph, recency and frequency, exclude previously completed equivalents and pending plans, and start with general activities for new users.
 - Scheduling shows personal values in a responsive grid. Its plus tile creates a value under a life area, selects it and returns to the current activity.
-- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions. On desktop, linked activities use compact artwork/name/menu rows.
+- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions. Add activity tiles use a solid border and left-aligned content. On desktop, linked activities use compact artwork/name/menu rows.
 - Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
 
 ## Mindfulness and accessibility

@@ -228,16 +228,13 @@ export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChang
   const [newArea, setNewArea] = useState<LifeArea | null>(null);
   const [name, setName] = useState("");
   if (adding) return <div className="schedule-values schedule-value-create">
-    <button type="button" className="back" onClick={() => {
-      if (newArea) setNewArea(null);
-      else setAdding(false);
-    }}><ArrowLeft />{newArea ? "Back to life areas" : "Back to values"}</button>
     {!newArea ? <>
       <h2>Choose a life area</h2>
       <div className="schedule-value-grid schedule-area-grid">{lifeAreas.map((item) =>
         <button type="button" className="entry-row" key={item} onClick={() => setNewArea(item)}>
           <span className="value-heart"><AreaIcon area={item} /></span><strong>{areaLabel(item)}</strong><ChevronRight />
         </button>)}</div>
+      <div className="value-create-actions"><button type="button" className="wizard-back" onClick={() => setAdding(false)}>Back</button></div>
     </> : <form onSubmit={(event) => {
       event.preventDefault();
       if (!name.trim()) return;
@@ -249,12 +246,15 @@ export function ScheduleValuePicker({ data, area, valueId, onChange, onDataChang
       <h2>{areaLabel(newArea)}</h2>
       <label htmlFor="schedule-value-name">What matters to you?</label>
       <SpeechField id="schedule-value-name" aria-label="What matters to you?" value={name} maxLength={120} onValueChange={setName} autoFocus />
-      <button className="primary" disabled={!name.trim()}>Save value</button>
+      <div className="value-create-actions">
+        <button type="button" className="wizard-back" onClick={() => setNewArea(null)}>Back</button>
+        <button className="wizard-next" disabled={!name.trim()}>Save value</button>
+      </div>
     </form>}
   </div>;
   return <div className="schedule-values">
     <p>Choose a value for this activity.</p>
-    {!data.values.length && <p>No values so far. Add a value, or continue without one.</p>}
+    {/* {!data.values.length && <p>No values so far. Add a value, or continue without one.</p>} */}
     <div className="schedule-value-grid">
       {data.values.map((value) => <button type="button" className="entry-row" key={value.id}
         autoFocus={valueId === value.id} aria-pressed={valueId === value.id} onClick={() => onChange({ lifeArea: value.area, valueId: value.id })}>

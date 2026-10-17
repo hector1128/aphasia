@@ -287,6 +287,14 @@ test("picker opens with actual recent and suggested choices; scheduling shows pe
   assert.match(values, /Add a value/);
   assert.doesNotMatch(values, />Personal relationships</);
 });
+test("a selected activity populates the textbox without a duplicate banner or open library", () => {
+  const html = renderToStaticMarkup(createElement(ActivityPicker, {
+    value: { name: "Taking care of pets", icon: "pets" }, recent: [], suggestions: [], onChange: () => {},
+  }));
+  assert.match(html, /value="Taking care of pets"/);
+  assert.doesNotMatch(html, /selected-activity|Activity choices/);
+  assert.equal((html.match(/Taking care of pets/g) ?? []).length, 1);
+});
 test("report isolates selected day, distinguishes missing from zero and includes all life areas", () => {
   const data = saveEntry(
     saveEntry(

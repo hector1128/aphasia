@@ -148,7 +148,7 @@ export function TimePicker({ value, onChange, onValidityChange }: {
       <Microphone label="time" alternative="use the time controls" onResult={(text) => {
         const result = parseSpokenTime(text);
         if (result === undefined) setVoiceMessage('Try “four thirty-nine PM”. Include AM or PM.');
-        else { select(Math.floor(result / 60) % 12 || 12, result % 60, result < 720 ? "AM" : "PM"); setVoiceMessage("Check the time before continuing."); }
+        else { select(Math.floor(result / 60) % 12 || 12, result % 60, result < 720 ? "AM" : "PM"); setVoiceMessage(""); }
       }} />
     </div>
     {voiceMessage && <p role="status">{voiceMessage}</p>}

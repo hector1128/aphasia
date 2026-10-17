@@ -761,11 +761,11 @@ form > .primary {
 }
 .toast {
   position: fixed;
-  bottom: 91px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 36px);
-  max-width: 400px;
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  left: 16px;
+  right: 16px;
+  width: auto;
+  max-width: none;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -1153,8 +1153,14 @@ nav button {
 .step-count {
   letter-spacing: 0;
 }
-.toast {
-  bottom: 104px;
+@media (min-width: 600px) {
+  .toast { bottom: calc(136px + env(safe-area-inset-bottom)); }
+}
+@media (min-width: 768px) {
+  .toast { left: auto; right: 24px; width: calc(100vw - 48px); max-width: 400px; }
+}
+@media (min-width: 1024px) {
+  .toast { bottom: 24px; }
 }
 .reset-button {
   margin-top: 36px;
@@ -1457,10 +1463,6 @@ form > .primary {
   border-color: var(--section-border);
   background: #f6f2f9;
 }
-.theme-values .activity-choice.selected {
-  background: var(--section-soft);
-  border-color: var(--section);
-}
 .theme-values .secondary,
 .theme-values .entry-row svg {
   color: var(--section);
@@ -1532,8 +1534,7 @@ nav button.active svg {
 .timeline-hour.has-activity {
   border-color: var(--section-border);
 }
-.timeline-hour.has-activity,
-.selected-activity {
+.timeline-hour.has-activity {
   background: var(--section-soft);
 }
 h1:focus {
@@ -1562,26 +1563,6 @@ h1:focus {
   justify-content: center;
   gap: 10px;
 }
-.wizard-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin: -12px 0 32px;
-}
-.wizard-navigation button {
-  display: grid;
-  place-items: center;
-  flex: 0 0 48px;
-  height: 48px;
-  border: 2px solid var(--section-border);
-  border-radius: 12px;
-  background: var(--section-soft);
-  color: var(--section);
-}
-.wizard-navigation button:disabled {
-  opacity: 0.4;
-}
 .wizard-progress span {
   height: 8px;
   width: 28px;
@@ -1592,8 +1573,28 @@ h1:focus {
   background: var(--section);
   width: 44px;
 }
-.wizard-actions {
-  margin-top: 32px;
+.activity-wizard { display: flex; flex-direction: column; min-height: calc(100dvh - 154px); }
+.wizard-footer { margin-top: auto; padding-top: 32px; }
+.wizard-actions, .value-create-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.value-create-actions { margin-top: 28px; }
+.wizard-back { padding: 12px 0; background: transparent; color: var(--section); font-size: 21px; }
+.wizard-next { display: flex; align-items: center; justify-content: center; gap: 10px; margin-left: auto; padding: 14px 18px; min-height: 60px; border-radius: 32px; background: var(--section); color: white; font-size: 20px; font-weight: 700; }
+.wizard-next svg { width: 22px; flex-shrink: 0; }
+.wizard-next:hover { filter: brightness(.93); }
+.wizard-skip { display: block; align-self: flex-start; margin-top: 16px; padding: 8px 0; background: transparent; color: var(--section); text-decoration: underline; font-size: 19px; }
+.wizard-footer .wizard-progress { width: 100%; margin: 24px auto 0; }
+@media (min-width: 600px) {
+  .activity-wizard { min-height: calc(100dvh - 202px); }
+}
+@media (min-width: 768px) {
+  .activity-wizard { min-height: calc(100dvh - 219px); }
+}
+@media (min-width: 1024px) {
+  .activity-wizard { min-height: calc(100dvh - 170px); }
+}
+@media (max-width: 360px) {
+  .wizard-next { font-size: 18px; padding-inline: 16px; }
+  .wizard-back { font-size: 19px; }
 }
 .activity-search {
   position: relative;
@@ -1610,20 +1611,6 @@ h1:focus {
   background: transparent;
   display: grid;
   place-items: center;
-}
-.selected-activity {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 14px;
-  border-radius: 12px;
-  margin-top: 18px;
-}
-.selected-activity svg {
-  flex-shrink: 0;
-}
-.selected-activity span {
-  overflow-wrap: anywhere;
 }
 .activity-library {
   margin-top: 24px;
@@ -1649,10 +1636,6 @@ h1:focus {
   background: #f4f8f0;
   text-align: left;
   font-size: 23px;
-}
-.activity-choice.selected {
-  border-color: var(--section);
-  background: var(--section-soft);
 }
 .activity-choice span {
   flex: 1;
@@ -2731,7 +2714,6 @@ main:has(.value-link-screen) > .page-title {
 .timeline-entry.scheduled-entry { border-width: 2px; }
 .completion-toggle:not(.is-complete) { background: #edf3ed; color: #356c48; }
 .schedule-values .entry-row[aria-pressed="true"], .schedule-values button[aria-pressed="true"] { outline: 3px solid #674a86; outline-offset: 2px; }
-.wizard-navigation { width: 100%; }
 .wizard-progress { flex: 1; min-width: 0; max-width: 260px; gap: 6px; }
 .wizard-progress span { flex: 1; min-width: 0; max-width: 28px; }
 .wizard-progress span.active { flex: 1.5; max-width: 44px; }
@@ -2799,11 +2781,11 @@ main:has(.value-link-screen) > .page-title {
 .schedule-value-grid strong { min-width: 0; overflow-wrap: anywhere; }
 .add-schedule-value { justify-content: center; color: var(--section); background: var(--section-soft); }
 .schedule-value-create h2 { margin-bottom: 20px; }
-.screen-transition:has(.schedule-value-create) > :is(.wizard-actions, .wizard-navigation) { display: none; }
+.screen-transition:has(.schedule-value-create) > .wizard-footer > .wizard-actions { display: none; }
 .activity-choice .area-icon { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: var(--section-soft); color: var(--section); }
 @media (max-width: 600px) {
   .schedule-value-grid .entry-row { flex-direction: column; align-items: flex-start; padding: 12px; font-size: 20px; }
-  .schedule-value-grid .add-schedule-value { align-items: center; }
+  .schedule-value-grid .add-schedule-value { align-items: center; justify-content: center; text-align: center; }
   .schedule-area-grid { grid-template-columns: 1fr; }
   .schedule-area-grid .entry-row { flex-direction: row; align-items: center; }
 }
@@ -2895,7 +2877,7 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
 .value-activity-card > strong { grid-row: 2; grid-column: 1 / -1; min-width: 0; font-size: 18px; line-height: 1.4; font-weight: 650; overflow-wrap: anywhere; }
 .value-activity-card > .item-actions { grid-row: 1; grid-column: 2; }
 .value-activity-card:has(.item-actions.is-open) { position: relative; z-index: 14; }
-.value-add-activity { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; min-height: 142px; padding: 14px 8px; border: 2px dashed #b79ccc; border-radius: 14px; background: #f5eff9; color: #674a86; font-size: 18px; font-weight: 650; }
+.value-add-activity { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 12px; min-height: 100px; padding: 16px; border: 1px solid #c9b9da; text-align: left; border-radius: 14px; background: #f5eff9; color: #674a86; font-size: 18px; font-weight: 650; }
 .value-add-activity svg { width: 32px; height: 32px; }
 .value-link-screen .choose-week { margin: 24px 0; }
 

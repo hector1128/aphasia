@@ -43,7 +43,7 @@ export function Microphone({ label, onResult, disabled = false, alternative = "t
     instance.interimResults = false;
     instance.onresult = (event) => {
       resultCallback.current(event.results[0][0].transcript.trim());
-      setMessage("Check what you said before continuing.");
+      setMessage("");
     };
     instance.onerror = (event) => setMessage(event.error === "not-allowed"
       ? "Allow microphone access to use voice input."

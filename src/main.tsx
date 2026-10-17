@@ -80,7 +80,7 @@ type Screen =
 type Step = ActivityStep;
 const stepTitles: Record<Step, string> = {
   activity: "What activity?",
-  value: "What matters to you?",
+  value: "Values",
   day: "Which day?",
   time: "What time?",
   mood: "How did you feel?",
@@ -231,7 +231,7 @@ function App({ account }: { account?: Account }) {
   };
   const chooseActivity = (choice: ActivityChoice) => {
     setDraft((prev) => (prev ? { ...prev, ...choice } : prev));
-    setData((prev) => rememberActivity(prev, choice));
+    if (choice.name.trim()) setData((prev) => rememberActivity(prev, choice));
   };
   const validateTime = (entry: Entry) => {
     const now = new Date();
@@ -312,7 +312,7 @@ function App({ account }: { account?: Account }) {
   return (
     <div className={`app-shell ${screen === "edit" && planning ? "theme-values" : relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
       <main>
-        <div className="screen-transition" key={`${screen}-${step}`}>
+        <div className={`screen-transition ${screen === "edit" ? "activity-wizard" : ""}`} key={`${screen}-${step}`}>
         {!data.name ? (
           <div className="welcome">
             <img
@@ -545,40 +545,7 @@ function App({ account }: { account?: Account }) {
             )}
             {screen === "edit" && draft && (
               <>
-                {header(
-                  stepTitles[step],
-                  completingPlan ? () => go(returnTo) : draft.status === "done" && !editingEntry ? () => go("home") : previousStep,
-                  completingPlan ? "Back" : draft.status === "done" && !editingEntry ? "Home" : "Back",
-                )}
-                <div className="wizard-navigation">
-                  <button
-                    type="button"
-                    aria-label="Previous question"
-                    disabled={steps.indexOf(step) === 0}
-                    onClick={previousStep}
-                  >
-                    <ChevronLeft />
-                  </button>
-                  <div
-                    className="wizard-progress"
-                    aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}
-                  >
-                    {steps.map((item) => (
-                      <span
-                        key={item}
-                        className={item === step ? "active" : ""}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Next question"
-                    disabled={steps.indexOf(step) === steps.length - 1 || valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
-                    onClick={nextStep}
-                  >
-                    <ChevronRight />
-                  </button>
-                </div>
+                {header(stepTitles[step])}
                 {step === "activity" && (
                   <ActivityPicker
                     key={draft.id}
@@ -639,40 +606,27 @@ function App({ account }: { account?: Account }) {
                   />
                 )}
                 {step === "time" && !timeValid && <p role="alert">Enter an hour from 1 to 12 and minutes from 00 to 59.</p>}
-                <div className="wizard-actions">
-                  <button
-                    className="primary"
-                    disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
-                    onClick={nextStep}
-                  >
-                    {lastStep ? (
-                      <>
-                        <Check /> Save activity
-                      </>
-                    ) : (
-                      <>
-                        Next <ArrowRight />
-                      </>
+                {(step === "mood" || step === "enjoyment" || step === "importance") && (
+                  <button className="wizard-skip" onClick={() => {
+                    if (step === "mood") { setDraft({ ...draft, mood: undefined }); setStep("enjoyment"); }
+                    else if (step === "enjoyment") { setDraft({ ...draft, rating: undefined }); setStep("importance"); }
+                    else save({ ...draft, importance: undefined });
+                  }}>Skip rating</button>
+                )}
+                <div className="wizard-footer">
+                  <div className="wizard-actions">
+                    {(steps.indexOf(step) > 0 || completingPlan || editingEntry || lastStep) && (
+                      <button type="button" className="wizard-back" onClick={previousStep}>Back</button>
                     )}
-                  </button>
-                  {(step === "mood" ||
-                    step === "enjoyment" ||
-                    step === "importance") && (
-                    <button
-                      className="secondary"
-                      onClick={() => {
-                        if (step === "mood") {
-                          setDraft({ ...draft, mood: undefined });
-                          setStep("enjoyment");
-                        } else if (step === "enjoyment") {
-                          setDraft({ ...draft, rating: undefined });
-                          setStep("importance");
-                        } else save({ ...draft, importance: undefined });
-                      }}
-                    >
-                      Skip
+                    <button type="button" className="wizard-next"
+                      disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
+                      onClick={nextStep}>
+                      {lastStep ? <><span>Save activity</span><Check aria-hidden="true" /></> : <><span>Next</span><ArrowRight aria-hidden="true" /></>}
                     </button>
-                  )}
+                  </div>
+                  <div className="wizard-progress" role="img" aria-label={`Step ${steps.indexOf(step) + 1} of ${steps.length}`}>
+                    {steps.map((item) => <span key={item} aria-hidden="true" className={item === step ? "active" : ""} />)}
+                  </div>
                 </div>
               </>
             )}
@@ -857,17 +811,17 @@ function App({ account }: { account?: Account }) {
             Could not save. Keep this page open.
           </div>
         )}
-        {notice && (
-          <div className="toast" role="status">
-            <Check size={24} />
-            {notice}
-            <button aria-label="Dismiss" onClick={() => setNotice("")}>
-              <X size={24} />
-            </button>
-          </div>
-        )}
         </div>
       </main>
+      {notice && (
+        <div className="toast" role="status">
+          <Check size={24} />
+          {notice}
+          <button aria-label="Dismiss" onClick={() => setNotice("")}>
+            <X size={24} />
+          </button>
+        </div>
+      )}
       {data.name && (
         <nav aria-label="Main navigation">
           <button
@@ -892,7 +846,7 @@ function App({ account }: { account?: Account }) {
             aria-label="Mindfulness"
             onClick={() => go("relax")}
           >
-            <ActivityIcon id="mindfulness" size={30} />
+            <Brain size={25} aria-hidden="true" />
             <span className="nav-mindfulness-full">Mindfulness</span>
             <span className="nav-mindfulness-short">Mindful</span>
           </button>
