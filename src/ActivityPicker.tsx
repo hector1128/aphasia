@@ -4,7 +4,7 @@ import { X, CalendarDays, ArrowLeft, ChevronRight } from "lucide-react";
 import { filterActivities } from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
 import { lifeAreas, type ActivityChoice, type LifeArea } from "./model";
-import { mainActivities, searchableActivities } from "./activity-catalogue";
+import { mainActivities, searchableActivities, catalogueActivity } from "./activity-catalogue";
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
 export function ActivityPicker({
@@ -22,6 +22,13 @@ export function ActivityPicker({
   const [category, setCategory] = useState<LifeArea | null>(null);
   const choices = mainActivities.filter((activity) => category && activity.areas.includes(category));
   const matches = query.trim() ? filterActivities(query, searchableActivities) : choices;
+  const seen = new Set<string>();
+  const initialChoices = [...recent.slice(0, 5), ...suggestions].filter((choice) => {
+    const key = catalogueActivity(choice.name)?.name ?? choice.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const renderChoice = (choice: ActivityChoice) => (
     <button
       type="button"
@@ -66,33 +73,20 @@ export function ActivityPicker({
       )}
       <div
         className="activity-library"
-        tabIndex={0}
         role="region"
         aria-label="Activity choices"
         key={query}
       >
         {!query.trim() && !category ? (
-          <>
-            <section>
-              <h2>Most recent</h2>
-              {recent.length ? <div className="activity-options">{recent.slice(0, 5).map(renderChoice)}</div> : <p>No recent activities yet.</p>}
-            </section>
-            <section>
-              <h2>Suggestions</h2>
-              {suggestions.length ? <div className="activity-options">{suggestions.map(renderChoice)}</div> : <p>You have tried all the suggested activities. Choose a life area or search for something else.</p>}
-            </section>
-            <section>
-              <h2>Choose a life area</h2>
-              <div className="activity-options life-area-options">
-                {lifeAreas.map((area) => (
-                  <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
-                    <span className="area-icon"><AreaIcon area={area} /></span>
-                    <span>{areaLabel(area)}</span><ChevronRight />
-                  </button>
-                ))}
-              </div>
-            </section>
-          </>
+          <div className="activity-options">
+            {initialChoices.map(renderChoice)}
+            {lifeAreas.map((area) => (
+              <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
+                <span className="area-icon"><AreaIcon area={area} /></span>
+                <span>{areaLabel(area)}</span><ChevronRight />
+              </button>
+            ))}
+          </div>
         ) : (
           <section>
             {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />Life areas</button>}

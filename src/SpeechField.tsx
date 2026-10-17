@@ -19,7 +19,7 @@ declare global {
     webkitSpeechRecognition?: new () => Recognition;
   }
 }
-export function Microphone({ label, onResult, disabled = false }: { label: string; onResult: (text: string) => void; disabled?: boolean }) {
+export function Microphone({ label, onResult, disabled = false, alternative = "type instead" }: { label: string; onResult: (text: string) => void; disabled?: boolean; alternative?: string }) {
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState("");
   const recognition = useRef<Recognition | null>(null);
@@ -30,7 +30,7 @@ export function Microphone({ label, onResult, disabled = false }: { label: strin
     if (listening) { recognition.current?.stop(); return; }
     const Constructor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Constructor) {
-      setMessage("Voice input is unavailable here. Try Safari or Chrome, or use your keyboard’s microphone.");
+      setMessage(`Voice input is unavailable here. You can ${alternative}.`);
       return;
     }
     document.dispatchEvent(new Event("my-day-stop-speaking"));
@@ -47,13 +47,13 @@ export function Microphone({ label, onResult, disabled = false }: { label: strin
     };
     instance.onerror = (event) => setMessage(event.error === "not-allowed"
       ? "Allow microphone access to use voice input."
-      : "Could not hear that. Try again or type instead.");
+      : `Could not hear that. Try again or ${alternative}.`);
     instance.onend = () => {
       setListening(false);
-      setMessage((previous) => previous === "Listening…" ? "No speech captured. Try again or type instead." : previous);
+      setMessage((previous) => previous === "Listening…" ? `No speech captured. Try again or ${alternative}.` : previous);
     };
     try { instance.start(); setListening(true); setMessage("Listening…"); }
-    catch { setListening(false); setMessage("Could not start the microphone. Try again."); }
+    catch { setListening(false); setMessage(`Could not start the microphone. Try again or ${alternative}.`); }
   };
   return <span className="microphone-control" data-read-aloud="off">
     <button type="button" className={`microphone ${listening ? "listening" : ""}`}

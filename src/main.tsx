@@ -606,9 +606,6 @@ function App({ account }: { account?: Account }) {
                 )}
                 {step === "time" && (
                   <>
-                    <div className="chosen-time">
-                      {timeLabel(draft.startMinute)}
-                    </div>
                     <TimePicker
                       value={draft.startMinute}
                       onValidityChange={setTimeValid}

@@ -1626,24 +1626,15 @@ h1:focus {
   overflow-wrap: anywhere;
 }
 .activity-library {
-  max-height: 380px;
-  overflow-y: auto;
-  border: 1px solid #c9d8c5;
-  padding: 16px 10px;
-  border-radius: 14px;
   margin-top: 24px;
-  scrollbar-width: thin;
 }
 .activity-library h2 {
   margin: 0 0 16px;
   font-size: 23px;
 }
-.activity-library section + section {
-  margin-top: 28px;
-}
 .activity-options {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 .activity-choice {
@@ -1682,12 +1673,6 @@ h1:focus {
 .custom-activity {
   overflow-wrap: anywhere;
   display: block;
-}
-.chosen-time {
-  font-size: 32px;
-  text-align: center;
-  margin-bottom: 32px;
-  font-weight: 650;
 }
 .minute-blocks {
   display: flex;
@@ -1935,7 +1920,9 @@ h1:focus {
 }
 .youtube-player {
   width: 100%;
-  height: 270px;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  min-height: 280px;
   border: 0;
   border-radius: 14px;
   display: block;
@@ -2763,16 +2750,15 @@ main:has(.value-link-screen) > .page-title {
 .read-aloud-settings, .account-settings { margin-top: 36px; padding-top: 22px; border-top: 1px solid #d9dfd7; }
 .read-aloud-settings p, .account-settings p { font-size: 21px; line-height: 1.5; overflow-wrap: anywhere; }
 
-.typed-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.typed-time label { min-width: 0; }
-.typed-time .period-blocks { grid-column: 1 / -1; justify-content: center; }
-.typed-time .period-blocks button { min-width: 90px; }
+.typed-time { display: grid; grid-template-columns: 1fr 1fr 1.5fr; align-items: end; gap: 16px; }
+.typed-time label { min-width: 0; margin-bottom: 0; }
+.typed-time .period-blocks { display: flex; margin: 0; gap: 8px; }
+.typed-time .period-blocks button { flex: 1; min-width: 0; min-height: 64px; margin: 0; padding-inline: 8px; }
+.period-field > span { display: block; margin: 0; font-weight: 650; }
 .mobile-time-wheels { display: none; }
-.time-input-switch { display: none; }
-.time-dictation { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 24px; }
-.time-dictation > span { font-size: 24px; font-weight: 700; }
-.precise-time-picker .speech-field input { padding: 12px 6px; text-align: center; font-size: 27px; }
-.precise-time-picker .speech-field { gap: 4px; }
+.time-heading { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 0 0 28px; }
+.time-heading > strong { font-size: 32px; color: var(--section); }
+.typed-time input { width: 100%; margin-bottom: 0; padding: 12px 6px; text-align: center; font-size: 27px; min-height: 64px; }
 .report-period { display: flex; gap: 14px; margin-bottom: 24px; }
 .report-period button { flex: 1; margin: 0; }
 .report-period button[aria-pressed="true"] { background: #356c48; color: white; }
@@ -2783,15 +2769,13 @@ main:has(.value-link-screen) > .page-title {
 .sync-banner { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 8; display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff3d5; border: 1px solid #ad881d; border-radius: 12px; font-size: 18px; }
 .sync-banner button { background: none; text-decoration: underline; color: #203c31; padding: 5px; }
 @media (max-width: 767px) {
-  .typed-time:not(.show) { display: none; }
+  .typed-time { display: none; }
   .mobile-time-wheels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; background: #eee7f5; border: 2px solid #b69ccb; border-radius: 16px; position: relative; }
   .mobile-time-wheels::before { content: ""; position: absolute; top: 96px; left: 0; right: 0; height: 48px; pointer-events: none; background: #c8b5d855; border-block: 1px solid #b69ccb; }
-  .is-typing .mobile-time-wheels { display: none; }
   .time-wheel { height: 240px; padding-block: 96px; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; overscroll-behavior: contain; position: relative; }
   .time-wheel::-webkit-scrollbar { display: none; }
   .time-wheel button { display: block; width: 100%; height: 48px; min-height: 48px; padding: 0; scroll-snap-align: center; color: #655b6d; background: none; font-size: 25px; border-radius: 8px; }
   .time-wheel button.selected { color: #49345e; font-weight: 800; }
-  .time-input-switch { display: flex; margin-top: 20px; }
   .entry-name-time { gap: 6px; }
   .entry-name-time time { font-size: 15px; }
   .home-activity.scheduled-entry .entry-controls, .timeline-entry.scheduled-entry .entry-controls { gap: 3px; }
@@ -2923,4 +2907,20 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
   .item-actions-panel button { padding-inline: 10px; gap: 6px; }
   .item-actions-panel button, .item-actions-panel button span { font-size: 16px; }
   .item-actions .item-actions-panel button svg { width: 20px; height: 20px; }
+}
+
+
+/* Keep desktop value activities as compact icon, name, menu rows. */
+@media (min-width: 1024px) {
+  .value-activity-card { display: flex; gap: 14px; min-height: 100px; padding: 16px; align-items: center; }
+  .value-activity-card .activity-art { flex: 0 0 48px; width: 48px; height: 48px; }
+  .value-activity-card .activity-art :is(img, svg) { width: 38px; height: 38px; }
+  .value-activity-card > strong { flex: 1; font-size: 20px; }
+  .value-activity-card > .item-actions { flex: 0 0 44px; margin-left: auto; }
+  .value-add-activity { flex-direction: row; min-height: 100px; font-size: 20px; }
+}
+@media (max-width: 767px) {
+  .activity-choice { position: relative; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 14px 10px; font-size: 19px; }
+  .activity-choice > span:not(.area-icon) { flex: 0 1 auto; }
+  .activity-choice > svg:last-child:not(:first-child) { position: absolute; top: 14px; right: 10px; }
 }

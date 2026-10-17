@@ -22,7 +22,7 @@ A review suggested the second read-aloud tap remained intercepted. Inspection fo
 ## Remaining acceptance checks
 
 - Real dictation and audible read-aloud on physical iPhone/iPad, Android and Safari, including touch first-tap/second-tap behavior. The microphone start/stop UI was exercised, but recognition accuracy and sound output were not certified.
-- Real narration playback and physical-device sound checks. Beach narration is now included; the other five MP3 files remain to be supplied.
+- Real narration playback and physical-device sound checks. All six narration files are now included and loaded successfully through their visualization screens.
 - Actual inbox delivery after server-side SMTP credentials are configured. Automated email transport tests do not establish inbox delivery.
 
 ## Evening interface changes
@@ -50,3 +50,14 @@ Strict review findings about narrow footers and clipped action menus were inspec
 - Strict correctness and Ponytail maintainability review found and addressed related-name equivalence, catalogue metadata leaking into activity choices, the wider library's contribution to recommendations, and the new value field's microphone label. No dependencies or database migrations were added. Physical-device speech and Safari acceptance checks remain listed above.
 
 The owner-added `public/audio/visualization/beach.mp3` is included in this change. A native browser audio element loaded the expected path with no media error, readyState 4 and a duration of approximately 615.6 seconds. This verifies decoding and loading, not a complete listening or physical-speaker test. The temporary audio check page and synthetic-account credentials were removed.
+
+
+## Final layout revision and app scan
+
+- 42 tests pass, plus the compiled server smoke test, type checking, linting, build and whitespace checks.
+- Mobile time uses wheels and one microphone beside the selected time, with no input-mode switch or separate Say a time row. Tablet/desktop controls align hour, minute and AM/PM on one row.
+- The activity picker is one flat, deduplicated grid of recent/suggested activities and life areas. Its container grows with the page. Life-area cards open further choices, and search still accesses the wider library.
+- The stretching player uses a responsive 16:9 shape with a 280-pixel minimum height. Desktop linked-value activities are compact horizontal artwork/name/menu rows.
+- The five newly supplied recordings are included. All six MP3s loaded with readyState 4, finite durations and no media errors in their exercise screens. No recording was autoplayed.
+- Broader browser checks covered exact-time validation and saving, value menus and edit cancellation, scheduled completion and Back cancellation, zero/maximum ratings, daily mood, breathing start/pause/resume/completion and daily/weekly PDF downloads.
+- The prioritized findings, source evidence, runtime reproductions and remaining acceptance checks are recorded in `docs/functionality-review-2026-10-16.md`.

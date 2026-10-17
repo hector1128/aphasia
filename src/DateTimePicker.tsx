@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { SpeechField, Microphone } from "./SpeechField";
-import { parseSpokenTime, spokenNumber } from "./speech";
+import { Microphone } from "./SpeechField";
+import { parseSpokenTime } from "./speech";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { dateKey } from "./model";
+import { dateKey, timeLabel } from "./model";
 import { weekDates, shiftWeek, to24Hour } from "./date-time";
 
 const dayNames = ["M", "T", "W", "Th", "F", "Sa", "Su"];
@@ -129,7 +129,6 @@ export function TimePicker({ value, onChange, onValidityChange }: {
   const period = hour24 < 12 ? "AM" : "PM";
   const [hourText, setHourText] = useState(String(hour));
   const [minuteText, setMinuteText] = useState(String(minute).padStart(2, "0"));
-  const [typing, setTyping] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
   useEffect(() => { onValidityChange?.(true); }, [onValidityChange]);
   const enter = (h: string, m: string) => {
@@ -138,23 +137,31 @@ export function TimePicker({ value, onChange, onValidityChange }: {
     onValidityChange?.(valid);
     if (valid) onChange(to24Hour(+h, period) * 60 + +m);
   };
-  const fromSpeech = (value: string) => String(spokenNumber(value) ?? value);
   const select = (h: number, m: number, p: "AM" | "PM" = period) => {
     setHourText(String(h)); setMinuteText(String(m).padStart(2, "0"));
     onValidityChange?.(true);
     onChange(to24Hour(h, p) * 60 + m);
   };
-  return <div className={`precise-time-picker ${typing ? "is-typing" : ""}`}>
-    <div className={`typed-time ${typing ? "show" : ""}`} role="group" aria-label="Time">
-      <label>Hour<SpeechField aria-label="Hour" inputMode="numeric" value={hourText} maxLength={2}
-        onValueChange={(text) => enter(fromSpeech(text), minuteText)} /></label>
-      <label>Minute<SpeechField aria-label="Minute" inputMode="numeric" value={minuteText} maxLength={2}
-        onValueChange={(text) => enter(hourText, fromSpeech(text))} /></label>
-      <div className="period-blocks" role="group" aria-label="AM or PM">
+  return <div className="precise-time-picker">
+    <div className="time-heading">
+      <strong>{timeLabel(value)}</strong>
+      <Microphone label="time" alternative="use the time controls" onResult={(text) => {
+        const result = parseSpokenTime(text);
+        if (result === undefined) setVoiceMessage('Try “four thirty-nine PM”. Include AM or PM.');
+        else { select(Math.floor(result / 60) % 12 || 12, result % 60, result < 720 ? "AM" : "PM"); setVoiceMessage("Check the time before continuing."); }
+      }} />
+    </div>
+    {voiceMessage && <p role="status">{voiceMessage}</p>}
+    <div className="typed-time" role="group" aria-label="Time">
+      <label>Hour<input aria-label="Hour" inputMode="numeric" value={hourText} maxLength={2}
+        onChange={(event) => enter(event.target.value, minuteText)} /></label>
+      <label>Minute<input aria-label="Minute" inputMode="numeric" value={minuteText} maxLength={2}
+        onChange={(event) => enter(hourText, event.target.value)} /></label>
+      <div className="period-field"><span>AM/PM</span><div className="period-blocks" role="group" aria-label="AM or PM">
         {(["AM", "PM"] as const).map((option) => <button type="button" key={option}
           className={period === option ? "active" : ""} aria-pressed={period === option}
           onClick={() => select(hour, minute, option)}>{option}</button>)}
-      </div>
+      </div></div>
     </div>
     <div className="mobile-time-wheels" role="group" aria-label="Scroll to choose time">
       <TimeWheel label="Hour" options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
@@ -164,12 +171,5 @@ export function TimePicker({ value, onChange, onValidityChange }: {
       <TimeWheel label="Period" options={["AM", "PM"]} value={period === "AM" ? 0 : 1}
         onChange={(index) => select(hour, minute, index === 0 ? "AM" : "PM")} />
     </div>
-    <button type="button" className="secondary time-input-switch" onClick={() => { setTyping(!typing); onValidityChange?.(true); setHourText(String(hour)); setMinuteText(String(minute).padStart(2, "0")); }}>{typing ? "Scroll to choose time" : "Type a time instead"}</button>
-    <div className="time-dictation"><span>Say a time</span><Microphone label="time" onResult={(text) => {
-      const result = parseSpokenTime(text);
-      if (result === undefined) setVoiceMessage('Try “four thirty-nine PM”. Include AM or PM.');
-      else { select(Math.floor(result / 60) % 12 || 12, result % 60, result < 720 ? "AM" : "PM"); setVoiceMessage("Check the time before continuing."); }
-    }} /></div>
-    {voiceMessage && <p role="status">{voiceMessage}</p>}
   </div>;
 }

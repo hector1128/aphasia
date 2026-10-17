@@ -19,6 +19,7 @@ import {
 import { reportData, reportSections } from "./report-data";
 import { buildReportPdf } from "./report";
 import { mainActivities, searchableActivities, catalogueActivity, suggestedActivities } from "./activity-catalogue";
+import { TimePicker } from "./DateTimePicker";
 import { ActivityPicker } from "./ActivityPicker";
 import { ScheduleValuePicker } from "./Values";
 import { PDFDocument } from "pdf-lib";
@@ -260,6 +261,14 @@ test("full-library history contributes meaningful features without trusting cust
   const custom = saveEntry(emptyData(), make("custom", { name: "My own activity", icon: "music", date: "2026-10-16" }));
   assert.deepEqual(suggestedActivities(custom, now), suggestedActivities(emptyData(), now));
 });
+test("time controls share one microphone beside the formatted time", () => {
+  const html = renderToStaticMarkup(createElement(TimePicker, { value: 16 * 60 + 39, onChange: () => {} }));
+  assert.match(html, /4:39 PM/);
+  assert.equal((html.match(/aria-label="Dictate time"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /Type a time instead|Say a time|Dictate Hour|Dictate Minute/);
+  assert.ok(html.indexOf('aria-label="Hour"') < html.indexOf('aria-label="Minute"'));
+  assert.ok(html.indexOf('aria-label="Minute"') < html.indexOf('aria-label="AM or PM"'));
+});
 test("picker opens with actual recent and suggested choices; scheduling shows personal values", () => {
   const data = emptyData();
   const html = renderToStaticMarkup(createElement(ActivityPicker, {
@@ -267,7 +276,7 @@ test("picker opens with actual recent and suggested choices; scheduling shows pe
     suggestions: suggestedActivities(data), onChange: () => {},
   }));
   assert.ok(html.indexOf("Playing piano") < html.indexOf("Eat a meal"));
-  assert.match(html, /Choose a life area/);
+  assert.doesNotMatch(html, /<h2>Most recent|<h2>Suggestions|Choose a life area/);
   assert.doesNotMatch(html, /Need suggestions/);
   data.values = [{ id: "family", area: "Personal relationships", name: "Stay connected", activities: [] }];
   const values = renderToStaticMarkup(createElement(ScheduleValuePicker, {

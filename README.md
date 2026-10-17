@@ -28,16 +28,16 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 - Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Ratings can be skipped. Editing a logged activity preserves its time.
 - Scheduling from a selected slot uses that date/time; the separate Plan activity button includes date and exact-time choices. People with no saved values can continue without one. Future activities show a disabled clock. Due activities have an empty box that opens ratings, then becomes a green check. Unchecking marks the activity not completed. Back exits ratings without changing the schedule.
 - Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple, without extra status text. Settings has its own space above the content on pages outside Home.
-- The 21 tracker activities are the main choices under five life areas. The larger original library remains searchable, and custom names still work. Recent choices and five suggestions appear directly in the picker. Suggestions use a curated activity-to-feature graph, recency and frequency, exclude previously completed equivalents and pending plans, and start with general activities for new users.
+- The 21 tracker activities are the main choices under five life areas. The larger original library remains searchable, and custom names still work. Recent choices, five suggestions and life areas appear together as one growing grid without section headings or a nested scroll area. Suggestions use a curated activity-to-feature graph, recency and frequency, exclude previously completed equivalents and pending plans, and start with general activities for new users.
 - Scheduling shows personal values in a responsive grid. Its plus tile creates a value under a life area, selects it and returns to the current activity.
-- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions.
+- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions. On desktop, linked activities use compact artwork/name/menu rows.
 - Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
 
 ## Mindfulness and accessibility
 
-Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. Beach narration is included. The remaining themes show a message until their files are supplied; audio never starts automatically.
+Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. All six narration recordings are included; audio never starts automatically.
 
-Text and time fields have optional microphone buttons. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
+Text fields have optional microphone buttons. Time uses one microphone beside the selected time. Mobile uses the hour/minute/period wheels; tablet and desktop place the hour, minute and AM/PM controls in one row. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
 
 ## Reports
 
@@ -57,3 +57,5 @@ Email requires server-side SMTP configuration. The Vercel endpoint authenticates
 - `docs/content-and-licensing.md`: illustration and exercise sources.
 
 PDF text supports English and common Western accented characters. Other characters use `?` until a Unicode font is embedded.
+
+The latest functionality and usability findings are in [the October 16 review](docs/functionality-review-2026-10-16.md).
