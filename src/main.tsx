@@ -63,6 +63,7 @@ import { ItemActions } from "./ItemActions";
 import { activitySteps, type ActivityStep } from "./activity-flow";
 import { Values, ScheduleValuePicker } from "./Values";
 import { ReportSettings } from "./ReportSettings";
+import { FaceSettings } from "./FaceSettings";
 import { DailyMood } from "./DailyMood";
 import "./style.css";
 
@@ -838,6 +839,7 @@ function App({ account }: { account?: Account }) {
                     }}>Sign out</button>
                   </> : <p>Cloud accounts need setup. See docs/account-setup.md.</p>}
                 </section>
+                {account && <FaceSettings userId={account.session.user.id} username={account.username} />}
                 <ReportSettings data={data} onChange={setData} />
                 <button className="secondary reset-button" onClick={reset}>
                   Start over

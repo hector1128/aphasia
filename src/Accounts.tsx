@@ -5,6 +5,7 @@ import { cloud, loadSnapshot, type Snapshot } from "./cloud";
 import { usernameAlias } from "./account-identity";
 import { emptyData, readData } from "./model";
 import { SpeechField } from "./SpeechField";
+import { FaceSignIn } from "./FaceSignIn";
 export type Account = { session: Session; username: string; initial: Snapshot; dirty: boolean };
 export const accountCacheKey = (id: string) => `my-day-account-${id}`;
 export function readAccountCache(id: string): (Snapshot & { dirty: boolean }) | null {
@@ -62,6 +63,7 @@ export function Accounts({ children }: { children: (account?: Account) => ReactN
   return children(account);
 }
 function Login({ error: initialError }: { error: string }) {
+  const [faceActive, setFaceActive] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -77,7 +79,8 @@ function Login({ error: initialError }: { error: string }) {
       <h1 ref={heading} tabIndex={-1}>{creating ? "Create account" : "Sign in"}</h1>
       <p>{creating ? "A place for your day, your activities, and what matters to you." : "Welcome back. Your day is ready when you are."}</p>
     </header>
-    <form className="account-form" onSubmit={async (event) => {
+    {!creating && <FaceSignIn onActiveChange={setFaceActive} />}
+    {!faceActive && <form className="account-form" onSubmit={async (event) => {
       event.preventDefault(); if (!cloud) return;
       setBusy(true); setError("");
       try {
@@ -111,7 +114,7 @@ function Login({ error: initialError }: { error: string }) {
           <span>{busy ? "Please wait…" : creating ? "Create account" : "Sign in"}</span><ArrowRight aria-hidden="true" />
         </button>
       </div>
-    </form>
+    </form>}
     </div>
   </main></div>;
 }

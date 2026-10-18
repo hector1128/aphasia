@@ -2762,6 +2762,15 @@ main:has(.value-link-screen) > .page-title {
 .read-highlight { outline: 3px solid #a97518 !important; outline-offset: 3px; background-color: #fff3c8 !important; color: #233b31 !important; }
 .read-aloud-settings, .account-settings { margin-top: 36px; padding-top: 22px; border-top: 1px solid #d9dfd7; }
 .read-aloud-settings p, .account-settings p { font-size: 21px; line-height: 1.5; overflow-wrap: anywhere; }
+.face-settings { margin-top: 36px; padding-top: 22px; border-top: 1px solid #d9dfd7; }
+.face-settings p, .face-settings label { font-size: 21px; line-height: 1.5; overflow-wrap: anywhere; }
+.face-settings form, .face-actions { display: flex; flex-direction: column; gap: 14px; }
+.face-settings button { min-height: 48px; white-space: normal; }
+.face-consent { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.face-consent input { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 4px; }
+.face-camera { display: block; width: 100%; max-height: 380px; object-fit: contain; background: #18211b; border-radius: 16px; margin: 16px 0; transform: scaleX(-1); }
+.face-sign-in { margin-bottom: 24px; }
+.face-sign-in p { font-size: 21px; }
 
 .typed-time { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .typed-time label { min-width: 0; }
