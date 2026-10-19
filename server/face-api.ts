@@ -6,7 +6,7 @@ import { createFaceSession, type FaceSession } from "./face-session.js";
 type Config = Record<string, string | undefined>;
 type Identity = { id: string; recentPassword: boolean };
 type Authenticate = (token: string) => Promise<Identity | null>;
-const actions = new Set(["status", "begin", "enroll", "verify", "remove"]);
+const actions = new Set(["status", "begin", "enroll", "register", "verify", "remove"]);
 const messages: Record<string, string> = {
   invalid: "Could not read that request. Please try again.",
   expired: "That check has expired. Please try again.",
@@ -83,7 +83,8 @@ export function faceMiddleware(config: Config, overrides: {
     if (!testUsers.includes(identity.id)) return body.action === "status"
       ? reply(200, { available: false, enrolled: false, registered: false })
       : reply(403, { error: "Face verification is available only to trial accounts." });
-    if ((body.action === "enroll" || (body.action === "begin" && body.operation === "enroll")) && !identity.recentPassword)
+    if ((["enroll", "register"].includes(body.action as string) ||
+        (body.action === "begin" && ["enroll", "register"].includes(body.operation as string))) && !identity.recentPassword)
       return reply(401, { error: "Enter your password again before setting up face verification." });
     try {
       const url = new URL(config.FACE_SERVICE_URL!);

@@ -46,7 +46,7 @@ test("face gateway hides disabled trials and requires an explicit test-account a
   } finally { await disabled.close(); await notAllowed.close(); }
 });
 
-test("enrollment requires recent password authentication; normal verification does not", async () => {
+test("enrollment and browser registration require recent password authentication; verification does not", async () => {
   let calls = 0;
   const api = await gateway({ authenticate: async () => ({ id: user, recentPassword: false }), fetch: async () => {
     calls++; return Response.json({ verified: true, access_token: "must-not-leak", template: "private" });
@@ -54,8 +54,22 @@ test("enrollment requires recent password authentication; normal verification do
   try {
     assert.equal((await api.request({ action: "begin", operation: "enroll" })).status, 401);
     assert.equal((await api.request({ action: "enroll" })).status, 401);
+    assert.equal((await api.request({ action: "begin", operation: "register" })).status, 401);
+    assert.equal((await api.request({ action: "register" })).status, 401);
     assert.deepEqual(await (await api.request({ action: "verify" })).json(), { verified: true });
     assert.equal(calls, 1);
+  } finally { await api.close(); }
+});
+
+test("browser registration uses the authenticated account and returns no private data or session", async () => {
+  const api = await gateway({ authenticate: async () => ({ id: user, recentPassword: true }), fetch: async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.userId, user);
+    assert.equal(body.action, "register");
+    return Response.json({ ok: true, template: "private", access_token: "must-not-leak" });
+  } });
+  try {
+    assert.deepEqual(await (await api.request({ action: "register", userId: "wrong-account" })).json(), { ok: true });
   } finally { await api.close(); }
 });
 
@@ -92,6 +106,7 @@ test("public face sign-in cannot enroll, substitute another account, or use veri
   } }, loginConfig, "/api/face-login");
   try {
     assert.equal((await api.request({ action: "enroll", userId: user, deviceId })).status, 400);
+    assert.equal((await api.request({ action: "register", userId: user, deviceId })).status, 400);
     assert.equal((await api.request({ action: "login", userId: "someone-else", deviceId })).status, 400);
     assert.equal((await api.request({ action: "begin", userId: user, deviceId, operation: "enroll" })).status, 200);
     // A verified boolean without a bound account identity can never mint a session.

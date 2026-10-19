@@ -105,7 +105,8 @@ class FaceTrial:
                     model_version TEXT NOT NULL, consent_version TEXT NOT NULL, consented_at INTEGER NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS devices (
-                    user_id TEXT PRIMARY KEY, device_id TEXT NOT NULL, public_key TEXT NOT NULL
+                    user_id TEXT NOT NULL, device_id TEXT NOT NULL, public_key TEXT NOT NULL,
+                    PRIMARY KEY (user_id, device_id)
                 );
                 CREATE TABLE IF NOT EXISTS challenges (
                     id TEXT PRIMARY KEY, user_id TEXT NOT NULL, device_id TEXT NOT NULL,
@@ -114,6 +115,16 @@ class FaceTrial:
                 CREATE TABLE IF NOT EXISTS attempts (user_id TEXT NOT NULL, created INTEGER NOT NULL);
                 CREATE INDEX IF NOT EXISTS attempts_user ON attempts(user_id, created);
             """)
+            # Preserve the original browser when upgrading the single-device schema.
+            db.execute("BEGIN IMMEDIATE")
+            primary = [row["name"] for row in db.execute("PRAGMA table_info(devices)") if row["pk"]]
+            if primary == ["user_id"]:
+                db.execute("""CREATE TABLE devices_multi (
+                    user_id TEXT NOT NULL, device_id TEXT NOT NULL, public_key TEXT NOT NULL,
+                    PRIMARY KEY (user_id, device_id))""")
+                db.execute("INSERT INTO devices_multi SELECT user_id, device_id, public_key FROM devices")
+                db.execute("DROP TABLE devices")
+                db.execute("ALTER TABLE devices_multi RENAME TO devices")
 
     @contextmanager
     def connect(self):
@@ -149,13 +160,13 @@ class FaceTrial:
             return {"ok": True}
         if action == "begin":
             return self.begin(user, body)
-        if action in ("enroll", "verify", "login"):
+        if action in ("enroll", "register", "verify", "login"):
             return self.complete(user, body)
         raise Rejected("invalid")
 
     def begin(self, user, body):
         operation = body.get("operation")
-        if operation not in ("enroll", "verify", "login"):
+        if operation not in ("enroll", "register", "verify", "login"):
             raise Rejected("invalid")
         device = identifier(body.get("deviceId"))
         now = int(self.clock())
@@ -166,6 +177,8 @@ class FaceTrial:
             if db.execute("SELECT COUNT(*) FROM attempts WHERE user_id = ?", (user,)).fetchone()[0] >= 6:
                 raise Rejected("limited")
             if operation in ("verify", "login") and not db.execute("SELECT 1 FROM devices WHERE user_id = ? AND device_id = ?", (user, device)).fetchone():
+                raise Rejected("device")
+            if operation == "register" and not db.execute("SELECT 1 FROM templates WHERE user_id = ?", (user,)).fetchone():
                 raise Rejected("device")
             db.execute("INSERT INTO accounts VALUES (?, 0) ON CONFLICT DO NOTHING", (user,))
             epoch = db.execute("SELECT epoch FROM accounts WHERE user_id = ?", (user,)).fetchone()[0]
@@ -192,12 +205,13 @@ class FaceTrial:
             device = db.execute("SELECT * FROM devices WHERE user_id = ? AND device_id = ?", (user, device_id)).fetchone()
             template = db.execute("SELECT * FROM templates WHERE user_id = ?", (user,)).fetchone()
         enrolling = body["action"] == "enroll"
-        if enrolling and body.get("consentVersion") != CONSENT_VERSION:
+        registering = body["action"] == "register"
+        if (enrolling or registering) and body.get("consentVersion") != CONSENT_VERSION:
             raise Rejected("invalid")
-        if not enrolling and (device is None or template is None):
+        if not enrolling and (template is None or (not registering and device is None)):
             raise Rejected("device")
         frames = decode_frames(body.get("frames"))
-        jwk = body.get("publicKey") if enrolling else json.loads(device["public_key"])
+        jwk = body.get("publicKey") if enrolling or registering else json.loads(device["public_key"])
         check_signature(jwk, body.get("signature"), capture_message(challenge["message"], frames))
         # The engine is local. Raw captures never enter SQLite or application logs.
         vector = self.engine.enroll(frames) if enrolling else None
@@ -221,10 +235,17 @@ class FaceTrial:
                 encrypted = nonce + self.cipher.encrypt(nonce, vector, aad)
                 db.execute("INSERT OR REPLACE INTO templates VALUES (?, ?, ?, ?, ?)",
                            (user, encrypted, self.engine.version, CONSENT_VERSION, int(self.clock())))
-                safe_jwk = {key: jwk[key] for key in ("kty", "crv", "x", "y")}
-                db.execute("INSERT OR REPLACE INTO devices VALUES (?, ?, ?)", (user, device_id, json.dumps(safe_jwk)))
+                db.execute("DELETE FROM devices WHERE user_id = ?", (user,))
                 db.execute("UPDATE accounts SET epoch = epoch + 1 WHERE user_id = ?", (user,))
                 db.execute("DELETE FROM challenges WHERE user_id = ?", (user,))
+            if enrolling or registering:
+                safe_jwk = {key: jwk[key] for key in ("kty", "crv", "x", "y")}
+                # Adding a browser must never replace another browser's key, even
+                # when two registration requests finish concurrently.
+                db.execute("INSERT INTO devices VALUES (?, ?, ?) ON CONFLICT DO NOTHING", (user, device_id, json.dumps(safe_jwk)))
+                saved = db.execute("SELECT public_key FROM devices WHERE user_id = ? AND device_id = ?", (user, device_id)).fetchone()
+                if json.loads(saved[0]) != safe_jwk:
+                    raise Rejected("device")
         if body["action"] == "login":
             return {"verified": True, "userId": user}
-        return {"ok": True} if enrolling else {"verified": True}
+        return {"ok": True} if enrolling or registering else {"verified": True}

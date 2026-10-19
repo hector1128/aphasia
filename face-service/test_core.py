@@ -43,6 +43,9 @@ class TrialTests(unittest.TestCase):
         self.engine = FakeEngine()
         self.key = b"k" * 32
         self.trial = FaceTrial(self.path, self.key, self.engine, [USER, OTHER], lambda: self.now)
+        self.new_browser()
+
+    def new_browser(self):
         self.device_id = str(uuid.uuid4())
         self.private = ec.generate_private_key(ec.SECP256R1())
         numbers = self.private.public_key().public_numbers()
@@ -189,6 +192,112 @@ class TrialTests(unittest.TestCase):
         self.device_id = str(uuid.uuid4())
         self.enroll()
         self.assertEqual(self.request("status", deviceId=previous), {"enrolled": True, "registered": False})
+        self.assertTrue(self.request("status", deviceId=self.device_id)["registered"])
+
+    def test_register_preserves_template_and_both_browsers_can_sign_in(self):
+        self.enroll()
+        original = self.device_id, self.private, self.public
+        outstanding = self.submission("login")
+        with self.trial.connect() as db:
+            before = tuple(db.execute("SELECT * FROM templates").fetchone())
+        self.new_browser()
+        registration = self.submission("register")
+        self.assertEqual(self.trial.handle(registration), {"ok": True})
+        self.reject("expired", registration)
+        with self.trial.connect() as db:
+            self.assertEqual(tuple(db.execute("SELECT * FROM templates").fetchone()), before)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM devices").fetchone()[0], 2)
+        self.assertEqual(self.trial.handle(outstanding), {"verified": True, "userId": USER})
+        self.assertEqual(self.trial.handle(self.submission("login")), {"verified": True, "userId": USER})
+        self.device_id, self.private, self.public = original
+        self.assertTrue(self.request("status", deviceId=self.device_id)["registered"])
+        self.assertEqual(self.trial.handle(self.submission("login")), {"verified": True, "userId": USER})
+
+    def test_register_requires_existing_template_consent_and_matching_face(self):
+        self.reject("device", {"userId": USER, "action": "begin", "operation": "register", "deviceId": self.device_id})
+        self.enroll()
+        self.new_browser()
+        self.reject("device", {"userId": USER, "action": "begin", "operation": "login", "deviceId": self.device_id})
+        self.reject("invalid", self.submission("register", consentVersion=""))
+        self.engine.match = False
+        self.reject("mismatch", self.submission("register"))
+        self.assertFalse(self.request("status", deviceId=self.device_id)["registered"])
+        with self.trial.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM devices").fetchone()[0], 1)
+
+    def test_register_rejects_invalid_signature_and_replay(self):
+        self.enroll()
+        self.new_browser()
+        body = self.submission("register")
+        self.reject("device", {**body, "signature": base64.b64encode(b"x" * 64).decode()})
+        self.reject("expired", body)
+        self.assertEqual(self.engine.calls, 1)
+
+    def test_register_cannot_replace_an_existing_device_key(self):
+        self.enroll()
+        original = self.device_id, self.private, self.public
+        self.new_browser()
+        self.device_id = original[0]
+        self.reject("device", self.submission("register"))
+        self.device_id, self.private, self.public = original
+        self.assertEqual(self.trial.handle(self.submission("login")), {"verified": True, "userId": USER})
+
+    def test_removal_during_registration_cannot_restore_browser_access(self):
+        self.enroll()
+        self.new_browser()
+        body = self.submission("register")
+        self.engine.before_return = lambda: self.request("remove")
+        self.reject("expired", body)
+        self.assertFalse(self.request("status")["enrolled"])
+        with self.trial.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM devices").fetchone()[0], 0)
+
+    def test_removal_revokes_every_browser_and_outstanding_login(self):
+        self.enroll()
+        original = self.device_id, self.private, self.public
+        first_login = self.submission("login")
+        self.new_browser()
+        self.trial.handle(self.submission("register"))
+        second = self.device_id
+        second_login = self.submission("login")
+        self.request("remove")
+        self.reject("expired", first_login)
+        self.reject("expired", second_login)
+        for device in (original[0], second):
+            self.assertEqual(self.request("status", deviceId=device), {"enrolled": False, "registered": False})
+
+    def test_reenrollment_revokes_all_browsers_and_pending_registration(self):
+        self.enroll()
+        first = self.device_id
+        self.new_browser()
+        self.trial.handle(self.submission("register"))
+        second = self.device_id
+        self.new_browser()
+        pending = self.submission("register")
+        self.enroll()
+        self.reject("expired", pending)
+        for device in (first, second):
+            self.assertFalse(self.request("status", deviceId=device)["registered"])
+        self.assertTrue(self.request("status", deviceId=self.device_id)["registered"])
+
+    def test_legacy_device_migration_preserves_existing_enrollment_and_is_idempotent(self):
+        self.enroll()
+        original = self.device_id
+        with self.trial.connect() as db:
+            before = tuple(db.execute("SELECT * FROM templates").fetchone())
+            db.execute("ALTER TABLE devices RENAME TO devices_fixture")
+            db.execute("CREATE TABLE devices (user_id TEXT PRIMARY KEY, device_id TEXT NOT NULL, public_key TEXT NOT NULL)")
+            db.execute("INSERT INTO devices SELECT * FROM devices_fixture")
+            db.execute("DROP TABLE devices_fixture")
+        self.trial = FaceTrial(self.path, self.key, self.engine, [USER], lambda: self.now)
+        self.assertEqual(self.trial.handle(self.submission("login")), {"verified": True, "userId": USER})
+        self.new_browser()
+        self.assertEqual(self.trial.handle(self.submission("register")), {"ok": True})
+        self.trial = FaceTrial(self.path, self.key, self.engine, [USER], lambda: self.now)
+        with self.trial.connect() as db:
+            self.assertEqual(tuple(db.execute("SELECT * FROM templates").fetchone()), before)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM devices").fetchone()[0], 2)
+        self.assertTrue(self.request("status", deviceId=original)["registered"])
         self.assertTrue(self.request("status", deviceId=self.device_id)["registered"])
 
 
