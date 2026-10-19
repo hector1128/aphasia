@@ -85,7 +85,7 @@ def check_signature(jwk, signature, message):
 
 
 class FaceTrial:
-    def __init__(self, path, encryption_key, engine, allowed_users, clock=time.time):
+    def __init__(self, path, encryption_key, engine, clock=time.time):
         if len(encryption_key) != 32:
             raise ValueError("FACE_ENCRYPTION_KEY must decode to 32 bytes")
         self.path = str(path)
@@ -95,7 +95,6 @@ class FaceTrial:
         os.chmod(path, 0o600)
         self.cipher = AESGCM(encryption_key)
         self.engine = engine
-        self.allowed_users = frozenset(identifier(user) for user in allowed_users)
         self.clock = clock
         with self.connect() as db:
             db.executescript("""
@@ -141,8 +140,8 @@ class FaceTrial:
         if not isinstance(body, dict):
             raise Rejected("invalid")
         user = identifier(body.get("userId"))
-        if user not in self.allowed_users:
-            raise Rejected("unavailable")
+        # The shared-secret HTTP boundary admits only the gateway. It authenticates
+        # setup requests with Supabase and supplies the authenticated account UUID.
         action = body.get("action")
         if action == "status":
             with self.connect() as db:

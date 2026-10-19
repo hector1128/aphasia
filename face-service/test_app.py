@@ -15,7 +15,7 @@ class HttpBoundaryTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.user = "00000000-0000-4000-8000-000000000001"
         self.secret = "synthetic-secret-" * 4
-        with patch.dict(os.environ, {"FACE_SERVICE_SECRET": self.secret, "FACE_TEST_USER_IDS": self.user,
+        with patch.dict(os.environ, {"FACE_SERVICE_SECRET": self.secret,
                                     "FACE_ENCRYPTION_KEY": base64.b64encode(b"k" * 32).decode(),
                                     "FACE_DB_PATH": str(Path(self.directory.name) / "trial.sqlite")}):
             self.client = TestClient(create_app())
@@ -41,6 +41,15 @@ class HttpBoundaryTests(unittest.TestCase):
     def test_api_schema_is_not_exposed(self):
         self.assertEqual(self.client.get("/docs").status_code, 404)
         self.assertEqual(self.client.get("/openapi.json").status_code, 404)
+
+    def test_gateway_can_check_any_account_without_an_allowlist(self):
+        headers = {"Authorization": f"Bearer {self.secret}"}
+        for user in (self.user, "00000000-0000-4000-8000-000000000099"):
+            response = self.client.post("/v1/face", json={"userId": user, "action": "status"}, headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json(), {"enrolled": False, "registered": False})
+        response = self.client.post("/v1/face", json={"userId": "not-a-uuid", "action": "status"}, headers=headers)
+        self.assertEqual(response.status_code, 400)
 
 
 if __name__ == "__main__":

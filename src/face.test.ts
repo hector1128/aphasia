@@ -6,8 +6,9 @@ import { createFaceSession } from "../server/face-session";
 import { signFaceCapture, faceCaptureMessage } from "./face-device";
 
 const user = "00000000-0000-4000-8000-000000000001";
+const otherUser = "00000000-0000-4000-8000-000000000002";
 const config = { FACE_PROTOTYPE_ENABLED: "true", FACE_APP_ORIGIN: "http://localhost:5173",
-  FACE_SERVICE_URL: "http://127.0.0.1:8001", FACE_SERVICE_SECRET: "test-secret-with-at-least-32-characters", FACE_TEST_USER_IDS: user };
+  FACE_SERVICE_URL: "http://127.0.0.1:8001", FACE_SERVICE_SECRET: "test-secret-with-at-least-32-characters" };
 
 async function gateway(options: Parameters<typeof faceMiddleware>[1] = {}, settings: Record<string, string> = config, path = "/api/face") {
   const handler = faceMiddleware(settings, options);
@@ -28,22 +29,34 @@ test("face gateway rejects unauthenticated, cross-origin, and oversized requests
   let calls = 0;
   const api = await gateway({ authenticate: async () => null, fetch: async () => { calls++; throw Error(); } });
   try {
-    assert.equal((await api.request({ action: "verify" })).status, 401);
+    for (const action of ["status", "enroll", "register", "verify", "remove"])
+      assert.equal((await api.request({ action })).status, 401);
     assert.equal((await api.request({ action: "status" }, { Origin: "https://other.example" })).status, 403);
     assert.equal((await api.request({ action: "enroll", frames: ["x".repeat(1000001)] })).status, 413);
     assert.equal(calls, 0);
   } finally { await api.close(); }
 });
 
-test("face gateway hides disabled trials and requires an explicit test-account allowlist", async () => {
+test("face gateway hides the feature when globally disabled", async () => {
   const disabled = await gateway({}, { ...config, FACE_PROTOTYPE_ENABLED: "false" });
-  const notAllowed = await gateway({ authenticate: async () => ({ id: "someone-else", recentPassword: true }) });
   try {
     assert.deepEqual(await (await disabled.request({ action: "status" })).json(), { available: false, enrolled: false, registered: false });
     assert.equal((await disabled.request({ action: "begin" })).status, 503);
-    assert.equal((await notAllowed.request({ action: "enroll" })).status, 403);
-    assert.equal((await (await notAllowed.request({ action: "status" })).json()).available, false);
-  } finally { await disabled.close(); await notAllowed.close(); }
+  } finally { await disabled.close(); }
+});
+
+test("any authenticated account can enroll without manual approval, including with obsolete allowlist settings", async () => {
+  for (const id of [user, otherUser]) {
+    const api = await gateway({ authenticate: async () => ({ id, recentPassword: true }), fetch: async (_input, init) => {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.userId, id);
+      return Response.json(body.action === "status" ? { enrolled: false, registered: false } : { ok: true });
+    } }, { ...config, FACE_TEST_USER_IDS: user });
+    try {
+      assert.equal((await (await api.request({ action: "status" })).json()).available, true);
+      assert.deepEqual(await (await api.request({ action: "enroll", userId: "another-account" })).json(), { ok: true });
+    } finally { await api.close(); }
+  }
 });
 
 test("enrollment and browser registration require recent password authentication; verification does not", async () => {
@@ -96,7 +109,20 @@ test("face sign-in remains disabled until the flag and private admin credential 
   } finally { await api.close(); }
 });
 
-test("public face sign-in cannot enroll, substitute another account, or use verification results as login proofs", async () => {
+test("face sign-in availability applies to all valid account UUIDs without exposing enrollment status", async () => {
+  let calls = 0;
+  const api = await gateway({ fetch: async () => { calls++; throw Error(); } }, loginConfig, "/api/face-login");
+  try {
+    for (const id of [user, otherUser])
+      assert.deepEqual(await (await api.request({ action: "config", userId: id })).json(), { available: true });
+    for (const id of ["", "someone-else", "x".repeat(100), null])
+      assert.deepEqual(await (await api.request({ action: "config", userId: id })).json(), { available: false });
+    assert.equal((await api.request({ action: "login", userId: user, deviceId: "-".repeat(36) })).status, 400);
+    assert.equal(calls, 0);
+  } finally { await api.close(); }
+});
+
+test("public face sign-in rejects setup actions, malformed identities, and unbound verification results", async () => {
   let sessions = 0, calls = 0;
   const api = await gateway({ createSession: async () => { sessions++; throw Error(); }, fetch: async (_input, init) => {
     calls++;
@@ -116,22 +142,24 @@ test("public face sign-in cannot enroll, substitute another account, or use veri
 });
 
 test("only a successful account-bound login proof can create a normal user session", async () => {
-  let sessions = 0;
-  const api = await gateway({ fetch: async () => Response.json({ verified: true, userId: user, template: "private" }),
-    createSession: async (id) => {
-      assert.equal(id, user); sessions++;
-      return { userId: id, access_token: "user-access", refresh_token: "user-refresh" };
-    } }, loginConfig, "/api/face-login");
-  try {
-    const response = await api.request({ action: "login", userId: user, deviceId });
-    assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await response.json(), { userId: user, access_token: "user-access", refresh_token: "user-refresh" });
-    assert.equal(sessions, 1);
-  } finally { await api.close(); }
+  for (const accountId of [user, otherUser]) {
+    let sessions = 0;
+    const api = await gateway({ fetch: async () => Response.json({ verified: true, userId: accountId, template: "private" }),
+      createSession: async (id) => {
+        assert.equal(id, accountId); sessions++;
+        return { userId: id, access_token: "user-access", refresh_token: "user-refresh" };
+      } }, loginConfig, "/api/face-login");
+    try {
+      const response = await api.request({ action: "login", userId: accountId, deviceId });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.deepEqual(await response.json(), { userId: accountId, access_token: "user-access", refresh_token: "user-refresh" });
+      assert.equal(sessions, 1);
+    } finally { await api.close(); }
+  }
 });
 
 test("failed or mismatched private proofs never invoke the Supabase session bridge", async () => {
-  for (const result of [{ verified: false, userId: user }, { verified: true, userId: "wrong-account" }]) {
+  for (const result of [{ verified: false, userId: user }, { verified: true, userId: otherUser }]) {
     let sessions = 0;
     const api = await gateway({ fetch: async () => Response.json(result), createSession: async () => { sessions++; throw Error(); } }, loginConfig, "/api/face-login");
     try {

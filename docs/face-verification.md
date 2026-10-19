@@ -1,10 +1,10 @@
 # Optional face-verification and sign-in trial
 
-This implementation enrolls and verifies **signed-in, explicitly allowlisted test accounts**. A separately enabled sign-in flow lets an enrolled browser sign in after a fresh face/liveness check and device signature. The Node gateway then obtains a normal Supabase user session for that same account UUID. Name/password remains available. Both the trial and face sign-in are disabled by default; adding this code does not activate a hosted deployment.
+Every signed-in account can opt into face verification once the service is configured. No account allowlist or administrator approval is required. A separately enabled sign-in flow lets an enrolled browser sign in after a fresh face/liveness check and device signature. The Node gateway then obtains a normal Supabase user session for that same account UUID. Name/password remains available. Both verification and face sign-in are disabled by default; adding this code does not activate a hosted deployment.
 
 ## Implemented behavior
 
-- Settings exposes the trial only when the Node gateway is enabled, the Supabase user is allowlisted, and the private service responds.
+- Settings exposes setup to any authenticated account when the Node gateway is enabled and the private service responds. Users must consent and complete setup; availability does not automatically enroll anyone or enable the camera.
 - Enrollment and adding a browser require password authentication within five minutes and versioned consent. Adding a browser verifies the existing face template and preserves other registered browsers. Setting up again replaces the template and revokes all previous browser registrations.
 - Camera access begins after a user action. Three JPEG frames are captured without speech, expressions, head-motion tasks or countdowns. Cancellation, completion, errors and leaving Settings stop the camera. Status messages support Listen and live announcements.
 - A non-extractable ECDSA P-256 private key is stored in IndexedDB under the account UUID. No face data is stored in browser storage. Its public key is registered on the private service.
@@ -18,10 +18,10 @@ The browser key is a software possession credential, **not a hardware-attested a
 
 ## Local setup
 
-Use synthetic accounts without patient information. Obtain consent before enrolling anyone.
+For development checks, use synthetic accounts without patient information. Obtain consent before enrolling anyone. This is development guidance, not an account eligibility restriction.
 
-1. Add the gateway variables from `.env.example` to the existing `.env.local`, preserving its other settings. Set `FACE_PROTOTYPE_ENABLED=true`, the exact browser origin including port, service URL, random shared secret, and synthetic Supabase **user UUIDs**. An empty allowlist permits nobody. Verification alone needs no Supabase server secret; sign-in additionally requires the settings below.
-2. Copy `face-service/.env.example` to `face-service/.env`. Use the same shared secret and UUIDs. Generate a separate encryption key. These files are ignored by Git.
+1. Add the gateway variables from `.env.example` to the existing `.env.local`, preserving its other settings. Set `FACE_PROTOTYPE_ENABLED=true`, the exact browser origin including port, service URL and random shared secret. This enables setup for all authenticated accounts. Verification alone needs no Supabase server secret; sign-in additionally requires the settings below.
+2. Copy `face-service/.env.example` to `face-service/.env`. Use the same shared secret. Generate a separate encryption key. These files are ignored by Git. The retired `FACE_TEST_USER_IDS` setting is ignored on both servers and may be removed; existing enrollment does not change.
 
    Generate the shared secret and encryption key separately:
 
@@ -53,7 +53,7 @@ Use synthetic accounts without patient information. Obtain consent before enroll
    face-service/.venv/bin/uvicorn app:create_app --factory --app-dir face-service --host 127.0.0.1 --port 8001 --workers 1 --no-access-log
    ```
 
-7. Separately run `npm run dev` (restart after changing `.env.local`). Sign in as an allowlisted test user. In Settings, choose **Set up face verification**, consent, re-enter the password and capture. Exercise **Check my face** and **Remove face data**.
+7. Separately run `npm run dev` (restart after changing `.env.local`). Sign in or create an account. In Settings, choose **Set up face verification**, consent, re-enter the password and capture. Exercise **Check my face** and **Remove face data**. The gateway binds all setup/status/removal actions to the authenticated Supabase user; a caller-supplied account UUID cannot select another user's records.
 
 ### Enable optional sign-in
 
@@ -130,3 +130,5 @@ Sign-in integration checks cover disabled configuration, account isolation, logi
 Face sign-in validation on October 18, 2026: production build/TypeScript, lint, 54 JavaScript tests, compiled gateway smoke checks and 31 Python tests passed. Existing enrollment was confirmed present after restarting the updated private service.
 
 Multiple-browser validation on October 19, 2026: production build/TypeScript, lint, 55 JavaScript tests, compiled gateway smoke checks and 39 Python tests passed. Protocol tests cover legacy migration, unchanged templates, independent browser logins, registration proof/consent/mismatch/replay rejection, key replacement prevention, and global removal/re-enrollment invalidation. A headless Edge check used two isolated browser profiles, synthetic camera input and mocked API/model results to exercise enrollment, adding a browser, rejected registration, both sign-ins, global removal, camera cleanup and a 320px layout; actual browser-generated signatures were verified. The local service was restarted and the existing test enrollment and browser registration were confirmed preserved by migration. Live registration of a second browser remains for the enrolled user to exercise.
+
+Self-service availability validation on October 19, 2026: build/TypeScript, lint, 57 JavaScript tests, compiled gateway smoke checks and 41 Python tests passed. Coverage includes enrollment and account-bound login for previously unlisted accounts, rejection of unauthenticated setup and mismatched account proofs, private service authentication, UUID validation and isolation of removal between accounts. No per-account approval settings are required. Global feature flags, consent, recent password confirmation, registered-browser proofs and the existing MFA policy remain in effect.

@@ -17,9 +17,6 @@ def create_app():
     secret = os.environ["FACE_SERVICE_SECRET"]
     if len(secret) < 32:
         raise ValueError("Use a random FACE_SERVICE_SECRET of at least 32 characters")
-    allowed_users = [user.strip() for user in os.environ["FACE_TEST_USER_IDS"].split(",") if user.strip()]
-    if not allowed_users:
-        raise ValueError("Explicit test-account allowlist required")
     encryption_key = base64.b64decode(os.environ["FACE_ENCRYPTION_KEY"], validate=True)
     # Removal and status continue to work even if inference assets become unavailable.
     class LazyEngine:
@@ -43,7 +40,7 @@ def create_app():
         def verify(self, frames, enrolled):
             return self.get().verify(frames, enrolled)
 
-    trial = FaceTrial(os.environ["FACE_DB_PATH"], encryption_key, LazyEngine(), allowed_users)
+    trial = FaceTrial(os.environ["FACE_DB_PATH"], encryption_key, LazyEngine())
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     # Bound concurrent captures; overload is retriable, never an unbounded inference queue.
     slots = threading.BoundedSemaphore(2)

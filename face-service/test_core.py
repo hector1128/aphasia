@@ -42,7 +42,7 @@ class TrialTests(unittest.TestCase):
         self.now = 1000
         self.engine = FakeEngine()
         self.key = b"k" * 32
-        self.trial = FaceTrial(self.path, self.key, self.engine, [USER, OTHER], lambda: self.now)
+        self.trial = FaceTrial(self.path, self.key, self.engine, clock=lambda: self.now)
         self.new_browser()
 
     def new_browser(self):
@@ -58,14 +58,14 @@ class TrialTests(unittest.TestCase):
     def request(self, action, **fields):
         return self.trial.handle({"userId": USER, "action": action, **fields})
 
-    def submission(self, operation="enroll", **fields):
-        challenge = self.request("begin", operation=operation, deviceId=self.device_id)
+    def submission(self, operation="enroll", user=USER, **fields):
+        challenge = self.trial.handle({"userId": user, "action": "begin", "operation": operation, "deviceId": self.device_id})
         frames = [b"synthetic-jpeg-bytes-" * 8 + bytes([i]) for i in range(3)]
         message = capture_message(challenge["message"], frames)
         der = self.private.sign(message, ec.ECDSA(hashes.SHA256()))
         r, s = decode_dss_signature(der)
         signature = base64.b64encode(r.to_bytes(32, "big") + s.to_bytes(32, "big")).decode()
-        return {"userId": USER, "action": operation, "deviceId": self.device_id,
+        return {"userId": user, "action": operation, "deviceId": self.device_id,
                 "challengeId": challenge["challengeId"], "frames": [base64.b64encode(frame).decode() for frame in frames],
                 "signature": signature, "publicKey": self.public, "consentVersion": CONSENT_VERSION, **fields}
 
@@ -143,10 +143,20 @@ class TrialTests(unittest.TestCase):
         self.reject("expired", {**body, "deviceId": str(uuid.uuid4())})
         self.assertEqual(self.engine.calls, 0)
 
-    def test_missing_consent_and_unknown_test_account_rejected(self):
+    def test_missing_consent_and_invalid_account_id_rejected(self):
         self.reject("invalid", self.submission(consentVersion=""))
-        self.reject("unavailable", {"userId": str(uuid.uuid4()), "action": "status"})
+        self.reject("invalid", {"userId": "not-an-account-id", "action": "status"})
         self.assertEqual(self.engine.calls, 0)
+
+    def test_new_accounts_can_enroll_and_login_without_affecting_other_accounts(self):
+        self.enroll()
+        account = str(uuid.uuid4())
+        self.new_browser()
+        self.assertEqual(self.trial.handle(self.submission(user=account)), {"ok": True})
+        self.assertEqual(self.trial.handle(self.submission("login", user=account)), {"verified": True, "userId": account})
+        self.trial.handle({"userId": account, "action": "remove"})
+        self.assertTrue(self.request("status")["enrolled"])
+        self.assertFalse(self.trial.handle({"userId": account, "action": "status"})["enrolled"])
 
     def test_cannot_verify_using_another_key(self):
         self.enroll()
@@ -164,7 +174,7 @@ class TrialTests(unittest.TestCase):
     def test_rate_limit_survives_service_restart(self):
         for _ in range(6):
             self.request("begin", operation="enroll", deviceId=self.device_id)
-        self.trial = FaceTrial(self.path, self.key, self.engine, [USER], lambda: self.now)
+        self.trial = FaceTrial(self.path, self.key, self.engine, clock=lambda: self.now)
         self.reject("limited", {"userId": USER, "action": "begin", "operation": "enroll", "deviceId": self.device_id})
         self.now += 61
         self.assertIn("message", self.request("begin", operation="enroll", deviceId=self.device_id))
@@ -289,11 +299,11 @@ class TrialTests(unittest.TestCase):
             db.execute("CREATE TABLE devices (user_id TEXT PRIMARY KEY, device_id TEXT NOT NULL, public_key TEXT NOT NULL)")
             db.execute("INSERT INTO devices SELECT * FROM devices_fixture")
             db.execute("DROP TABLE devices_fixture")
-        self.trial = FaceTrial(self.path, self.key, self.engine, [USER], lambda: self.now)
+        self.trial = FaceTrial(self.path, self.key, self.engine, clock=lambda: self.now)
         self.assertEqual(self.trial.handle(self.submission("login")), {"verified": True, "userId": USER})
         self.new_browser()
         self.assertEqual(self.trial.handle(self.submission("register")), {"ok": True})
-        self.trial = FaceTrial(self.path, self.key, self.engine, [USER], lambda: self.now)
+        self.trial = FaceTrial(self.path, self.key, self.engine, clock=lambda: self.now)
         with self.trial.connect() as db:
             self.assertEqual(tuple(db.execute("SELECT * FROM templates").fetchone()), before)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM devices").fetchone()[0], 2)

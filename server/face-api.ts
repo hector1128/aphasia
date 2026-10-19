@@ -7,6 +7,8 @@ type Config = Record<string, string | undefined>;
 type Identity = { id: string; recentPassword: boolean };
 type Authenticate = (token: string) => Promise<Identity | null>;
 const actions = new Set(["status", "begin", "enroll", "register", "verify", "remove"]);
+const validId = (value: unknown): value is string => typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
 const messages: Record<string, string> = {
   invalid: "Could not read that request. Please try again.",
   expired: "That check has expired. Please try again.",
@@ -61,16 +63,14 @@ export function faceMiddleware(config: Config, overrides: {
           !(login ? ["config", "begin", "login"].includes(body.action) : actions.has(body.action))) throw Error();
     } catch { return reply(400, { error: messages.invalid }); }
     const configured = config.FACE_PROTOTYPE_ENABLED === "true" && config.FACE_SERVICE_URL && config.FACE_SERVICE_SECRET;
-    const testUsers = (config.FACE_TEST_USER_IDS || "").split(",").map((id) => id.trim()).filter(Boolean);
     if (login && body.action === "config") return reply(200, { available: Boolean(configured && signInConfigured() &&
-      typeof body.userId === "string" && testUsers.includes(body.userId)) });
+      validId(body.userId)) });
     if (!configured || (login && !signInConfigured())) return body.action === "status"
       ? reply(200, { available: false, enrolled: false, registered: false })
       : reply(503, { error: messages.unavailable });
     let identity;
     if (login) {
-      if (typeof body.userId !== "string" || !testUsers.includes(body.userId) ||
-          typeof body.deviceId !== "string" || !/^[0-9a-f-]{36}$/.test(body.deviceId))
+      if (!validId(body.userId) || !validId(body.deviceId))
         return reply(400, { error: messages.device });
       identity = { id: body.userId, recentPassword: false };
       // An anonymous request may only request/complete a LOGIN challenge.
@@ -80,9 +80,6 @@ export function faceMiddleware(config: Config, overrides: {
       identity = token ? await authenticate(token) : null;
     } catch { return reply(503, { error: messages.unavailable }); }
     if (!identity) return reply(401, { error: "Please sign in again." });
-    if (!testUsers.includes(identity.id)) return body.action === "status"
-      ? reply(200, { available: false, enrolled: false, registered: false })
-      : reply(403, { error: "Face verification is available only to trial accounts." });
     if ((["enroll", "register"].includes(body.action as string) ||
         (body.action === "begin" && ["enroll", "register"].includes(body.operation as string))) && !identity.recentPassword)
       return reply(401, { error: "Enter your password again before setting up face verification." });
