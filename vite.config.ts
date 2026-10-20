@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import { reportMiddleware } from "./server/report-api";
+import { faceMiddleware } from "./server/face-api";
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<
     string,
@@ -11,9 +12,11 @@ export default defineConfig(({ mode }) => {
         name: "local-report-email",
         configureServer(server) {
           server.middlewares.use(reportMiddleware(env));
+          server.middlewares.use(faceMiddleware(env));
         },
         configurePreviewServer(server) {
           server.middlewares.use(reportMiddleware(env));
+          server.middlewares.use(faceMiddleware(env));
         },
       },
     ],

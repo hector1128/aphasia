@@ -1,0 +1,10 @@
+Silent-Face-Anti-Spoofing / MiniFASNet
+Copyright Minivision and upstream authors, including zhuying.
+Source: https://github.com/minivision-ai/Silent-Face-Anti-Spoofing
+Pinned revision: b6d5f04ad78778917853b25c778acef6d5626d15
+Licensed under Apache License 2.0; see LICENSE in this directory.
+
+MiniFASNet.py and generate_patches.py are unmodified upstream files.
+The application adapter and ONNX preparation script live outside this directory.
+The original pretrained weights are downloaded separately, checksum verified,
+and converted locally; they are not committed to this repository.

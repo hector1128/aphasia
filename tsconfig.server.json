@@ -8,5 +8,5 @@
     "rootDir": ".",
     "outDir": "tmp/server-runtime"
   },
-  "include": ["api/report.ts"]
+  "include": ["api/report.ts", "api/face.ts", "api/face-login.ts"]
 }

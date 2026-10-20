@@ -15,7 +15,11 @@ npm run build
 
 `npm run test:sleep` checks automatic sleep filling. `node --import tsx scripts/preview-report.ts` generates a fictional weekly PDF in the ignored `output/pdf` folder.
 
+`npm run dev` opens a fixed local address (normally `http://127.0.0.1:5173`). When local face authentication is enabled, it starts the Python face service too, loading `face-service/.env` and verifying/preparing its models before reporting readiness. Create `face-service/.venv` and install `face-service/requirements-export.txt` first. An existing authenticated face service is reused; stopping the dev command stops only the Python process it started. See [face setup](docs/face-verification.md) for the required settings. Use the printed address in the same browser each time so its registered key remains available.
+
 ## Accounts and saved logs
+
+An optional, disabled-by-default **face-verification and sign-in feature** is available to every signed-in account once configured. Users opt in and register their own browsers; no account allowlist or administrator approval is required. It uses a private self-hosted service and an enrolled browser key. Face sign-in requires separate server configuration; name/password remains available. See [setup, model requirements and limitations](docs/face-verification.md).
 
 The configured Supabase project supports unique name and password accounts. Signing in on another device loads the same private log. Saves use revision checks so simultaneous changes cannot silently overwrite each other. Settings offers a choice when both devices have unsynced changes. A per-account browser cache supports temporary connection loss.
 
