@@ -30,17 +30,24 @@ For development checks, use synthetic accounts without patient information. Obta
    python3 -c 'import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())'
    ```
 
-3. Supply local YuNet/SFace ONNX models using [OpenCV's documented interfaces](https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html). Compute checksums with `shasum -a 256 path/to/model.onnx`. The local `yunet.onnx` and `sface.onnx` have already been downloaded, load-checked, and configured for this checkout.
-4. Prepare the pinned liveness models. This checkout's exports have already been prepared and their paths/checksums saved in `face-service/.env`. For a fresh checkout, run from the repository root:
+3. Create the Python environment and install the model-preparation dependencies. These include the runtime libraries and the exporter used when liveness exports are missing:
 
    ```sh
    python3 -m venv face-service/.venv
    face-service/.venv/bin/python -m pip install -r face-service/requirements-export.txt
-   face-service/.venv/bin/python face-service/prepare_liveness.py --write-env face-service/.env
+   ```
+
+4. Prepare all four models and save their paths/checksums:
+
+   ```sh
+   face-service/.venv/bin/python face-service/prepare_models.py --write-env face-service/.env
    face-service/.venv/bin/python face-service/check_liveness.py
    ```
 
-   The preparation command downloads two pinned upstream weight files, verifies their expected SHA-256 hashes, loads only weight tensors, exports them to ONNX, and compares each export against the original model on three synthetic inputs. It updates only liveness paths/checksums, preserves other configuration, and leaves trial activation/thresholds unchanged. Runtime needs `requirements.txt` only; PyTorch/ONNX exporter dependencies are used only during preparation. Models, the generated provenance manifest and copies of the upstream license/notice stay in the ignored `face-service/models` directory.
+   The command downloads missing YuNet/SFace models from OpenCV Zoo revision `47534e27c9851bb1128ccc0102f1145e27f23f98` using fixed SHA-256 checksums. It also downloads pinned MiniFASNet weights when needed, exports missing liveness ONNX files and compares each new export against the original model on three synthetic inputs. Valid existing files are checked and reused, including exports described by the original `liveness-manifest.json`. An existing file with a checksum/provenance mismatch causes setup to fail instead of silently replacing it. Downloads use bounded temporary files and are installed only after verification; interrupted downloads can be retried. Each completed liveness export records its provenance so preparation can resume after an interrupted conversion.
+
+   `--write-env` updates only model paths/checksums after all preparation succeeds, preserving secrets, encryption keys, database paths, thresholds and activation settings. Models, the generated provenance manifest and upstream licenses/notices stay in the ignored `face-service/models` directory. Runtime-only installations can use `requirements.txt` when verified exports are already provisioned; fresh conversion additionally needs `requirements-export.txt`. The lower-level `prepare_liveness.py` still supports explicit regeneration; use `--if-missing` to reuse its existing exports.
+
 5. Set measured `FACE_MATCH_THRESHOLD` and `FACE_PAD_THRESHOLD`. There are deliberately no acceptance-threshold defaults. Local test thresholds must be treated as experimental until evaluated on representative captures and attacks. Missing/incompatible configuration rejects captures; there is no demo-success mode.
 6. Start the private service from the repository root:
 
@@ -54,6 +61,26 @@ For development checks, use synthetic accounts without patient information. Obta
    ```
 
 7. Separately run `npm run dev` (restart after changing `.env.local`). Sign in or create an account. In Settings, choose **Set up face verification**, consent, re-enter the password and capture. Exercise **Check my face** and **Remove face data**. The gateway binds all setup/status/removal actions to the authenticated Supabase user; a caller-supplied account UUID cannot select another user's records.
+
+### Automatic preparation on the deployment server
+
+Set the Python service's install/build command to:
+
+```sh
+python -m pip install -r face-service/requirements-export.txt
+```
+
+Set its start command to:
+
+```sh
+python face-service/start_service.py --host 0.0.0.0 --models-dir /data/face-models
+```
+
+Use your actual writable persistent-volume location instead of `/data/face-models`. Alternatively, set `FACE_MODELS_DIR` on the platform and omit `--models-dir`. The entrypoint reads the platform's `PORT` variable (default `8001`); `--port` can override it. Binding to `0.0.0.0` is for the service/container network behind the gateway's authenticated HTTPS connection. Without `--host`, the command binds only to loopback.
+
+Supply `FACE_SERVICE_SECRET`, `FACE_ENCRYPTION_KEY`, `FACE_DB_PATH`, `FACE_MATCH_THRESHOLD` and `FACE_PAD_THRESHOLD` through the platform's environment settings. The start command downloads/prepares missing models, validates them, adds only verified model paths/checksums to the process environment, and starts one Uvicorn worker with access logging off. It does not read, generate or source a replacement `.env`, change these platform settings, or contact Supabase. A preparation failure prevents startup; HTTP handlers never attempt downloads.
+
+Persist the model directory **including `liveness-manifest.json`** along with the database's own persistent storage. A fresh deployment can download everything; subsequent starts reuse verified copies without downloads or conversion. A deployment with ephemeral storage must prepare them again, needs outbound HTTPS to GitHub, and may take longer to start. Keep exports stable across deployments: changed export bytes/toolchain versions change the template fingerprint and require re-enrollment. Preparation downloads public models/licenses only; face captures, templates and secrets are never sent upstream. Install dependencies and run startup once per authoritative service instance, rather than launching concurrent provisioners into the same model directory.
 
 ### Enable optional sign-in
 
@@ -132,3 +159,5 @@ Face sign-in validation on October 18, 2026: production build/TypeScript, lint, 
 Multiple-browser validation on October 19, 2026: production build/TypeScript, lint, 55 JavaScript tests, compiled gateway smoke checks and 39 Python tests passed. Protocol tests cover legacy migration, unchanged templates, independent browser logins, registration proof/consent/mismatch/replay rejection, key replacement prevention, and global removal/re-enrollment invalidation. A headless Edge check used two isolated browser profiles, synthetic camera input and mocked API/model results to exercise enrollment, adding a browser, rejected registration, both sign-ins, global removal, camera cleanup and a 320px layout; actual browser-generated signatures were verified. The local service was restarted and the existing test enrollment and browser registration were confirmed preserved by migration. Live registration of a second browser remains for the enrolled user to exercise.
 
 Self-service availability validation on October 19, 2026: build/TypeScript, lint, 57 JavaScript tests, compiled gateway smoke checks and 41 Python tests passed. Coverage includes enrollment and account-bound login for previously unlisted accounts, rejection of unauthenticated setup and mismatched account proofs, private service authentication, UUID validation and isolation of removal between accounts. No per-account approval settings are required. Global feature flags, consent, recent password confirmation, registered-browser proofs and the existing MFA policy remain in effect.
+
+Deployment model preparation validation on October 20, 2026: all 52 Python tests passed. A fresh temporary directory successfully downloaded the pinned official models/weights, exported both liveness models with parity checks, and loaded all four models in the actual engine. A repeat run with network requests and exporter imports disabled preserved model hashes/mtimes and the manifest. The legacy local manifest was also accepted unchanged. The actual deployment entrypoint served an authenticated status request on a temporary local port using the platform-style `PORT` variable and a synthetic database, then stopped. No hosted deployment or patient capture was performed in these checks.
