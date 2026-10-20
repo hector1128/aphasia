@@ -49,18 +49,15 @@ For development checks, use synthetic accounts without patient information. Obta
    `--write-env` updates only model paths/checksums after all preparation succeeds, preserving secrets, encryption keys, database paths, thresholds and activation settings. Models, the generated provenance manifest and upstream licenses/notices stay in the ignored `face-service/models` directory. Runtime-only installations can use `requirements.txt` when verified exports are already provisioned; fresh conversion additionally needs `requirements-export.txt`. The lower-level `prepare_liveness.py` still supports explicit regeneration; use `--if-missing` to reuse its existing exports.
 
 5. Set measured `FACE_MATCH_THRESHOLD` and `FACE_PAD_THRESHOLD`. There are deliberately no acceptance-threshold defaults. Local test thresholds must be treated as experimental until evaluated on representative captures and attacks. Missing/incompatible configuration rejects captures; there is no demo-success mode.
-6. Start the private service from the repository root:
+6. Start local development from the repository root:
 
    ```sh
-   python3 -m venv face-service/.venv
-   face-service/.venv/bin/python -m pip install -r face-service/requirements.txt
-   set -a
-   source face-service/.env
-   set +a
-   face-service/.venv/bin/uvicorn app:create_app --factory --app-dir face-service --host 127.0.0.1 --port 8001 --workers 1 --no-access-log
+   npm run dev
    ```
 
-7. Separately run `npm run dev` (restart after changing `.env.local`). Sign in or create an account. In Settings, choose **Set up face verification**, consent, re-enter the password and capture. Exercise **Check my face** and **Remove face data**. The gateway binds all setup/status/removal actions to the authenticated Supabase user; a caller-supplied account UUID cannot select another user's records.
+   The command uses `FACE_APP_ORIGIN` as the web address when face authentication is enabled, with a fixed port so Vite cannot silently switch to a different browser-storage origin. For a local HTTP `FACE_SERVICE_URL`, it reuses an authenticated running face service or starts `face-service/.venv`'s Python with the private `face-service/.env` settings and the model-preparing entrypoint. The shared secret must match the Node configuration. Startup failures are shown in the terminal; stopping the dev command stops the face process it owns. A configured remote HTTPS face service is used directly. Restart the command after changing either environment file.
+
+7. Open the exact address printed by `npm run dev` (normally `http://127.0.0.1:5173/`). `localhost`, `127.0.0.1`, different ports and different browsers have separate device-key storage. Sign in or create an account. In Settings, choose **Set up face verification**, consent, re-enter the password and capture. Exercise **Check my face** and **Remove face data**. The gateway binds all setup/status/removal actions to the authenticated Supabase user; a caller-supplied account UUID cannot select another user's records.
 
 ### Automatic preparation on the deployment server
 
@@ -161,3 +158,5 @@ Multiple-browser validation on October 19, 2026: production build/TypeScript, li
 Self-service availability validation on October 19, 2026: build/TypeScript, lint, 57 JavaScript tests, compiled gateway smoke checks and 41 Python tests passed. Coverage includes enrollment and account-bound login for previously unlisted accounts, rejection of unauthenticated setup and mismatched account proofs, private service authentication, UUID validation and isolation of removal between accounts. No per-account approval settings are required. Global feature flags, consent, recent password confirmation, registered-browser proofs and the existing MFA policy remain in effect.
 
 Deployment model preparation validation on October 20, 2026: all 52 Python tests passed. A fresh temporary directory successfully downloaded the pinned official models/weights, exported both liveness models with parity checks, and loaded all four models in the actual engine. A repeat run with network requests and exporter imports disabled preserved model hashes/mtimes and the manifest. The legacy local manifest was also accepted unchanged. The actual deployment entrypoint served an authenticated status request on a temporary local port using the platform-style `PORT` variable and a synthetic database, then stopped. No hosted deployment or patient capture was performed in these checks.
+
+Local development startup validation on October 20, 2026: build/TypeScript, lint, 57 application JavaScript tests, compiled API smoke checks and four development-launcher tests passed. The real launcher also started Vite and the Python service together on temporary local ports, enabled the face sign-in configuration endpoint, and stopped both owned servers before exiting. A separate integration check verified that an existing face service is reused and remains running when the launcher stops. These checks used status requests only, with no face capture or new Supabase session.
