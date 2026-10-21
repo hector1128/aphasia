@@ -22,6 +22,16 @@ const messages: Record<string, string> = {
 export function faceMiddleware(config: Config, overrides: {
   authenticate?: Authenticate; fetch?: typeof fetch; createSession?: (userId: string) => Promise<FaceSession>;
 } = {}) {
+  const service = () => {
+    if (config.FACE_SERVICE_URL) {
+      const base = new URL(config.FACE_SERVICE_URL);
+      if (base.username || base.password || base.search || base.hash) return null;
+      return { url: new URL("/v1/face", base), bundled: false };
+    }
+    if (config.VERCEL === "1" && config.VERCEL_URL && /^[a-z0-9.-]+$/i.test(config.VERCEL_URL))
+      return { url: new URL(`https://${config.VERCEL_URL}/api/face-service`), bundled: true };
+    return null;
+  };
   const signInConfigured = () => config.FACE_SIGNIN_ENABLED === "true" && Boolean(config.SUPABASE_SECRET_KEY || config.SUPABASE_SERVICE_ROLE_KEY);
   const authenticate: Authenticate = overrides.authenticate ?? (async (token) => {
     const client = createClient(config.SUPABASE_URL || cloudConfig.url,
@@ -62,7 +72,9 @@ export function faceMiddleware(config: Config, overrides: {
       if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.action !== "string" ||
           !(login ? ["config", "begin", "login"].includes(body.action) : actions.has(body.action))) throw Error();
     } catch { return reply(400, { error: messages.invalid }); }
-    const configured = config.FACE_PROTOTYPE_ENABLED === "true" && config.FACE_SERVICE_URL && config.FACE_SERVICE_SECRET;
+    let target;
+    try { target = service(); } catch { /* Invalid configuration fails closed below. */ }
+    const configured = config.FACE_PROTOTYPE_ENABLED === "true" && target && config.FACE_SERVICE_SECRET;
     if (login && body.action === "config") return reply(200, { available: Boolean(configured && signInConfigured() &&
       validId(body.userId)) });
     if (!configured || (login && !signInConfigured())) return body.action === "status"
@@ -84,12 +96,14 @@ export function faceMiddleware(config: Config, overrides: {
         (body.action === "begin" && ["enroll", "register"].includes(body.operation as string))) && !identity.recentPassword)
       return reply(401, { error: "Enter your password again before setting up face verification." });
     try {
-      const url = new URL(config.FACE_SERVICE_URL!);
+      const url = target!.url;
       if (url.username || url.password || url.search || url.hash ||
           (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw Error();
-      const response = await (overrides.fetch ?? fetch)(new URL("/v1/face", url), {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(20000),
-        headers: { Authorization: `Bearer ${config.FACE_SERVICE_SECRET}`, "Content-Type": "application/json" },
+      const response = await (overrides.fetch ?? fetch)(url, {
+        method: "POST", redirect: "error", signal: AbortSignal.timeout(45000),
+        headers: { Authorization: `Bearer ${config.FACE_SERVICE_SECRET}`, "Content-Type": "application/json",
+          ...(target!.bundled && config.VERCEL_AUTOMATION_BYPASS_SECRET
+            ? { "x-vercel-protection-bypass": config.VERCEL_AUTOMATION_BYPASS_SECRET } : {}) },
         // Protected actions use the authenticated account. Anonymous login uses
         // this ID only for lookup; the private service must prove it before sign-in.
         body: JSON.stringify({ ...body, userId: identity.id }),

@@ -54,7 +54,7 @@ export function FaceCamera({ prepare, submit, onError, onCancel, cancelLabel = "
     if (busy || !ready) return;
     setBusy(true); setMessage("Getting ready…");
     const controller = new AbortController(); pending.current = controller;
-    const timeout = window.setTimeout(() => { controller.abort(); stop(); }, 30000);
+    const timeout = window.setTimeout(() => { controller.abort(); stop(); }, 90000);
     try {
       const proof = await prepare(controller.signal);
       if (!alive.current || controller.signal.aborted) throw new DOMException("Cancelled", "AbortError");

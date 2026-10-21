@@ -10,9 +10,9 @@ Every signed-in account can opt into face verification once the service is confi
 - A non-extractable ECDSA P-256 private key is stored in IndexedDB under the account UUID. No face data is stored in browser storage. Its public key is registered on the private service.
 - A durable 120-second single-use challenge binds account, operation and device. The device signs the challenge plus hashes of the ordered captures. Challenges are consumed before signature checking/inference.
 - Self-hosted inference uses YuNet detection, SFace embeddings and the MiniFASNet V2/V1SE passive presentation-attack-detection (PAD) ensemble. Every frame must pass PAD and quality checks. Enrollment checks consistency; verification compares only with the selected account.
-- SQLite stores AES-256-GCM encrypted templates, model/configuration fingerprints, consent version/time, public device keys and challenge/rate records. Raw captures and scores are not stored/logged/returned.
+- SQLite locally, or a private Supabase Postgres schema on Vercel, stores AES-256-GCM encrypted templates, model/configuration fingerprints, consent version/time, public device keys and challenge/rate records. Raw captures and scores are not stored/logged/returned.
 - Six challenges per account per minute, input/concurrency limits, account isolation and removal/re-enrollment invalidation are enforced. Deletion works without inference models.
-- Face sign-in uses its own single-use `login` challenge. A successful Settings verification cannot be reused to sign in. The private service never receives Supabase administrator credentials or session tokens.
+- Face sign-in uses its own single-use `login` challenge. A successful Settings verification cannot be reused to sign in. The inference handler does not use Supabase Auth administrator credentials or session tokens. The standalone service can run without those credentials; functions within one Vercel project share its server environment.
 
 The browser key is a software possession credential, **not a hardware-attested authenticator**. A compromised browser can sign injected captures. Passive PAD reduces model-dependent risks but is not proof against deepfakes/sensor injection. This trial has not established false-match rates, spoof resistance, NIST conformance or suitability for patient authentication.
 
@@ -61,6 +61,8 @@ For development checks, use synthetic accounts without patient information. Obta
 
 ### Automatic preparation on the deployment server
 
+For the Vercel-hosted Python function and private Supabase Postgres storage, follow [deploy face authentication](face-deployment.md). It includes the SQL migration, build-time model preparation, server settings and registration on the live domain. The commands below are for an optional standalone Python host, not the Vercel function.
+
 Set the Python service's install/build command to:
 
 ```sh
@@ -88,7 +90,7 @@ FACE_SIGNIN_ENABLED=true
 SUPABASE_SECRET_KEY=your_server_secret_key
 ```
 
-Get the server secret from your Supabase project's **Settings → API Keys → Publishable and secret API keys**. A new secret key starts with `sb_secret_`. The gateway also accepts an existing `SUPABASE_SERVICE_ROLE_KEY` as a legacy alternative. Keep these credentials on the Node server: never add them to a `VITE_` variable, the Python environment, client code, screenshots or chat. Restart Vite after saving. Restart the private Python service too when updating it to the version supporting `login` challenges.
+Get the server secret from your Supabase project's **Settings → API Keys → Publishable and secret API keys**. A new secret key starts with `sb_secret_`. The gateway also accepts an existing `SUPABASE_SERVICE_ROLE_KEY` as a legacy alternative. Keep these credentials server-side: never add them to a `VITE_` variable, client code, screenshots or chat. For a standalone Python host, keep them only on the Node host. On Vercel, functions share the project environment; only the Node gateway uses the Auth administrator key. Restart Vite after saving. Restart the private Python service too when updating it to the version supporting `login` challenges.
 
 Existing enrollment is preserved. Use the same browser and origin as enrollment. Refresh the app, sign out, choose **Sign in with my face**, allow the camera and choose **Take pictures**. **Use my password** returns to ordinary sign-in. Clearing browser storage removes the local device credential; that browser must be added again.
 
@@ -109,13 +111,13 @@ After the private service confirms a fresh account-bound login proof, the gatewa
 
 The gateway rejects accounts with verified MFA factors instead of bypassing their additional authentication. Removing face data prevents future face proofs; it does not revoke existing Supabase sessions. Disable `FACE_SIGNIN_ENABLED` to turn off new face sign-ins while retaining password access and signed-in template removal.
 
-Camera/crypto require HTTPS or localhost. Remote hosting needs a persistent private Python host/database, authenticated TLS between Node and Python, and HTTPS for the app. `api/face.ts` and `api/face-login.ts` run as Vercel gateways; models/SQLite do not belong in their ephemeral filesystem. Restrict service ingress to the gateway, disable request-body/APM logging at proxies, protect secrets and apply ingress size/time limits. Use one service worker and one authoritative persistent database.
+Camera/crypto require HTTPS or localhost. Hosted inference can use the Vercel Python function with private Supabase Postgres storage, or a standalone Python host with persistent storage. Both require authenticated HTTPS between Node and Python and HTTPS for the app. `api/face.ts` and `api/face-login.ts` run as Vercel gateways; models/SQLite do not belong in their ephemeral filesystem. Restrict service ingress to the gateway, disable request-body/APM logging at proxies, protect secrets and apply ingress size/time limits. A standalone SQLite host needs one authoritative instance/database. The Postgres backend instead serializes mutations with account-row locks across Vercel instances; inference runs outside transactions and finalization rechecks the epoch.
 
 Delete enrolled data before disabling trial access. Removal deletes active templates/devices/challenges; establish a separate policy for encrypted backups/snapshots. Losing the encryption key requires deletion/re-enrollment. Changing models, preprocessing or thresholds invalidates existing templates. Account deletion/deprovisioning must also remove its trial records. Apply model-license and privacy review before deployment.
 
 ## Model contract
 
-Removal retains non-biometric rate counters to prevent resetting inference limits. Counters contain only UUIDs/timestamps, expire after one minute, and are purged on the next challenge request. Apply a scheduled cleanup too if the service is left idle.
+Removal retains non-biometric rate counters to prevent resetting inference limits. Counters contain only UUIDs/timestamps, expire after one minute, and are purged on that account's next successful challenge request. Apply a scheduled cleanup too if the service is left idle.
 
 The adapter uses [Minivision's Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing) at revision `b6d5f04ad78778917853b25c778acef6d5626d15`. Original architecture and crop code are preserved with their [Apache 2.0 license and attribution](../face-service/vendor/minifasnet/NOTICE). The two upstream weights are `2.7_80x80_MiniFASNetV2.pth` and `4_0_0_80x80_MiniFASNetV1SE.pth`. Both are required; unavailable models never fall back to face matching alone.
 
@@ -160,3 +162,5 @@ Self-service availability validation on October 19, 2026: build/TypeScript, lint
 Deployment model preparation validation on October 20, 2026: all 52 Python tests passed. A fresh temporary directory successfully downloaded the pinned official models/weights, exported both liveness models with parity checks, and loaded all four models in the actual engine. A repeat run with network requests and exporter imports disabled preserved model hashes/mtimes and the manifest. The legacy local manifest was also accepted unchanged. The actual deployment entrypoint served an authenticated status request on a temporary local port using the platform-style `PORT` variable and a synthetic database, then stopped. No hosted deployment or patient capture was performed in these checks.
 
 Local development startup validation on October 20, 2026: build/TypeScript, lint, 57 application JavaScript tests, compiled API smoke checks and four development-launcher tests passed. The real launcher also started Vite and the Python service together on temporary local ports, enabled the face sign-in configuration endpoint, and stopped both owned servers before exiting. A separate integration check verified that an existing face service is reused and remains running when the launcher stops. These checks used status requests only, with no face capture or new Supabase session.
+
+Vercel/Postgres adaptation validation on October 20, 2026: website build/TypeScript, lint, 61 application JavaScript tests, compiled API smoke checks and four development-launcher tests passed. All 65 Python tests passed with the Postgres tests enabled against an isolated local PostgreSQL 17.6 database. The migration ran twice successfully; restricted-role tests exercised encryption, concurrent single-use challenges, shared rate limits, removal during inference, multiple browsers, Auth-user cascade deletion and denied browser-role access. The Vercel HTTP wrapper also performed status/removal against that database without loading models. An actual four-model bundle loaded locally with network access and Torch/ONNX exporter imports disabled. The Vercel configuration passed validation against its official schema; Linux Python 3.12 runtime dependencies plus reference models measured about 392 MB uncompressed before Vercel overhead. No hosted Vercel build, live Supabase pooler/TLS connection, deployment, new patient capture or biometric accuracy evaluation was performed.

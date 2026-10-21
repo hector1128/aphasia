@@ -1,0 +1,7 @@
+-r requirements-export.txt
+# Stable exporters/runtime image processing keep template fingerprints reproducible.
+torch==2.12.0
+onnx==1.19.1
+numpy==2.3.4
+onnxruntime==1.23.2
+opencv-python-headless==4.13.0.92

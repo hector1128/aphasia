@@ -21,6 +21,8 @@ npm run build
 
 An optional, disabled-by-default **face-verification and sign-in feature** is available to every signed-in account once configured. Users opt in and register their own browsers; no account allowlist or administrator approval is required. It uses a private self-hosted service and an enrolled browser key. Face sign-in requires separate server configuration; name/password remains available. See [setup, model requirements and limitations](docs/face-verification.md).
 
+For hosted face authentication, see [the Vercel + Supabase deployment steps](docs/face-deployment.md). Vercel runs the Python function with bundled models; a private Supabase Postgres schema stores encrypted templates and authentication state. Local development can continue using SQLite. No additional hosting provider is required.
+
 The configured Supabase project supports unique name and password accounts. Signing in on another device loads the same private log. Saves use revision checks so simultaneous changes cannot silently overwrite each other. Settings offers a choice when both devices have unsynced changes. A per-account browser cache supports temporary connection loss.
 
 Existing browser logs remain on the device. An empty account can import that browser's log from Settings. Sign-in names are case insensitive and separate from the editable display name. There is no password recovery flow yet. See [account setup](docs/account-setup.md).

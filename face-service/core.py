@@ -1,20 +1,18 @@
-"""Private trial storage/protocol. No Supabase credentials or login tokens live here."""
+"""Private face protocol and encryption, independent of Supabase Auth sessions."""
 import base64
 import hashlib
 import json
-import os
 import secrets
-import sqlite3
 import time
 import uuid
-from contextlib import contextmanager
-from pathlib import Path
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from storage import SQLiteStore
 
 CONSENT_VERSION = "face-trial-v1"
 
@@ -85,56 +83,17 @@ def check_signature(jwk, signature, message):
 
 
 class FaceTrial:
-    def __init__(self, path, encryption_key, engine, clock=time.time):
+    def __init__(self, path, encryption_key, engine, clock=time.time, *, store=None):
         if len(encryption_key) != 32:
             raise ValueError("FACE_ENCRYPTION_KEY must decode to 32 bytes")
-        self.path = str(path)
-        Path(path).parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
-        os.close(descriptor)
-        os.chmod(path, 0o600)
+        self.store = store if store is not None else SQLiteStore(path)
+        self.path = str(path) if path is not None else None
         self.cipher = AESGCM(encryption_key)
         self.engine = engine
         self.clock = clock
-        with self.connect() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS accounts (user_id TEXT PRIMARY KEY, epoch INTEGER NOT NULL);
-                CREATE TABLE IF NOT EXISTS templates (
-                    user_id TEXT PRIMARY KEY, encrypted BLOB NOT NULL,
-                    model_version TEXT NOT NULL, consent_version TEXT NOT NULL, consented_at INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS devices (
-                    user_id TEXT NOT NULL, device_id TEXT NOT NULL, public_key TEXT NOT NULL,
-                    PRIMARY KEY (user_id, device_id)
-                );
-                CREATE TABLE IF NOT EXISTS challenges (
-                    id TEXT PRIMARY KEY, user_id TEXT NOT NULL, device_id TEXT NOT NULL,
-                    operation TEXT NOT NULL, message TEXT NOT NULL, expires INTEGER NOT NULL, epoch INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS attempts (user_id TEXT NOT NULL, created INTEGER NOT NULL);
-                CREATE INDEX IF NOT EXISTS attempts_user ON attempts(user_id, created);
-            """)
-            # Preserve the original browser when upgrading the single-device schema.
-            db.execute("BEGIN IMMEDIATE")
-            primary = [row["name"] for row in db.execute("PRAGMA table_info(devices)") if row["pk"]]
-            if primary == ["user_id"]:
-                db.execute("""CREATE TABLE devices_multi (
-                    user_id TEXT NOT NULL, device_id TEXT NOT NULL, public_key TEXT NOT NULL,
-                    PRIMARY KEY (user_id, device_id))""")
-                db.execute("INSERT INTO devices_multi SELECT user_id, device_id, public_key FROM devices")
-                db.execute("DROP TABLE devices")
-                db.execute("ALTER TABLE devices_multi RENAME TO devices")
 
-    @contextmanager
-    def connect(self):
-        db = sqlite3.connect(self.path, timeout=30)
-        db.row_factory = sqlite3.Row
-        try:
-            db.execute("PRAGMA secure_delete = ON")
-            with db:
-                yield db
-        finally:
-            db.close()
+    def connect(self, user=None):
+        return self.store.connect(user)
 
     def handle(self, body):
         if not isinstance(body, dict):
@@ -150,9 +109,8 @@ class FaceTrial:
                                         (user, body.get("deviceId", ""))).fetchone() is not None
             return {"enrolled": enrolled, "registered": enrolled and registered}
         if action == "remove":
-            with self.connect() as db:
-                db.execute("BEGIN IMMEDIATE")
-                db.execute("INSERT INTO accounts VALUES (?, 1) ON CONFLICT(user_id) DO UPDATE SET epoch = epoch + 1", (user,))
+            with self.connect(user) as db:
+                db.execute("INSERT INTO accounts VALUES (?, 1) ON CONFLICT(user_id) DO UPDATE SET epoch = accounts.epoch + 1", (user,))
                 # Keep non-biometric rate counters: removal must not reset inference limits.
                 for table in ("templates", "devices", "challenges"):
                     db.execute(f"DELETE FROM {table} WHERE user_id = ?", (user,))
@@ -169,18 +127,17 @@ class FaceTrial:
             raise Rejected("invalid")
         device = identifier(body.get("deviceId"))
         now = int(self.clock())
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            db.execute("DELETE FROM attempts WHERE created <= ?", (now - 60,))
-            db.execute("DELETE FROM challenges WHERE expires <= ?", (now,))
-            if db.execute("SELECT COUNT(*) FROM attempts WHERE user_id = ?", (user,)).fetchone()[0] >= 6:
+        with self.connect(user) as db:
+            db.execute("DELETE FROM attempts WHERE user_id = ? AND created <= ?", (user, now - 60))
+            db.execute("DELETE FROM challenges WHERE user_id = ? AND expires <= ?", (user, now))
+            if db.execute("SELECT COUNT(*) AS total FROM attempts WHERE user_id = ?", (user,)).fetchone()["total"] >= 6:
                 raise Rejected("limited")
             if operation in ("verify", "login") and not db.execute("SELECT 1 FROM devices WHERE user_id = ? AND device_id = ?", (user, device)).fetchone():
                 raise Rejected("device")
             if operation == "register" and not db.execute("SELECT 1 FROM templates WHERE user_id = ?", (user,)).fetchone():
                 raise Rejected("device")
             db.execute("INSERT INTO accounts VALUES (?, 0) ON CONFLICT DO NOTHING", (user,))
-            epoch = db.execute("SELECT epoch FROM accounts WHERE user_id = ?", (user,)).fetchone()[0]
+            epoch = db.execute("SELECT epoch FROM accounts WHERE user_id = ?", (user,)).fetchone()["epoch"]
             challenge_id = str(uuid.uuid4())
             message = f"my-day-face-v1\n{operation}\n{user}\n{device}\n{secrets.token_urlsafe(32)}"
             db.execute("INSERT INTO attempts VALUES (?, ?)", (user, now))
@@ -192,8 +149,7 @@ class FaceTrial:
         challenge_id = identifier(body.get("challengeId"))
         device_id = identifier(body.get("deviceId"))
         # Consume durably before checking proof or invoking inference. Failures cannot replay.
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with self.connect(user) as db:
             challenge = db.execute("SELECT * FROM challenges WHERE id = ? AND user_id = ?", (challenge_id, user)).fetchone()
             if challenge is None:
                 raise Rejected("expired")
@@ -212,7 +168,7 @@ class FaceTrial:
         frames = decode_frames(body.get("frames"))
         jwk = body.get("publicKey") if enrolling or registering else json.loads(device["public_key"])
         check_signature(jwk, body.get("signature"), capture_message(challenge["message"], frames))
-        # The engine is local. Raw captures never enter SQLite or application logs.
+        # Raw captures never enter either database or application logs.
         vector = self.engine.enroll(frames) if enrolling else None
         if not enrolling:
             if template["model_version"] != self.engine.version:
@@ -222,17 +178,19 @@ class FaceTrial:
             enrolled = self.cipher.decrypt(encrypted[:12], encrypted[12:], aad)
             if not self.engine.verify(frames, enrolled):
                 raise Rejected("mismatch")
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with self.connect(user) as db:
             epoch = db.execute("SELECT epoch FROM accounts WHERE user_id = ?", (user,)).fetchone()
             # Removal or re-enrollment during inference invalidates an in-flight result.
-            if epoch is None or epoch[0] != challenge["epoch"] or challenge["expires"] <= self.clock():
+            if epoch is None or epoch["epoch"] != challenge["epoch"] or challenge["expires"] <= self.clock():
                 raise Rejected("expired")
             if enrolling:
                 nonce = secrets.token_bytes(12)
                 aad = f"{user}:{self.engine.version}".encode()
                 encrypted = nonce + self.cipher.encrypt(nonce, vector, aad)
-                db.execute("INSERT OR REPLACE INTO templates VALUES (?, ?, ?, ?, ?)",
+                db.execute("""INSERT INTO templates VALUES (?, ?, ?, ?, ?)
+                           ON CONFLICT(user_id) DO UPDATE SET encrypted = excluded.encrypted,
+                           model_version = excluded.model_version, consent_version = excluded.consent_version,
+                           consented_at = excluded.consented_at""",
                            (user, encrypted, self.engine.version, CONSENT_VERSION, int(self.clock())))
                 db.execute("DELETE FROM devices WHERE user_id = ?", (user,))
                 db.execute("UPDATE accounts SET epoch = epoch + 1 WHERE user_id = ?", (user,))
@@ -243,7 +201,7 @@ class FaceTrial:
                 # when two registration requests finish concurrently.
                 db.execute("INSERT INTO devices VALUES (?, ?, ?) ON CONFLICT DO NOTHING", (user, device_id, json.dumps(safe_jwk)))
                 saved = db.execute("SELECT public_key FROM devices WHERE user_id = ? AND device_id = ?", (user, device_id)).fetchone()
-                if json.loads(saved[0]) != safe_jwk:
+                if json.loads(saved["public_key"]) != safe_jwk:
                     raise Rejected("device")
         if body["action"] == "login":
             return {"verified": True, "userId": user}

@@ -99,6 +99,31 @@ test("gateway uses authenticated identity, authenticates upstream, and limits re
 });
 
 const deviceId = "00000000-0000-4000-8000-000000000003";
+
+test("Vercel gateway calls this deployment's Python endpoint and authenticates protected previews", async () => {
+  const { FACE_SERVICE_URL: _unused, ...hosted } = config;
+  const api = await gateway({ authenticate: async () => ({ id: user, recentPassword: false }), fetch: async (input, init) => {
+    assert.equal(String(input), "https://aphasia-testing.vercel.app/api/face-service");
+    const headers = init?.headers as Record<string, string>;
+    assert.equal(headers.Authorization, `Bearer ${config.FACE_SERVICE_SECRET}`);
+    assert.equal(headers["x-vercel-protection-bypass"], "synthetic-preview-secret");
+    assert.equal(JSON.parse(String(init?.body)).userId, user);
+    return Response.json({ enrolled: false, registered: false });
+  } }, { ...hosted, VERCEL: "1", VERCEL_URL: "aphasia-testing.vercel.app", VERCEL_AUTOMATION_BYPASS_SECRET: "synthetic-preview-secret" });
+  try {
+    assert.equal((await (await api.request({ action: "status", userId: otherUser }, { Host: "attacker.example" })).json()).available, true);
+  } finally { await api.close(); }
+});
+
+test("invalid upstream settings fail closed before sending credentials", async () => {
+  for (const upstream of ["https://name:password@example.com", "https://example.com/?secret=value", "not-a-url"]) {
+    const api = await gateway({ fetch: async () => { throw Error("must not call upstream"); } }, { ...config, FACE_SERVICE_URL: upstream });
+    try {
+      assert.equal((await (await api.request({ action: "status" })).json()).available, false);
+    } finally { await api.close(); }
+  }
+});
+
 const loginConfig = { ...config, FACE_SIGNIN_ENABLED: "true", SUPABASE_SERVICE_ROLE_KEY: "server-only-test-key" };
 
 test("face sign-in remains disabled until the flag and private admin credential are configured", async () => {

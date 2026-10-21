@@ -1,0 +1,6 @@
+# Vercel Python function runtime only. PyTorch/ONNX exporters stay in a temporary build venv.
+-r face-service/requirements.txt
+psycopg[binary]>=3.3,<4
+numpy==2.3.4
+onnxruntime==1.23.2
+opencv-python-headless==4.13.0.92

@@ -11,9 +11,10 @@ from starlette.concurrency import run_in_threadpool
 
 from core import FaceTrial, Rejected
 from engine import Engine
+from storage import PostgresStore
 
 
-def create_app():
+def create_handler(*, require_postgres=False, model_env=None):
     secret = os.environ["FACE_SERVICE_SECRET"]
     if len(secret) < 32:
         raise ValueError("Use a random FACE_SERVICE_SECRET of at least 32 characters")
@@ -27,7 +28,8 @@ def create_app():
         def get(self):
             with self.lock:
                 if self.instance is None:
-                    self.instance = Engine()
+                    values = model_env() if callable(model_env) else model_env
+                    self.instance = Engine(values if values is not None else os.environ)
                 return self.instance
 
         @property
@@ -40,12 +42,14 @@ def create_app():
         def verify(self, frames, enrolled):
             return self.get().verify(frames, enrolled)
 
-    trial = FaceTrial(os.environ["FACE_DB_PATH"], encryption_key, LazyEngine())
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    database_url = os.environ.get("FACE_DATABASE_URL")
+    if require_postgres and not database_url:
+        raise ValueError("Vercel requires FACE_DATABASE_URL; local SQLite is not persistent there")
+    store = PostgresStore(database_url) if database_url else None
+    trial = FaceTrial(None if store else os.environ["FACE_DB_PATH"], encryption_key, LazyEngine(), store=store)
     # Bound concurrent captures; overload is retriable, never an unbounded inference queue.
     slots = threading.BoundedSemaphore(2)
 
-    @app.post("/v1/face")
     async def face(request: Request):
         headers = {"Cache-Control": "no-store"}
         def error(code, status):
@@ -78,4 +82,10 @@ def create_app():
         finally:
             slots.release()
 
+    return face
+
+
+def create_app():
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_api_route("/v1/face", create_handler(), methods=["POST"])
     return app

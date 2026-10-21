@@ -2,5 +2,6 @@
 __pycache__/
 data/
 models/
+bundled-models/
 *.sqlite*
 .env
