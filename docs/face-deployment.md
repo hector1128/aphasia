@@ -42,7 +42,7 @@ Never give secrets a `VITE_` prefix. If testing against a different Supabase pro
 
 Commit and push the implementation to `login-testing` when ready. The repository's `vercel.json` selects Vite and configures the following build steps:
 
-1. `npm ci && python3.12 face-service/build_vercel.py` runs during installation, before API packaging. It explicitly selects the same Python minor version as the function. A temporary Python environment installs pinned CPU-only PyTorch/export dependencies, downloads verified upstream models/weights, exports the liveness ensemble with parity checks, and writes a read-only model bundle under `face-service/bundled-models`.
+1. `npm ci && python3.12 face-service/build_vercel.py` runs during installation, before API packaging. It explicitly selects the same Python minor version as the function. `uv venv` creates a temporary environment without bootstrapping pip, which avoids `ensurepip` failures in Vercel's managed Python. `uv pip install --python` targets that environment for the pinned CPU-only PyTorch/export dependencies. The script downloads verified upstream models/weights, exports the liveness ensemble with parity checks, and writes a read-only model bundle under `face-service/bundled-models`.
 2. The temporary exporter environment is deleted. It is never part of the deployed function. The root `requirements.txt` contains runtime dependencies only and pins the image-processing/inference versions used by this deployment.
 3. `npm run build` builds the website. Vercel packages `api/face-service.py` as a separate Python 3.12 function, alongside the existing Node endpoints. Static assets, local databases, `.env` files, tests, source weights and local virtual environments are excluded from the Python bundle.
 
