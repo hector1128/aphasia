@@ -1626,6 +1626,8 @@ h1:focus {
   margin: 0 0 16px;
   font-size: 23px;
 }
+.activity-library > section + section { margin-top: 28px; }
+.value-link-options { display: grid; gap: 20px; margin-top: 28px; }
 .activity-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

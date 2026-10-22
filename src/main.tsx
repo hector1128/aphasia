@@ -24,6 +24,7 @@ import {
   Data,
   Entry,
   ActivityChoice,
+  LifeValue,
   STORAGE_KEY,
   LEGACY_STORAGE_KEY,
   emptyData,
@@ -61,6 +62,7 @@ import { useReadAloud } from "./useReadAloud";
 import { ScheduleControls } from "./ScheduleControls";
 import { ItemActions } from "./ItemActions";
 import { activitySteps, type ActivityStep } from "./activity-flow";
+import { cachedImportance, rememberImportance } from "./importance";
 import { Values, ScheduleValuePicker } from "./Values";
 import { ReportSettings } from "./ReportSettings";
 import { FaceSettings } from "./FaceSettings";
@@ -115,7 +117,8 @@ function App({ account }: { account?: Account }) {
   const [timeValid, setTimeValid] = useState(true);
   const [chooseTime, setChooseTime] = useState(false);
   useReadAloud(data.readAloud);
-  const [returnTo, setReturnTo] = useState<"home" | "plan">("home");
+  const [returnTo, setReturnTo] = useState<"home" | "plan" | "values">("home");
+  const [focusedValueId, setFocusedValueId] = useState<string>();
   const [breathingDuration, setBreathingDuration] = useState<number | null>(null);
   const [visualizationTheme, setVisualizationTheme] = useState<VisualizationTheme | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -130,7 +133,10 @@ function App({ account }: { account?: Account }) {
   const editingEntry = Boolean(draft && data.entries[draft.id]);
   const planning = draft?.source === "scheduled" && draft.status !== "done" && !completingPlan;
   const valueMissing = step === "value" && data.values.length > 0 && !draft?.lifeArea;
-  const steps = activitySteps({ planning, completing: completingPlan, chooseTime, sleep: Boolean(draft && sleepBoundary(draft.name)) });
+  const steps = activitySteps({ planning, completing: completingPlan, chooseTime,
+    sleep: Boolean(draft && sleepBoundary(draft.name)),
+    importanceCached: Boolean(draft && cachedImportance(data, draft.name, clock) !== undefined),
+    valueLinked: returnTo === "values" && Boolean(draft?.valueId) });
   const lastStep = step === steps[steps.length - 1];
 
   useEffect(() => {
@@ -184,7 +190,7 @@ function App({ account }: { account?: Account }) {
     status: "planned" | "done",
     selectedDate = today,
     selectedMinute = minute,
-    origin: "home" | "plan" = "home",
+    origin: "home" | "plan" | "values" = "home",
     chooseDateAndTime = false,
   ) => {
     setDraft({
@@ -202,6 +208,13 @@ function App({ account }: { account?: Account }) {
     setReturnTo(origin);
     setStep("activity");
     go("edit");
+  };
+  const scheduleFromValue = (value: LifeValue) => {
+    const later = new Date();
+    later.setHours(0, currentSlot(later) + 30, 0, 0);
+    setFocusedValueId(value.id);
+    newEntry("planned", dateKey(later), currentSlot(later), "values", true);
+    setDraft((entry) => entry ? { ...entry, valueId: value.id, lifeArea: value.area } : entry);
   };
   const editEntry = (entry: Entry, origin: "home" | "plan") => {
     setDraft({ ...entry });
@@ -231,7 +244,8 @@ function App({ account }: { account?: Account }) {
     go("edit");
   };
   const chooseActivity = (choice: ActivityChoice) => {
-    setDraft((prev) => (prev ? { ...prev, ...choice } : prev));
+    setDraft((prev) => (prev ? { ...prev, ...choice,
+      ...(choice.name !== prev.name ? { mood: undefined, rating: undefined, importance: undefined } : {}) } : prev));
     if (choice.name.trim()) setData((prev) => rememberActivity(prev, choice));
   };
   const validateTime = (entry: Entry) => {
@@ -250,9 +264,15 @@ function App({ account }: { account?: Account }) {
     }
     return true;
   };
-  const save = (entry: Entry) => {
+  const save = (entry: Entry, importanceRated = false) => {
     if (!entry.name.trim() || !validateTime(entry)) return;
-    setData((prev) => saveActivity(prev, { ...entry, name: entry.name.trim() }));
+    setData((prev) => {
+      const importance = importanceRated ? entry.importance : cachedImportance(prev, entry.name);
+      const next = saveActivity(prev, { ...entry, name: entry.name.trim(),
+        ...(entry.status === "done" && importance !== undefined ? { importance } : {}) });
+      return importanceRated && importance !== undefined
+        ? rememberImportance(next, entry.name, importance) : next;
+    });
     setDate(entry.date);
     if (entry.date === today) setMinute(Math.floor(entry.startMinute / 30) * 30);
     go(returnTo);
@@ -266,7 +286,7 @@ function App({ account }: { account?: Account }) {
       ...(step === "mood" ? { mood: draft.mood ?? 5 } : {}),
       ...(step === "enjoyment" ? { rating: draft.rating ?? 5 } : {}),
       ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}) };
-    if (lastStep) { save(updated); return; }
+    if (lastStep) { save(updated, step === "importance"); return; }
     setDraft(updated);
     setStep(steps[steps.indexOf(step) + 1]);
   };
@@ -552,7 +572,7 @@ function App({ account }: { account?: Account }) {
                     key={draft.id}
                     value={draft}
                     recent={data.recentActivities}
-                    suggestions={suggestedActivities(data)}
+                    suggestions={planning ? suggestedActivities(data) : []}
                     onChange={chooseActivity}
                   />
                 )}
@@ -607,16 +627,12 @@ function App({ account }: { account?: Account }) {
                   />
                 )}
                 {step === "time" && !timeValid && <p role="alert">Enter an hour from 1 to 12 and minutes from 00 to 59.</p>}
-                {(step === "mood" || step === "enjoyment" || step === "importance") && (
-                  <button className="wizard-skip" onClick={() => {
-                    if (step === "mood") { setDraft({ ...draft, mood: undefined }); setStep("enjoyment"); }
-                    else if (step === "enjoyment") { setDraft({ ...draft, rating: undefined }); setStep("importance"); }
-                    else save({ ...draft, importance: undefined });
-                  }}>Skip rating</button>
+                {step === "importance" && (
+                  <button className="wizard-skip" onClick={() => save({ ...draft, importance: undefined })}>Skip rating</button>
                 )}
                 <div className="wizard-footer">
                   <div className="wizard-actions">
-                    {(steps.indexOf(step) > 0 || completingPlan || editingEntry || lastStep) && (
+                    {(steps.indexOf(step) > 0 || completingPlan || editingEntry || lastStep || returnTo === "values") && (
                       <button type="button" className="wizard-back" onClick={previousStep}><ArrowLeft aria-hidden="true" />Back</button>
                     )}
                     <button type="button" className="wizard-next"
@@ -729,7 +745,7 @@ function App({ account }: { account?: Account }) {
             {screen === "values" && (
               <>
                 {header("My values")}
-                <Values data={data} onChange={setData} />
+                <Values data={data} onChange={setData} onSchedule={scheduleFromValue} initialValueId={focusedValueId} />
               </>
             )}
             {screen === "settings" && (

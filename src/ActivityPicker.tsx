@@ -23,12 +23,14 @@ export function ActivityPicker({
   const choices = mainActivities.filter((activity) => category && activity.areas.includes(category));
   const matches = query.trim() ? filterActivities(query, searchableActivities) : choices;
   const seen = new Set<string>();
-  const initialChoices = [...recent.slice(0, 5), ...suggestions].filter((choice) => {
+  const uniqueChoices = (choices: ActivityChoice[]) => choices.filter((choice) => {
     const key = catalogueActivity(choice.name)?.name ?? choice.name.trim().toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  const recentChoices = uniqueChoices(recent.slice(0, 5));
+  const suggestionChoices = uniqueChoices(suggestions);
   const selectChoice = (choice: ActivityChoice) => {
     setQuery("");
     onChange({ name: choice.name, icon: choice.icon });
@@ -84,15 +86,27 @@ export function ActivityPicker({
         key={category ?? "all"}
       >
         {!query.trim() && !category ? (
-          <div className="activity-options">
-            {initialChoices.map(renderChoice)}
-            {lifeAreas.map((area) => (
-              <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
-                <span className="area-icon"><AreaIcon area={area} /></span>
-                <span>{areaLabel(area)}</span><ChevronRight />
-              </button>
-            ))}
-          </div>
+          <>
+            {recentChoices.length > 0 && <section>
+              <h2>Most recent</h2>
+              <div className="activity-options">{recentChoices.map(renderChoice)}</div>
+            </section>}
+            {suggestionChoices.length > 0 && <section>
+              <h2>Suggestions</h2>
+              <div className="activity-options">{suggestionChoices.map(renderChoice)}</div>
+            </section>}
+            <section>
+              <h2>Activities</h2>
+              <div className="activity-options">
+                {lifeAreas.map((area) => (
+                  <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
+                    <span className="area-icon"><AreaIcon area={area} /></span>
+                    <span>{areaLabel(area)}</span><ChevronRight />
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
         ) : (
           <section>
             {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />Life areas</button>}

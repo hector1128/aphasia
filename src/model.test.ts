@@ -10,6 +10,7 @@ import {
   timeLabel,
   currentSlot,
   rememberActivity,
+  saveActivity,
   type Entry,
 } from "./model";
 import { weekDates, shiftWeek, to24Hour } from "./date-time";
@@ -23,6 +24,24 @@ const entry = (id: string, changes: Partial<Entry> = {}): Entry => ({
   status: "done",
   source: changes.status === "planned" || changes.status === "missed" ? "scheduled" : "logged",
   ...changes,
+});
+
+test("scheduling links an activity to its value once and preserves other values", () => {
+  const data = emptyData();
+  data.values = [
+    { id: "value", area: "Mind/body/spirit", name: "Keep moving", activities: [] },
+    { id: "other", area: "Recreation/interests", name: "Have fun", activities: [] },
+  ];
+  const planned = entry("plan", { source: "scheduled", status: "planned", valueId: "value", lifeArea: "Mind/body/spirit" });
+  const saved = saveActivity(data, planned);
+  assert.equal(saved.entries.plan.valueId, "value");
+  assert.deepEqual(saved.values[0].activities, [{ name: planned.name, icon: planned.icon }]);
+  assert.deepEqual(saved.values[1].activities, []);
+  const again = saveActivity(saved, { ...planned, id: "next", name: "walking" });
+  assert.equal(again.values[0].activities.length, 1);
+  assert.deepEqual(readData(JSON.stringify(again)), again);
+  assert.equal(saveActivity(data, { ...planned, valueId: "missing" }).values.length, 2);
+  assert.deepEqual(saveActivity(data, entry("log")).values, data.values);
 });
 
 test("migrates v1 hourly entries and preserves enjoyment and hidden daily ratings", () => {

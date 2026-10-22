@@ -269,14 +269,17 @@ test("time controls share one microphone beside the formatted time", () => {
   assert.ok(html.indexOf('aria-label="Hour"') < html.indexOf('aria-label="Minute"'));
   assert.ok(html.indexOf('aria-label="Minute"') < html.indexOf('aria-label="AM or PM"'));
 });
-test("picker opens with actual recent and suggested choices; scheduling shows personal values", () => {
+test("picker separates recent, suggested and other activities; scheduling shows personal values", () => {
   const data = emptyData();
   const html = renderToStaticMarkup(createElement(ActivityPicker, {
     value: { name: "", icon: "custom" }, recent: [{ name: "Playing piano", icon: "music" }],
     suggestions: suggestedActivities(data), onChange: () => {},
   }));
   assert.ok(html.indexOf("Playing piano") < html.indexOf("Eat a meal"));
-  assert.doesNotMatch(html, /<h2>Most recent|<h2>Suggestions|Choose a life area/);
+  assert.match(html, /<h2>Most recent<\/h2>/);
+  assert.match(html, /<h2>Suggestions<\/h2>/);
+  assert.match(html, /<h2>Activities<\/h2>/);
+  assert.ok(html.indexOf("Most recent") < html.indexOf("Suggestions"));
   assert.doesNotMatch(html, /Need suggestions/);
   data.values = [{ id: "family", area: "Personal relationships", name: "Stay connected", activities: [] }];
   const values = renderToStaticMarkup(createElement(ScheduleValuePicker, {
@@ -286,6 +289,14 @@ test("picker opens with actual recent and suggested choices; scheduling shows pe
   assert.match(values, /aria-pressed="true"/);
   assert.match(values, /Add a value/);
   assert.doesNotMatch(values, />Personal relationships</);
+});
+test("the logging picker shows recent and other activities without suggestions", () => {
+  const html = renderToStaticMarkup(createElement(ActivityPicker, {
+    value: { name: "", icon: "custom" }, recent: [{ name: "Reading", icon: "read" }], onChange: () => {},
+  }));
+  assert.match(html, /<h2>Most recent<\/h2>/);
+  assert.match(html, /<h2>Activities<\/h2>/);
+  assert.doesNotMatch(html, /<h2>Suggestions<\/h2>/);
 });
 test("a selected activity populates the textbox and shows its card with the library collapsed", () => {
   const html = renderToStaticMarkup(createElement(ActivityPicker, {

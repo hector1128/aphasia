@@ -1,7 +1,6 @@
-import { suggestedActivities } from "./activity-catalogue";
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
-import { ArrowLeft, ChevronRight, Plus } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, Plus } from "lucide-react";
 import { ItemActions } from "./ItemActions";
 import {
   Data,
@@ -19,17 +18,22 @@ import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 export function Values({
   data,
   onChange,
+  onSchedule,
+  initialValueId,
 }: {
   data: Data;
   onChange: (data: Data) => void;
+  onSchedule: (value: LifeValue) => void;
+  initialValueId?: string;
 }) {
-  const [area, setArea] = useState<LifeArea | null>(null);
+  const initialValue = data.values.find((value) => value.id === initialValueId);
+  const [area, setArea] = useState<LifeArea | null>(initialValue?.area ?? null);
   const [id, setId] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(initialValue?.id ?? null);
   const [replacing, setReplacing] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
-  const [linkMode, setLinkMode] = useState<"week" | "add" | null>(null);
+  const [linkMode, setLinkMode] = useState<"choose" | "week" | "add" | null>(null);
   const [choice, setChoice] = useState({ name: "", icon: "custom" });
   const selected = data.values.find((v) => v.id === id);
   const update = (v: LifeValue) =>
@@ -130,7 +134,12 @@ export function Values({
         <h1 className="sr-only">
           {linkMode === "week" ? "Choose an activity from this week" : "Add an activity to this value"}
         </h1>
-        {linkMode === "week" ? (
+        {linkMode === "choose" ? (
+          <div className="value-link-options">
+            <button className="entry-row" onClick={() => setLinkMode("week")}><CalendarDays /><strong>Choose from this week</strong><ChevronRight /></button>
+            <button className="entry-row" onClick={() => onSchedule(selected)}><Plus /><strong>Schedule activity</strong><ChevronRight /></button>
+          </div>
+        ) : linkMode === "week" ? (
           weekChoices.length ? (
             <div className="week-activity-list">{weekChoices.map((a) => (
               <button className="activity-choice" key={a.id} onClick={() => link(a)}>
@@ -140,14 +149,13 @@ export function Values({
               </button>
             ))}</div>
           ) : (
-            <p>No activities this week.</p>
+            <><p>No activities this week.</p><button className="primary" onClick={() => onSchedule(selected)}>Schedule activity</button></>
           )
         ) : (
           <>
             <ActivityPicker
               value={choice}
               recent={data.recentActivities}
-              suggestions={suggestedActivities(data)}
               onChange={setChoice}
             />
             <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>
@@ -197,7 +205,7 @@ export function Values({
                       </div>
                     ))}
                     <button className="value-add-activity" aria-label={`Add activity to ${v.name}`}
-                      onClick={() => { setId(v.id); setReplacing(null); setChoice({ name: "", icon: "custom" }); setLinkMode("add"); }}>
+                      onClick={() => { setId(v.id); setReplacing(null); setChoice({ name: "", icon: "custom" }); setLinkMode("choose"); }}>
                       <Plus aria-hidden="true" /><span>Add activity</span>
                     </button>
                   </div>

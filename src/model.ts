@@ -22,6 +22,7 @@ export type Data = {
   mindfulness: MindfulnessSession[];
   sleeps: SleepRecord[];
   ratings: Record<string, number>;
+  importanceRatings: Record<string, { rating: number; ratedAt: string }>;
   recentActivities: ActivityChoice[];
   readAloud: boolean;
   pendingSleepStart?: string;
@@ -37,6 +38,7 @@ export const emptyData = (): Data => ({
   sleeps: [],
   entries: {},
   ratings: {},
+  importanceRatings: {},
   recentActivities: [],
   readAloud: false,
 });
@@ -124,6 +126,16 @@ export function readData(raw: string | null): Data {
         ([date, value]) => validDate(date) && validRating(value),
       ),
     ) as Record<string, number>;
+    if (d.importanceRatings && typeof d.importanceRatings === "object" && !Array.isArray(d.importanceRatings)) {
+      const ratings: [string, { rating: number; ratedAt: string }][] = [];
+      for (const [name, cached] of Object.entries<unknown>(d.importanceRatings)) {
+        if (cached && typeof cached === "object" && "rating" in cached && "ratedAt" in cached &&
+            validRating(cached.rating) && typeof cached.ratedAt === "string" && Number.isFinite(Date.parse(cached.ratedAt))) {
+          ratings.push([name, { rating: cached.rating, ratedAt: cached.ratedAt }]);
+        }
+      }
+      data.importanceRatings = Object.fromEntries(ratings);
+    }
     for (const [oldKey, value] of Object.entries(d.entries)) {
       const source = value as Entry & { hour?: number };
       if (
@@ -189,8 +201,13 @@ export function rememberActivity(data: Data, choice: ActivityChoice): Data {
   };
 }
 export function saveEntry(data: Data, entry: Entry): Data {
+  const values = data.values.map((value) => {
+    if (entry.source !== "scheduled" || value.id !== entry.valueId ||
+        value.activities.some((activity) => activity.name.trim().toLowerCase() === entry.name.trim().toLowerCase())) return value;
+    return { ...value, activities: [...value.activities, { name: entry.name, icon: entry.icon }] };
+  });
   return rememberActivity(
-    { ...data, entries: { ...data.entries, [entry.id]: entry } },
+    { ...data, entries: { ...data.entries, [entry.id]: entry }, values },
     entry,
   );
 }
