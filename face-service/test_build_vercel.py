@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import unittest
@@ -9,6 +10,18 @@ import build_vercel
 
 
 class BuildVercelTests(unittest.TestCase):
+    def test_vercel_runtime_requirements_are_self_contained(self):
+        path = build_vercel.SERVICE.parent / "requirements.txt"
+        requirements = [line.strip() for line in path.read_text().splitlines()
+                        if line.strip() and not line.lstrip().startswith("#")]
+        self.assertFalse(any(line.startswith("-") for line in requirements),
+                         "Vercel's requirements parser cannot resolve our nested -r include")
+        packages = {re.split(r"[<>=!~;\s@]", line, maxsplit=1)[0] for line in requirements}
+        self.assertTrue({"cryptography", "fastapi", "uvicorn", "psycopg[binary]",
+                         "numpy", "onnxruntime", "opencv-python-headless"} <= packages)
+        self.assertTrue(packages.isdisjoint({"torch", "onnx"}),
+                         "Export dependencies must stay out of the function runtime")
+
     def test_build_uses_unseeded_environment_and_installs_only_into_it(self):
         environment = {"PATH": "/synthetic/tools", "FACE_SERVICE_SECRET": "synthetic",
                        "SUPABASE_SECRET_KEY": "synthetic", "POSTGRES_PASSWORD": "synthetic",
