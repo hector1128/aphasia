@@ -2,7 +2,7 @@ import { useEffect } from "react";
 type SpokenTarget = { element: HTMLElement; text: string; range?: Range };
 function wordsAt(event: MouseEvent): SpokenTarget | null {
   if (!(event.target instanceof Element) || event.target.closest('[data-read-aloud="off"], input, textarea, select, audio')) return null;
-  const control = event.target.closest<HTMLElement>('button, a, label, [role="switch"], [role="button"]');
+  const control = event.target.closest<HTMLElement>('button, a, label, summary, [role="switch"], [role="button"]');
   if (control) return { element: control, text: control.getAttribute("aria-label") || control.textContent || "" };
   const element = event.target.closest<HTMLElement>('h1, h2, h3, p, strong, time, .eyebrow, [data-speak]');
   if (!element) return null;

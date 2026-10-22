@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronRight, FileText } from "lucide-react";
 import { type Data, dateKey } from "./model";
 import { reportData } from "./report-data";
 import { weeklyReportData } from "./weekly";
@@ -28,8 +29,9 @@ export function ReportSettings({ data, onChange }: { data: Data; onChange: (data
     } catch { setStatus("Could not create the PDF. Please try again."); }
     finally { setBusy(false); }
   };
-  return <section className="report-settings">
-    <h2>Reports</h2>
+  return <details className="settings-card report-settings">
+    <summary><span className="settings-card-icon"><FileText aria-hidden="true" /></span><h2>Reports</h2><ChevronRight className="settings-chevron" aria-hidden="true" /></summary>
+    <div className="settings-card-content">
     <div className="report-period" role="group" aria-label="Report period">
       {(["day", "week"] as const).map((option) => <button type="button" className="secondary" key={option}
         disabled={busy} aria-pressed={period === option} onClick={() => { setPeriod(option); setStatus(""); }}>
@@ -58,5 +60,6 @@ export function ReportSettings({ data, onChange }: { data: Data; onChange: (data
     </form>
     <button className="secondary" disabled={busy} onClick={download}>Download {title} PDF</button>
     {status && <p className="report-status" role="status">{status}</p>}
-  </section>;
+    </div>
+  </details>;
 }

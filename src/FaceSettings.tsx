@@ -7,9 +7,11 @@ import { createFaceDevice, readFaceDevice, removeFaceDevice, nameFaceDevice, sig
 import { FaceCamera } from "./FaceCamera";
 
 type Operation = "enroll" | "register" | "verify";
+type Availability = { kind: "loading" } | { kind: "unavailable"; message: string } | { kind: "ready"; status: FaceStatus };
 
-export function FaceSettings({ userId, username }: { userId: string; username: string }) {
-  const [status, setStatus] = useState<FaceStatus | null>(null);
+export function FaceSettings({ userId, username }: { userId?: string; username: string }) {
+  const [availability, setAvailability] = useState<Availability>({ kind: "loading" });
+  const [attempt, setAttempt] = useState(0);
   const [step, setStep] = useState<"idle" | "consent" | "camera" | "remove">("idle");
   const [operation, setOperation] = useState<Operation>("enroll");
   const [consent, setConsent] = useState(false);
@@ -23,20 +25,25 @@ export function FaceSettings({ userId, username }: { userId: string; username: s
   const generation = useRef(0);
 
   useEffect(() => {
+    if (!userId) return;
     let active = true;
     const controller = new AbortController();
     void (async () => {
       const device = await readFaceDevice(userId).catch(() => null);
       const next = await faceRequest<FaceStatus>({ action: "status", deviceId: device?.id }, controller.signal);
       if (active) {
-        setStatus(next);
+        setAvailability(next.available ? { kind: "ready", status: next } : {
+          kind: "unavailable", message: "Face sign-in is not enabled for this website yet. You can keep using your password.",
+        });
         if (next.registered) await nameFaceDevice(userId, username).catch(() => {});
       }
-    })().catch(() => { /* An unconfigured trial does not interrupt ordinary Settings. */ });
+    })().catch(() => {
+      if (active) setAvailability({ kind: "unavailable", message: "Could not connect to face sign-in. Try again, or keep using your password." });
+    });
     return () => {
       active = false; controller.abort(); generation.current++;
     };
-  }, [userId]);
+  }, [userId, attempt]);
   useEffect(() => {
     if (step !== "idle") heading.current?.focus();
     else if (previousStep.current !== "idle") sectionHeading.current?.focus();
@@ -51,23 +58,42 @@ export function FaceSettings({ userId, username }: { userId: string; username: s
   };
   const cameraError = (error: string) => {
     setStep("idle"); setMessage(error);
+    if (!userId) return;
     const current = generation.current;
     void (async () => {
       const device = await readFaceDevice(userId);
       const next = await faceRequest<FaceStatus>({ action: "status", deviceId: device?.id });
-      if (current === generation.current) setStatus(next);
+      if (current === generation.current) setAvailability(next.available ? { kind: "ready", status: next } : {
+        kind: "unavailable", message: "Face sign-in is not enabled for this website yet. You can keep using your password.",
+      });
     })().catch(() => {});
   };
 
-  if (!status?.available) return null;
-  return <section className="face-settings" aria-labelledby="face-title">
-    <h2 id="face-title" ref={sectionHeading} tabIndex={-1}>Face verification trial</h2>
-    <p>{status.signInAvailable ? "Set up face sign-in on this browser. Your password is also available." : "This trial checks your face. Keep using your password to sign in."}</p>
+  const title = <div className="settings-card-heading"><span className="settings-card-icon"><Camera aria-hidden="true" /></span>
+    <h2 id="face-title" ref={sectionHeading} tabIndex={-1}>Face sign-in</h2></div>;
+  if (!userId || availability.kind !== "ready") return <section className="settings-card face-settings" aria-labelledby="face-title">
+    {title}
+    <p role="status">{!userId ? "Sign in to your account with your password to set up face sign-in."
+      : availability.kind === "unavailable" ? availability.message : "Checking face sign-in…"}</p>
+    <div className="settings-actions">
+      <button className="primary" disabled><Camera aria-hidden="true" />Set up face sign-in</button>
+      {userId && availability.kind === "unavailable" && <button className="secondary" onClick={() => {
+        sectionHeading.current?.focus();
+        setAvailability({ kind: "loading" }); setAttempt((previous) => previous + 1);
+      }}>Try again</button>}
+    </div>
+  </section>;
+  const status = availability.status;
+  return <section className="settings-card face-settings" aria-labelledby="face-title">
+    {title}
+    <p>{status.signInAvailable ? status.enrolled && status.registered ? "Face sign-in is set up on this browser. Your password is also available."
+      : "Use your face to sign in on this browser. Start by setting it up below."
+      : "Face checks are available. Face sign-in still needs to be enabled for this website."}</p>
     {step === "idle" && <div className="face-actions">
-      <button className="secondary" onClick={() => {
+      <button className={status.enrolled ? "secondary" : "primary"} onClick={() => {
         setMessage(""); setConsent(false); setOperation(status.enrolled && !status.registered ? "register" : "enroll"); setStep("consent");
       }}>
-        <Camera aria-hidden="true" /> {status.enrolled ? status.registered ? "Set up again" : "Add this browser" : "Set up face verification"}
+        <Camera aria-hidden="true" /> {status.enrolled ? status.registered ? "Set up again" : "Add this browser" : status.signInAvailable ? "Set up face sign-in" : "Set up face verification"}
       </button>
       {status.enrolled && <>
         {status.registered ? <button className="primary" onClick={() => void openCamera("verify")}>Check my face</button>
@@ -92,7 +118,7 @@ export function FaceSettings({ userId, username }: { userId: string; username: s
         if (current === generation.current) setMessage(error instanceof Error ? error.message : "Could not confirm your password.");
       } finally { setBusy(false); }
     }}>
-      <h3 ref={heading} tabIndex={-1}>{operation === "register" ? "Add this browser" : "Set up face verification"}</h3>
+      <h3 ref={heading} tabIndex={-1}>{operation === "register" ? "Add this browser" : status.signInAvailable ? "Set up face sign-in" : "Set up face verification"}</h3>
       {operation === "register" ? <>
         <p>We will take three pictures to check your face against your saved setup.</p>
         <p>Your face template and other registered browsers will stay the same.</p>
@@ -130,7 +156,8 @@ export function FaceSettings({ userId, username }: { userId: string; username: s
         if (operation === "verify" ? !result.verified : !result.ok) throw Error("Your face was not confirmed. Please try again.");
         await nameFaceDevice(userId, username).catch(() => {});
         if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-        setStatus((previous) => previous ? { ...previous, enrolled: true, registered: true } : previous);
+        setAvailability((previous) => previous.kind === "ready"
+          ? { ...previous, status: { ...previous.status, enrolled: true, registered: true } } : previous);
         setStep("idle"); setConsent(false);
         setMessage(operation === "register" ? "This browser was added. Your other registered browsers will keep working." : operation === "enroll"
           ? status.signInAvailable ? "Face sign-in is set up on this browser." : "Face verification is set up on this browser. Keep using your password to sign in during the trial."
@@ -146,7 +173,8 @@ export function FaceSettings({ userId, username }: { userId: string; username: s
           const result = await faceRequest<{ ok: boolean }>({ action: "remove" });
           if (!result.ok) throw Error("Could not remove your face data. Please try again.");
           await removeFaceDevice(userId).catch(() => {});
-          setStatus((previous) => previous ? { ...previous, enrolled: false, registered: false } : previous); setStep("idle");
+          setAvailability((previous) => previous.kind === "ready"
+            ? { ...previous, status: { ...previous.status, enrolled: false, registered: false } } : previous); setStep("idle");
           setMessage("Your face template and all registered browsers were removed.");
         } catch (error) { setMessage(error instanceof Error ? error.message : "Could not remove your face data."); }
         finally { setBusy(false); }

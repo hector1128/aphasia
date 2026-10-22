@@ -22,6 +22,7 @@ import { mainActivities, searchableActivities, catalogueActivity, suggestedActiv
 import { TimePicker } from "./DateTimePicker";
 import { ActivityPicker } from "./ActivityPicker";
 import { ScheduleValuePicker } from "./Values";
+import { FaceSettings } from "./FaceSettings";
 import { PDFDocument } from "pdf-lib";
 import { validateRequest, reportMiddleware } from "../server/report-api";
 import { createServer, request } from "node:http";
@@ -453,4 +454,17 @@ test("weekly email attaches a weekly PDF and hosted sending requires sign-in", a
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+});
+test("face settings stay visible while checking availability", () => {
+  const html = renderToStaticMarkup(createElement(FaceSettings, { userId: "00000000-0000-4000-8000-000000000001", username: "Alex" }));
+  assert.match(html, /Face sign-in<\/h2>/);
+  assert.match(html, /Checking face sign-in/);
+  assert.match(html, /disabled=""[^>]*>[\s\S]*Set up face sign-in/);
+});
+
+test("local-only settings explain why face setup needs an account", () => {
+  const html = renderToStaticMarkup(createElement(FaceSettings, { username: "Alex" }));
+  assert.match(html, /Face sign-in<\/h2>/);
+  assert.match(html, /Sign in to your account with your password/);
+  assert.doesNotMatch(html, /Checking face sign-in/);
 });
