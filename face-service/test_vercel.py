@@ -2,6 +2,8 @@ import base64
 import importlib.util
 import json
 import os
+import hashlib
+import ssl
 from pathlib import Path
 import tempfile
 import unittest
@@ -64,3 +66,14 @@ class VercelTests(unittest.TestCase):
     def test_remote_database_requires_verified_tls(self):
         store = PostgresStore("postgresql://synthetic:password@pooler.example:6543/postgres?sslmode=disable")
         self.assertEqual(store.tls, {"sslmode": "verify-full", "sslrootcert": "system"})
+
+    def test_supabase_database_uses_its_public_ca_and_still_verifies_hostnames(self):
+        for host in ("aws-0-us-east-1.pooler.supabase.com", "db.synthetic.supabase.co"):
+            store = PostgresStore(f"postgresql://synthetic:password@{host}:6543/postgres?sslmode=disable")
+            self.assertEqual(store.tls["sslmode"], "verify-full")
+            certificate = Path(store.tls["sslrootcert"])
+            self.assertEqual(hashlib.sha256(certificate.read_bytes()).hexdigest(),
+                             "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7")
+            context = ssl.create_default_context(cafile=str(certificate))
+            self.assertTrue(context.check_hostname)
+            self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)

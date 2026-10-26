@@ -71,7 +71,11 @@ class PostgresStore:
         options = conninfo_to_dict(url)
         # Only isolated local integration tests may use an unencrypted connection.
         local = options.get("host") in ("127.0.0.1", "localhost", "::1")
-        self.tls = {} if local else {"sslmode": "verify-full", "sslrootcert": "system"}
+        # Supabase's Postgres CA is not in the system trust store. Use the
+        # provider's public root for its database hosts; still verify hostnames.
+        supabase = options.get("host", "").endswith((".pooler.supabase.com", ".supabase.co"))
+        self.tls = {} if local else {"sslmode": "verify-full", "sslrootcert":
+            str(Path(__file__).with_name("supabase-ca.crt")) if supabase else "system"}
 
     @contextmanager
     def connect(self, user=None):
