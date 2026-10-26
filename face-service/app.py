@@ -2,6 +2,7 @@
 import base64
 import hmac
 import json
+import logging
 import os
 import threading
 
@@ -12,6 +13,13 @@ from starlette.concurrency import run_in_threadpool
 from core import FaceTrial, Rejected
 from engine import Engine
 from storage import PostgresStore
+
+
+def log_unavailable(stage, error):
+    # Exception messages can contain database passwords or capture contents.
+    # Log the static stage and exception class only, never the message/traceback.
+    logging.getLogger("face-service").error("face_service_unavailable stage=%s error_type=%s",
+                                           stage, type(error).__name__)
 
 
 def create_handler(*, require_postgres=False, model_env=None):
@@ -76,8 +84,8 @@ def create_handler(*, require_postgres=False, model_env=None):
                 return JSONResponse(result, headers=headers)
             except Rejected as rejection:
                 return error(rejection.code, 429 if rejection.code == "limited" else 400)
-            except Exception:
-                # Do not leak/log frames, templates, model internals, or credentials.
+            except Exception as failure:
+                log_unavailable("request", failure)
                 return error("unavailable", 503)
         finally:
             slots.release()

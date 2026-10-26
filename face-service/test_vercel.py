@@ -38,6 +38,16 @@ class VercelTests(unittest.TestCase):
         self.assertEqual(response.json(), {"code": "unavailable"})
         trial.assert_not_called()
 
+    def test_initialization_diagnostics_never_log_exception_contents(self):
+        with patch.dict(os.environ, {"FACE_SERVICE_SECRET": self.secret}), \
+                patch.object(self.module, "initialize", side_effect=ValueError("synthetic-private-password")), \
+                self.assertLogs("face-service", level="ERROR") as logs:
+            response = self.client.post("/api/face-service", json={}, headers={"Authorization": f"Bearer {self.secret}"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"code": "unavailable"})
+        self.assertIn("stage=initialize error_type=ValueError", logs.output[0])
+        self.assertNotIn("synthetic-private-password", "".join(logs.output))
+
     def test_bundled_model_settings_load_read_only_without_exporter_or_network(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)

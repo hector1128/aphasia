@@ -38,6 +38,16 @@ class HttpBoundaryTests(unittest.TestCase):
             self.assertEqual(response.json(), expected)
             self.assertEqual(response.headers["cache-control"], "no-store")
 
+    def test_storage_failure_returns_unavailable_and_logs_only_its_type(self):
+        with patch("app.FaceTrial.handle", side_effect=RuntimeError("synthetic-private-capture-or-credential")), \
+                self.assertLogs("face-service", level="ERROR") as logs:
+            response = self.client.post("/v1/face", json={"userId": self.user, "action": "status"},
+                                        headers={"Authorization": f"Bearer {self.secret}"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"code": "unavailable"})
+        self.assertIn("stage=request error_type=RuntimeError", logs.output[0])
+        self.assertNotIn("synthetic-private", "".join(logs.output))
+
     def test_api_schema_is_not_exposed(self):
         self.assertEqual(self.client.get("/docs").status_code, 404)
         self.assertEqual(self.client.get("/openapi.json").status_code, 404)

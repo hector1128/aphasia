@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "face-service"))
-from app import create_handler
+from app import create_handler, log_unavailable
 from vercel_models import runtime
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -38,7 +38,7 @@ async def face(request: Request):
         return JSONResponse({"code": "unavailable"}, status_code=401, headers=headers)
     try:
         backend = await run_in_threadpool(initialize)
-    except Exception:
-        # Configuration/connection details must not reach a public response or log.
+    except Exception as error:
+        log_unavailable("initialize", error)
         return JSONResponse({"code": "unavailable"}, status_code=503, headers=headers)
     return await backend(request)
