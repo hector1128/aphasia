@@ -3,9 +3,8 @@ import { SpeechField } from "./SpeechField";
 import { X, ArrowLeft, ChevronRight } from "lucide-react";
 import { filterActivities } from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
-import { lifeAreas, type ActivityChoice, type LifeArea } from "./model";
-import { mainActivities, searchableActivities, catalogueActivity } from "./activity-catalogue";
-import { AreaIcon, areaLabel } from "./LifeAreaIcon";
+import type { ActivityChoice } from "./model";
+import { activityCategories, searchableActivities, catalogueActivity } from "./activity-catalogue";
 
 export function ActivityPicker({
   value,
@@ -19,8 +18,8 @@ export function ActivityPicker({
   onChange: (choice: ActivityChoice) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<LifeArea | null>(null);
-  const choices = mainActivities.filter((activity) => category && activity.areas.includes(category));
+  const [category, setCategory] = useState<(typeof activityCategories)[number] | null>(null);
+  const choices = category?.activities ?? [];
   const matches = query.trim() ? filterActivities(query, searchableActivities) : choices;
   const seen = new Set<string>();
   const uniqueChoices = (choices: ActivityChoice[]) => choices.filter((choice) => {
@@ -83,7 +82,7 @@ export function ActivityPicker({
         className="activity-library"
         role="region"
         aria-label="Activity choices"
-        key={category ?? "all"}
+        key={category?.name ?? "all"}
       >
         {!query.trim() && !category ? (
           <>
@@ -98,10 +97,10 @@ export function ActivityPicker({
             <section>
               <h2>Activities</h2>
               <div className="activity-options">
-                {lifeAreas.map((area) => (
-                  <button type="button" className="activity-choice" key={area} onClick={() => setCategory(area)}>
-                    <span className="area-icon"><AreaIcon area={area} /></span>
-                    <span>{areaLabel(area)}</span><ChevronRight />
+                {activityCategories.map((group) => (
+                  <button type="button" className="activity-choice" key={group.name} onClick={() => setCategory(group)}>
+                    <span className="area-icon"><ActivityIcon id={group.icon} /></span>
+                    <span>{group.name}</span><ChevronRight />
                   </button>
                 ))}
               </div>
@@ -109,8 +108,8 @@ export function ActivityPicker({
           </>
         ) : (
           <section>
-            {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />Life areas</button>}
-            <h2>{query.trim() ? "Matching activities" : category && areaLabel(category)}</h2>
+            {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />All activities</button>}
+            <h2>{query.trim() ? "Matching activities" : category?.name}</h2>
             <div className="activity-options">{matches.map(renderChoice)}</div>
             {!matches.length && <p>No activities found.</p>}
           </section>

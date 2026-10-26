@@ -94,7 +94,7 @@ Activity wizards use only bottom Back/Next/Save actions and bottom progress indi
 | Mobile activity choice | Vertical icon then label, gap 10, padding 14px 10px, 19px text; trailing plus top-right |
 | `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color |
 
-Selecting a library activity populates the text field and keeps a visible selected card. The larger library stays searchable. Logging separates recent choices from the rest; only scheduling offers personalized suggestions. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
+Selecting a library activity populates the text field and keeps a visible selected card. Browse activities through the nine categories in `activityCategories` in `src/activity-catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and suggestion candidates stay searchable. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
 
 ## Calendar, current activities and ratings
 

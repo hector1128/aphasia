@@ -25,6 +25,24 @@ test("reusing importance does not extend its lifetime; explicitly rating again d
   assert.equal(cachedImportance(data, "My activity", expiry), 4);
 });
 
+test("renamed activities reuse existing cache entries while distinct new choices stay separate", () => {
+  const now = new Date("2026-10-25T12:00:00Z");
+  const data = emptyData();
+  data.importanceRatings = {
+    read: { rating: 8, ratedAt: now.toISOString() },
+    "call | on the phone": { rating: 6, ratedAt: now.toISOString() },
+    "eat a meal": { rating: 7, ratedAt: now.toISOString() },
+  };
+  assert.equal(cachedImportance(data, "Reading", now), 8);
+  assert.equal(cachedImportance(data, "Phone call", now), 6);
+  assert.equal(cachedImportance(data, "Breakfast", now), undefined);
+  const updated = rememberImportance(data, "Breakfast", 4, now);
+  assert.equal(cachedImportance(updated, "Breakfast", now), 4);
+  assert.equal(cachedImportance(updated, "Lunch", now), undefined);
+  assert.equal(cachedImportance(updated, "Dinner", now), undefined);
+  assert.equal(cachedImportance(updated, "Reading", new Date("2026-11-08T12:00:00Z")), undefined);
+});
+
 test("old accounts get an empty cache and malformed cached ratings are discarded", () => {
   const original = emptyData();
   const { importanceRatings: _cache, ...legacy } = original;
