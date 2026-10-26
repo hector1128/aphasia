@@ -2,6 +2,7 @@
 # Engineering Guidelines
 
 ## Implementation
+- Before any UI change, read `docs/ui-components.md`. Reuse its shared components and update the reference when component sizes, colors, spacing, radii, states, or responsive behavior change.
 - Prefer the simplest solution that meets requirements.
 - Reuse existing project patterns and utilities.
 - Avoid unnecessary dependencies and abstractions.

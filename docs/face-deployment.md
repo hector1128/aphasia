@@ -52,6 +52,14 @@ Model preparation needs outbound HTTPS to the pinned public GitHub sources and p
 
 Enable Vercel's system environment variables if the project has disabled them. If changing environment variables after an existing deployment, open **Deployments → latest deployment → ⋯ → Redeploy**. Use the exact origin configured for that environment. A different alias or temporary deployment URL is deliberately rejected by the gateway's origin check.
 
+### Diagnose an unavailable deployment
+
+The environment-variable list shows project settings for **future deployments**. It does not prove the current deployment received them. After adding `SUPABASE_SECRET_KEY` or creating/designating the automation bypass secret, redeploy before testing again.
+
+In Vercel's request logs, open a failing `/api/face` request and inspect its external calls. If it calls this deployment's `/api/face-service` but that Python function has no corresponding invocation, Deployment Protection may have blocked the request before Python ran. Keep protection enabled and configure the existing automation-bypass header path described above. Do not redirect captures to an untrusted host or disable certificate checks.
+
+The public `/api/face-login` config action returns only feature availability. A false value means the deployed flag, trusted service target, shared service secret, or Supabase server credential is missing or disabled. A true value confirms those settings are present, not that the database, face models, camera, or final account sign-in have been exercised. Verify signed-in status separately, then enroll and check the actual sign-in flow with consent.
+
 ## 4. Enroll on the deployed website
 
 1. Sign in with your existing name and password on the configured HTTPS origin.

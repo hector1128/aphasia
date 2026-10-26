@@ -10,10 +10,19 @@ import {
   dateKey,
 } from "./model";
 import { weekDates } from "./date-time";
+import { WeekPicker } from "./DateTimePicker";
 import { ActivityPicker } from "./ActivityPicker";
 import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
 
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
+
+export function valueActivitiesOnDay(data: Data, day: string) {
+  return Object.values(data.entries)
+    .filter((entry) => entry.date === day && !entry.sleepId && !entry.sleepBoundary)
+    .sort((a, b) => a.startMinute - b.startMinute)
+    .filter((entry, index, entries) => entries.findIndex((other) =>
+      other.name.trim().toLowerCase() === entry.name.trim().toLowerCase()) === index);
+}
 
 export function Values({
   data,
@@ -35,6 +44,7 @@ export function Values({
   const [name, setName] = useState("");
   const [linkMode, setLinkMode] = useState<"choose" | "week" | "add" | null>(null);
   const [choice, setChoice] = useState({ name: "", icon: "custom" });
+  const [selectedDay, setSelectedDay] = useState(() => dateKey(new Date()));
   const selected = data.values.find((v) => v.id === id);
   const update = (v: LifeValue) =>
     onChange({
@@ -59,19 +69,12 @@ export function Values({
     setChoice({ name: "", icon: "custom" });
   };
   const days = weekDates(dateKey(new Date())).map(dateKey);
-  const weekChoices = Object.values(data.entries)
-    .filter((e) => days.includes(e.date))
-    .filter((e) => !e.sleepId && !e.sleepBoundary)
-    .filter(
-      (e, i, all) =>
-        all.findIndex((a) => a.name.toLowerCase() === e.name.toLowerCase()) ===
-        i,
-    );
+  const dayChoices = valueActivitiesOnDay(data, selectedDay);
   if (!area)
     return (
       <div className="value-list view-transition" key="life-areas">
         {lifeAreas.map((a) => (
-          <button className="entry-row" key={a} onClick={() => setArea(a)}>
+          <button className="entry-row value-navigation-row" key={a} onClick={() => setArea(a)}>
             <span className="value-heart"><AreaIcon area={a} /></span>
             <strong>{areaLabel(a)}</strong>
             <ChevronRight />
@@ -136,21 +139,25 @@ export function Values({
         </h1>
         {linkMode === "choose" ? (
           <div className="value-link-options">
-            <button className="entry-row" onClick={() => setLinkMode("week")}><CalendarDays /><strong>Choose from this week</strong><ChevronRight /></button>
-            <button className="entry-row" onClick={() => onSchedule(selected)}><Plus /><strong>Schedule activity</strong><ChevronRight /></button>
+            <button className="entry-row value-navigation-row" onClick={() => setLinkMode("week")}><span className="value-heart"><CalendarDays aria-hidden="true" /></span><strong>Choose from this week</strong><ChevronRight aria-hidden="true" /></button>
+            <button className="entry-row value-navigation-row" onClick={() => onSchedule(selected)}><span className="value-heart"><Plus aria-hidden="true" /></span><strong>Schedule an activity</strong><ChevronRight aria-hidden="true" /></button>
           </div>
         ) : linkMode === "week" ? (
-          weekChoices.length ? (
-            <div className="week-activity-list">{weekChoices.map((a) => (
-              <button className="activity-choice" key={a.id} onClick={() => link(a)}>
+          <div className="value-week-activities">
+            <WeekPicker value={selectedDay} onChange={setSelectedDay} min={days[0]} max={days[6]} />
+            <h2 className="value-day-heading">{new Date(`${selectedDay}T12:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</h2>
+          {dayChoices.length ? (
+            <div className="week-activity-list view-transition" key={selectedDay}>{dayChoices.map((a) => (
+              <button className="activity-choice" key={a.id} onClick={() => link({ name: a.name, icon: a.icon })}>
                 <ActivityIcon id={a.icon} name={a.name} />
                 {a.name}
                 <Plus />
               </button>
             ))}</div>
           ) : (
-            <><p>No activities this week.</p><button className="primary" onClick={() => onSchedule(selected)}>Schedule activity</button></>
-          )
+            <div className="view-transition" key={selectedDay}><p role="status">No activities on this day. Choose another day or schedule an activity.</p><button className="primary" onClick={() => onSchedule(selected)}>Schedule an activity</button></div>
+          )}
+          </div>
         ) : (
           <>
             <ActivityPicker

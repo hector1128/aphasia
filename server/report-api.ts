@@ -43,6 +43,7 @@ export function validateRequest(body: unknown) {
 export function reportMiddleware(
   config: MailConfig,
   sendMail?: (message: SendMailOptions) => Promise<{ accepted?: unknown[]; rejected?: unknown[] }>,
+  fetcher: typeof fetch = fetch,
 ) {
   let sending = false,
     lastSend = 0;
@@ -102,7 +103,7 @@ export function reportMiddleware(
       });
     if (
       !sendMail &&
-      !(
+      !(config.RESEND_API_KEY && config.REPORT_FROM) && !(
         config.SMTP_HOST &&
         config.SMTP_USER &&
         config.SMTP_PASS &&
@@ -131,9 +132,27 @@ export function reportMiddleware(
         return reply(400, { error: "Enter a valid email and report details." });
       }
       const pdf = input.period === "week" ? await buildWeeklyReportPdf(input.data, input.date) : await buildReportPdf(input.data, input.date);
-      const transport = sendMail
-        ? null
-        : nodemailer.createTransport({
+      const message = {
+        from: config.REPORT_FROM,
+        to: input.to,
+        subject: `My Day ${input.period === "week" ? "weekly" : "daily"} report - ${input.date}`,
+        text: `The ${input.period === "week" ? "weekly" : "daily"} report for ${input.date} is attached as a PDF. Missing information is marked in the report.`,
+        attachments: [{ filename: `my-day-${input.period}-${input.date}.pdf`,
+          content: Buffer.from(pdf), contentType: "application/pdf" }],
+      } satisfies SendMailOptions;
+      if (!sendMail && config.RESEND_API_KEY) {
+        const response = await fetcher("https://api.resend.com/emails", {
+          method: "POST", redirect: "error", signal: AbortSignal.timeout(20000),
+          headers: { Authorization: `Bearer ${config.RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ from: message.from, to: [message.to], subject: message.subject, text: message.text,
+            attachments: message.attachments.map((attachment) => ({ filename: attachment.filename,
+              content: attachment.content.toString("base64") })) }),
+        });
+        const result: unknown = await response.json();
+        if (!response.ok || !result || typeof result !== "object" || !("id" in result) ||
+            typeof result.id !== "string" || !result.id.trim()) throw Error("Email not accepted");
+      } else {
+        const transport = sendMail ? null : nodemailer.createTransport({
             host: config.SMTP_HOST,
             port: Number(config.SMTP_PORT || 587),
             secure: config.SMTP_SECURE === "true",
@@ -144,21 +163,9 @@ export function reportMiddleware(
             disableFileAccess: true,
             disableUrlAccess: true,
           });
-      const result = await (sendMail ?? transport!.sendMail.bind(transport))({
-        from: config.REPORT_FROM,
-        to: input.to,
-        subject: `My Day ${input.period === "week" ? "weekly" : "daily"} report - ${input.date}`,
-        text: `The ${input.period === "week" ? "weekly" : "daily"} report for ${input.date} is attached as a PDF. Missing information is marked in the report.`,
-        attachments: [
-          {
-            filename: `my-day-${input.period}-${input.date}.pdf`,
-            content: Buffer.from(pdf),
-            contentType: "application/pdf",
-          },
-        ],
-      });
-      if (result.rejected?.length || !result.accepted?.length)
-        throw Error("Recipient not accepted");
+        const result = await (sendMail ?? transport!.sendMail.bind(transport))(message);
+        if (result.rejected?.length || !result.accepted?.length) throw Error("Recipient not accepted");
+      }
       lastSend = Date.now();
       reply(200, { accepted: true });
     } catch {

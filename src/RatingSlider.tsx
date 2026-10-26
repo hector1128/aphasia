@@ -23,13 +23,13 @@ function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
   const sheetHeight = kind === "Enjoyment" ? 1055 : 1086;
   const crop = (() => {
     if (kind === "Importance") {
-      const topX = [35, 270, 502, 735, 960, 1195];
-      const topWidths = [216, 210, 207, 210, 220, 220];
-      const bottomX = [35, 290, 543, 817, 1106];
-      const bottomWidths = [238, 240, 255, 273, 309];
+      const topX = [33, 267, 495, 725, 956, 1192];
+      const topWidths = [221, 217, 219, 222, 225, 225];
+      const bottomX = [33, 286, 546, 812, 1101];
+      const bottomWidths = [243, 249, 256, 280, 317];
       return top
-        ? { x: topX[score], y: 95, width: topWidths[score], height: 350 }
-        : { x: bottomX[score - 6], y: 559, width: bottomWidths[score - 6], height: 380 };
+        ? { x: topX[score], y: 93, width: topWidths[score], height: 354 }
+        : { x: bottomX[score - 6], y: 556, width: bottomWidths[score - 6], height: 384 };
     }
     const cellWidth = sheetWidth / (top ? 6 : 5);
     const inset = 12;

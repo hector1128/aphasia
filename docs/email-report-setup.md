@@ -2,7 +2,21 @@
 
 Settings offers Daily and Weekly reports, a saved recipient address, PDF download and manual sending. Weekly reports use the Monday-to-Sunday week containing the selected day. Missing mood or other information does not prevent a report.
 
-## Configure email
+## Configure Resend
+
+1. Sign in to [Resend](https://resend.com/domains) and verify a domain you own using its DNS instructions.
+2. Create a sending API key in Resend and save it privately as `RESEND_API_KEY` in Vercel's **Production** environment variables. For local development use `.env.local`.
+3. Set `REPORT_FROM` to an address on that verified domain, such as `My Day <reports@your-domain.com>`. A personal `@gmail.com` address cannot be a verified Resend sender. It can receive reports.
+4. Redeploy after adding the variables. Resend takes priority over SMTP when `RESEND_API_KEY` is set. No Resend SDK is needed; the server calls its HTTPS API.
+5. Send a synthetic report to a test inbox you control and inspect the attachment and the provider's delivery status. Never use real activity or health data for setup tests.
+
+Without a verified domain, `REPORT_FROM=My Day <onboarding@resend.dev>` supports testing only to the email registered with the Resend account. It cannot send reports to other users. See [Resend's testing-domain restriction](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
+
+Both credentials and report content stay out of client bundles and logs. Resend receives the recipient, subject, message, and selected report PDF when the user presses Send. Provider rejection or timeout does not fall back to another transport, which could send duplicate reports. Acceptance means Resend queued the message, not that it reached the inbox.
+
+References: [Resend email API](https://resend.com/docs/api-reference/emails/send-email) and [domain verification](https://resend.com/docs/dashboard/domains/introduction).
+
+## Existing SMTP option
 
 1. Obtain SMTP credentials from an email provider. For Gmail, use a supported app password rather than the normal sign-in password.
 2. Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` and `REPORT_FROM` in `.env.local` for local development, or in the hosting provider's server environment for deployment.
@@ -10,7 +24,7 @@ Settings offers Daily and Weekly reports, a saved recipient address, PDF downloa
 4. Restart the local server or redeploy after changing environment settings.
 5. Send a synthetic report to your own test inbox and check the attachment.
 
-SMTP credentials stay server-side. Never prefix secrets with `VITE_`. The app reports setup is needed when SMTP is missing. Provider acceptance is not a guarantee of inbox delivery.
+SMTP credentials stay server-side. Never prefix secrets with `VITE_`. The app reports setup is needed when neither transport is configured. Provider acceptance is not a guarantee of inbox delivery.
 
 `api/report.ts` provides the Vercel endpoint. Hosted requests must be same-origin and signed in. Supabase validates the bearer token and enforces a one-minute per-account cooldown. Requests are limited to 1 MB and one recipient. Development and preview also serve the endpoint locally with a short cooldown. Static-only hosting needs a separate backend.
 
