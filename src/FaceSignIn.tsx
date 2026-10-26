@@ -6,7 +6,7 @@ import { faceLoginRequest, type FaceChallenge } from "./face-api";
 import { listFaceDevices, signFaceCapture, type FaceDevice } from "./face-device";
 
 type Candidate = { userId: string; device: FaceDevice };
-export function FaceSignIn({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
+export function FaceSignIn({ onActiveChange, disabled = false }: { onActiveChange: (active: boolean) => void; disabled?: boolean }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [message, setMessage] = useState("");
@@ -49,10 +49,9 @@ export function FaceSignIn({ onActiveChange }: { onActiveChange: (active: boolea
         if (result.error) throw Error("Could not finish sign-in. Please use your password.");
       }} /> : <>
       {candidates.map((candidate, index) => <button key={candidate.userId} ref={index === 0 ? button : undefined}
-        type="button" className="primary" onClick={() => { setMessage(""); setSelected(candidate); onActiveChange(true); }}>
+        type="button" className="primary" disabled={disabled} onClick={() => { setMessage(""); setSelected(candidate); onActiveChange(true); }}>
         <Camera aria-hidden="true" /> {candidates.length === 1 ? "Sign in with my face" : `Face sign-in: ${candidate.device.username || `Profile ${index + 1}`}`}
       </button>)}
-      <p>You can also sign in with your name and password.</p>
     </>}
     {message && <p role="alert">{message}</p>}
   </section>;

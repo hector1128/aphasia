@@ -19,9 +19,11 @@ function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
   // The supplied sheets have six pictures on top and five below. The SVG
   // viewport crops one picture without changing or duplicating the source art.
   const top = score < 6;
-  const sheetWidth = kind === "Enjoyment" ? 1491 : 1448;
-  const sheetHeight = kind === "Enjoyment" ? 1055 : 1086;
+  const replacement = kind === "Importance" && score === 6;
+  const sheetWidth = replacement ? 1086 : kind === "Enjoyment" ? 1491 : 1448;
+  const sheetHeight = replacement ? 1448 : kind === "Enjoyment" ? 1055 : 1086;
   const crop = (() => {
+    if (replacement) return { x: 136, y: 120, width: 814, height: 1116 };
     if (kind === "Importance") {
       const topX = [33, 267, 495, 725, 956, 1192];
       const topWidths = [221, 217, 219, 222, 225, 225];
@@ -54,7 +56,7 @@ function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
         </clipPath>
       </defs>
       <image
-        href={`/ratings/${kind.toLowerCase()}.png`}
+        href={replacement ? "/ratings/importance-6.png" : `/ratings/${kind.toLowerCase()}.png`}
         width={sheetWidth}
         height={sheetHeight}
         clipPath={`url(#${clipId})`}

@@ -26,6 +26,8 @@ All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fl
 
 Use section variables for section controls. A scheduled activity keeps purple styling even inside the green Activity Log. An unscheduled current activity uses green life-area icons.
 
+All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
+
 ## Layout and navigation
 
 | Component / selector | Size, spacing and behavior |
@@ -93,6 +95,7 @@ Activity wizards use only bottom Back/Next/Save actions and bottom progress indi
 | `.activity-choice` | Min-height 76, padding 16px 12px, radius 12, 2px border; 23px text; values variant background `#f6f2f9`, purple border |
 | Mobile activity choice | Vertical icon then label, gap 10, padding 14px 10px, 19px text; trailing plus top-right |
 | `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color |
+| `.activity-icon` | Upright Lucide SVG, 1.7px stroke at its native 24px viewBox; default 32×32, choice card 48×48, category tile inner icon 32×32; fixed size, no shrinking |
 
 Selecting a library activity populates the text field and keeps a visible selected card. Browse activities through the nine categories in `activityCategories` in `src/activity-catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and suggestion candidates stay searchable. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
 
@@ -118,7 +121,7 @@ Selecting a library activity populates the text field and keeps a visible select
 | Slider thumb | WebKit 38×38 circle, 4px app-surface border and 2px section-color shadow; Firefox inner 32×32 plus border |
 | `.slider-adjust` | Minus / score / plus row; score 30px / 650; margin 18px 0 30px |
 | `.rating-expression` | 140×140 with contain fit; endpoint examples 52×52; no stretching or rotation |
-| Importance art | `public/ratings/importance.png`, original 1448×1086 sheet. `RatingPicture` crops each 0–10 cell with an SVG viewBox and clip path, excluding printed numbers and neighboring cells. Preserve supplied art and progression |
+| Importance art | `public/ratings/importance.png`, original 1448×1086 sheet, except rating 6 uses `public/ratings/importance-6.png` (1086×1448). `RatingPicture` crops each cell with an SVG viewBox and clip path, excluding printed numbers and neighboring cells; rating 6 crop is x136/y120/814×1116. Preserve supplied art and progression |
 | Mood / enjoyment art | Mood uses individual `public/ratings/mood/0.png` through `10.png`; enjoyment uses its own existing sheet crops. Do not substitute importance images for other rating kinds |
 
 ## Mindfulness and settings
@@ -151,6 +154,7 @@ Selecting a library activity populates the text field and keeps a visible select
 | Brand / heading | Brand 24px / 800, icon 38×38 / radius 12; heading 34px; supporting text 20px / 1.5 |
 | Account input | Min-height 60, padding 14px 18px, radius 18, 1px `#c9d9c8`, surface `#f2f6ee`, text 23px; labels 22px / 600 |
 | Account microphone | Min-height 60, radius 16; field bottom margin 30 |
+| Face sign-in | Below the password, 24px top margin; same full-width primary button, no explanatory text underneath. Hide password fields and footer while camera flow is active, keep face sign-in mounted so Cancel restores them. Disable face buttons during a password submission |
 | Account footer | Flex with wrapping, 12px horizontal and 18px vertical gap; top padding 72, mobile 60 |
 | Account submit | Min-height 60, padding 14px 20px, radius 32, 21px / 700, green background / white text, 24px arrow; hover `#28583a` |
 | Account switch | Transparent, green text 21px / 650, padding 12px 0 |

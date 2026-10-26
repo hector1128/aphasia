@@ -45,7 +45,7 @@ import {
   rememberActivity,
 } from "./model";
 import { WeekPicker, TimePicker } from "./DateTimePicker";
-import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
+import { ActivityIcon } from "./ActivityIcon";
 import { ActivityPicker } from "./ActivityPicker";
 import { RatingSlider } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
@@ -436,11 +436,9 @@ function App({ account }: { account?: Account }) {
                       <div
                         className="home-activity-open"
                       >
-                        {hasActivityIcon(entry.icon, entry.name) && (
-                          <span className="activity-art">
-                            <ActivityIcon id={entry.icon} size={48} name={entry.name} />
-                          </span>
-                        )}
+                        <span className="activity-art">
+                          <ActivityIcon id={entry.icon} size={48} name={entry.name} />
+                        </span>
                         <div className="home-entry-description"><strong>{entry.name}</strong></div>
                       </div>
                       <div className="entry-controls">

@@ -12,7 +12,7 @@ import {
 import { weekDates } from "./date-time";
 import { WeekPicker } from "./DateTimePicker";
 import { ActivityPicker } from "./ActivityPicker";
-import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
+import { ActivityIcon } from "./ActivityIcon";
 
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
@@ -204,7 +204,7 @@ export function Values({
                   <div className="value-activity-grid">
                     {v.activities.map((a) => (
                       <div className="value-activity-card" key={a.name}>
-                        {hasActivityIcon(a.icon, a.name) && <span className="activity-art"><ActivityIcon id={a.icon} name={a.name} /></span>}
+                        <span className="activity-art"><ActivityIcon id={a.icon} name={a.name} /></span>
                         <strong>{a.name}</strong>
                         <ItemActions name={a.name} deleteLabel={`Unlink ${a.name}`}
                           onDelete={() => update({ ...v, activities: v.activities.filter((activity) => activity.name !== a.name) })}

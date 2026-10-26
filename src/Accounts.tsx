@@ -79,8 +79,7 @@ function Login({ error: initialError }: { error: string }) {
       <h1 ref={heading} tabIndex={-1}>{creating ? "Create account" : "Sign in"}</h1>
       <p>{creating ? "A place for your day, your activities, and what matters to you." : "Welcome back. Your day is ready when you are."}</p>
     </header>
-    {!creating && <FaceSignIn onActiveChange={setFaceActive} />}
-    {!faceActive && <form className="account-form" onSubmit={async (event) => {
+    <form className="account-form" onSubmit={async (event) => {
       event.preventDefault(); if (!cloud) return;
       setBusy(true); setError("");
       try {
@@ -97,7 +96,7 @@ function Login({ error: initialError }: { error: string }) {
       } catch (error) { setError(error instanceof Error ? error.message : "Could not sign in. Try again."); }
       finally { setBusy(false); }
     }}>
-      <div className="account-fields">
+      {!faceActive && <div className="account-fields">
       <label htmlFor="account-name">Your name</label>
       <SpeechField id="account-name" aria-label="Your name for sign-in" autoComplete="username" required minLength={2} maxLength={60}
         value={name} onValueChange={setName} disabled={busy} />
@@ -106,15 +105,16 @@ function Login({ error: initialError }: { error: string }) {
         minLength={creating ? 8 : undefined} value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} />
       {creating && <p>Choose at least 8 characters. Keep your password somewhere safe.</p>}
       {error && <p className="account-error" role="alert">{error}</p>}
-      </div>
-      <div className="account-footer">
+      </div>}
+      {!creating && <FaceSignIn disabled={busy} onActiveChange={setFaceActive} />}
+      {!faceActive && <div className="account-footer">
         <button type="button" className="account-switch" disabled={busy} onClick={() => { setCreating(!creating); setError(""); }}>
           {creating ? "Sign in instead" : "Sign up"}</button>
         <button className="account-submit" disabled={busy}>
           <span>{busy ? "Please wait…" : creating ? "Create account" : "Sign in"}</span><ArrowRight aria-hidden="true" />
         </button>
-      </div>
-    </form>}
+      </div>}
+    </form>
     </div>
   </main></div>;
 }

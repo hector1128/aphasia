@@ -304,9 +304,8 @@ main {
 .values-card .tile-arrow {
   color: #674a86;
 }
-.activity-illustration {
+.activity-icon {
   display: block;
-  object-fit: contain;
   flex: 0 0 auto;
 }
 .mindfulness-icon {
@@ -1653,13 +1652,9 @@ h1:focus {
   color: var(--section);
   flex-shrink: 0;
 }
-.activity-choice .activity-illustration {
+.activity-choice .activity-icon {
   width: 48px;
   height: 48px;
-}
-.timeline-entry > .activity-illustration {
-  width: 36px;
-  height: 36px;
 }
 .custom-activity {
   overflow-wrap: anywhere;
@@ -2326,7 +2321,6 @@ nav button:nth-child(2).active {
   }
   .home-activity.activity-card:has(strong) .activity-art img,
   .home-activity.activity-card:has(strong) .activity-art svg,
-  .timeline-entry-info .activity-illustration,
   .timeline-entry-info svg {
     width: 30px;
     height: 30px;
@@ -2392,8 +2386,7 @@ nav button:nth-child(2).active {
     letter-spacing: 0;
     overflow-wrap: anywhere;
   }
-  nav button > svg,
-  nav button > .activity-illustration {
+  nav button > svg {
     width: 22px;
     height: 22px;
   }
@@ -2419,7 +2412,6 @@ nav button:nth-child(2).active {
   .home-activity.activity-card:has(strong) .activity-art,
   .home-activity.activity-card:has(strong) .activity-art img,
   .home-activity.activity-card:has(strong) .activity-art svg,
-  .timeline-entry-info .activity-illustration,
   .timeline-entry-info svg {
     width: 28px;
     height: 28px;
@@ -2737,7 +2729,7 @@ main:has(.value-link-screen) > .page-title {
 .face-consent { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
 .face-consent input { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 4px; }
 .face-camera { display: block; width: 100%; max-height: 380px; object-fit: contain; background: #18211b; border-radius: 16px; margin: 16px 0; transform: scaleX(-1); }
-.face-sign-in { margin-bottom: 24px; }
+.face-sign-in { margin-top: 24px; }
 .face-sign-in p { font-size: 21px; }
 
 .typed-time { display: grid; grid-template-columns: 1fr 1fr 1.5fr; align-items: end; gap: 16px; }
@@ -2771,7 +2763,6 @@ main:has(.value-link-screen) > .page-title {
   .home-activity.scheduled-entry .entry-controls { gap: 3px; }
   .scheduled-entry .entry-icon-control, .scheduled-entry .completion-toggle { width: 32px; flex-basis: 32px; min-height: 44px; height: 44px; border-radius: 9px; padding: 3px; }
   .scheduled-entry .entry-controls svg { width: 20px; height: 20px; }
-  .scheduled-entry .timeline-entry-info .activity-illustration, .home-activity.scheduled-entry .activity-art { display: none; }
   .home-activity.scheduled-entry .entry-name-time, .timeline-entry.scheduled-entry .entry-name-time { flex-wrap: wrap; }
   .home-activity.scheduled-entry .entry-name-time strong, .timeline-entry.scheduled-entry .entry-name-time strong { flex-basis: auto; }
 }
@@ -2794,6 +2785,7 @@ main:has(.value-link-screen) > .page-title {
 .add-schedule-value { justify-content: center; color: var(--section); background: var(--section-soft); }
 .schedule-value-create h2 { margin-bottom: 20px; }
 .screen-transition:has(.schedule-value-create) > .wizard-footer > .wizard-actions { display: none; }
+.activity-choice .area-icon > .activity-icon { width: 32px; height: 32px; }
 .activity-choice .area-icon { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 12px; background: var(--section-soft); color: var(--section); }
 @media (max-width: 600px) {
   .schedule-value-grid .entry-row { flex-direction: column; align-items: flex-start; padding: 12px; font-size: 20px; }
@@ -2852,7 +2844,6 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
   .account-shell .account-page { min-height: 100dvh; padding: 28px 24px max(28px, env(safe-area-inset-bottom)); }
   .account-brand { margin-bottom: 40px; }
   .account-footer { padding-top: 60px; }
-  .home-activity.scheduled-entry .activity-art, .scheduled-entry .timeline-entry-info .activity-illustration { display: grid; }
   .home-activity.activity-card:has(strong), .timeline-entry { gap: 10px; }
   .home-activity.activity-card:has(strong) { padding-inline: 12px; }
   .home-entry-description > strong { font-size: 20px; line-height: 1.35; }

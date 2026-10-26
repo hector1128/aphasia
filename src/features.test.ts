@@ -28,7 +28,8 @@ import { validateRequest, reportMiddleware } from "../server/report-api";
 import { createServer, request } from "node:http";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
+import { ActivityIcon } from "./ActivityIcon";
+import { RatingSlider } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
 const make = (id: string, changes: Partial<Entry> = {}): Entry => ({
   id,
@@ -40,10 +41,27 @@ const make = (id: string, changes: Partial<Entry> = {}): Entry => ({
   source: changes.status === "planned" || changes.status === "missed" ? "scheduled" : "logged",
   ...changes,
 });
-test("custom activities without a matching picture have no fallback icon", () => {
-  assert.equal(hasActivityIcon("custom", "My own activity"), false);
-  assert.equal(renderToStaticMarkup(createElement(ActivityIcon, { id: "custom", name: "My own activity" })), "");
-  assert.equal(hasActivityIcon("custom", "Grocery shopping"), true);
+test("all activity choices and custom entries use Lucide icons instead of illustrations", () => {
+  for (const choice of [...searchableActivities, { name: "My own activity", icon: "custom" }]) {
+    const html = renderToStaticMarkup(createElement(ActivityIcon, { id: choice.icon, name: choice.name }));
+    assert.match(html, /<svg/);
+    assert.match(html, /class="lucide lucide-[^"]+ activity-icon"/);
+    assert.match(html, /aria-hidden="true"/);
+    assert.doesNotMatch(html, /<img|<image|illustrations\//);
+  }
+  for (const [name, icon] of [["Grocery shopping", "shopping-cart"], ["Video call", "video"], ["Biking", "bike"], ["Speech practice", "speech"], ["My own activity", "activity"]]) {
+    assert.ok(renderToStaticMarkup(createElement(ActivityIcon, { id: "custom", name })).includes(`lucide-${icon}`));
+  }
+  assert.match(renderToStaticMarkup(createElement(ActivityIcon, { id: "mindfulness" })), /lucide-brain/);
+});
+test("only importance rating six uses the replacement star card", () => {
+  const html = renderToStaticMarkup(createElement(RatingSlider, { value: 6, label: "Importance", onChange: () => {} }));
+  assert.match(html, /href="\/ratings\/importance-6.png"/);
+  assert.match(html, /aria-label="Importance 6 out of 10"/);
+  for (const label of ["Importance", "Enjoyment", "Mood"] as const) {
+    const other = renderToStaticMarkup(createElement(RatingSlider, { value: label === "Importance" ? 7 : 6, label, onChange: () => {} }));
+    assert.doesNotMatch(other, /importance-6.png/);
+  }
 });
 test("zero ratings, importance, values, and mindfulness survive storage", () => {
   const data = saveEntry(
@@ -210,7 +228,7 @@ test("activity browsing has the nine requested categories and exact choices", ()
     ["Health and therapy", "Doctor appointment; Speech therapy; Speech practice; Other therapy; Support group"],
   ]);
   assert.equal(mainActivities.length, 54);
-  assert.ok(mainActivities.every((activity) => activity.areas.length && activity.features.length && hasActivityIcon(activity.icon, activity.name)));
+  assert.ok(mainActivities.every((activity) => activity.areas.length && activity.features.length));
 });
 test("new activities preserve legacy search and recognize equivalent names without merging distinct choices", () => {
   for (const name of ["Playing piano", "Participate in research", "Aphasia House", "Make a smoothie"])
@@ -241,7 +259,6 @@ test("suggestions use only the separate pool and exclude completed aliases and p
   const suggestions = suggestedActivities(data, new Date("2026-10-02T12:00:00"));
   assert.equal(suggestionActivities.length, 84);
   assert.equal(new Set(suggestionActivities.map((activity) => activity.name)).size, 84);
-  assert.ok(suggestionActivities.every((activity) => hasActivityIcon(activity.icon, activity.name)));
   assert.equal(suggestions.length, 5);
   assert.equal(new Set(suggestions.map((a) => a.name)).size, 5);
   assert.ok(suggestions.every((a) => suggestionActivities.some((candidate) => candidate.name === a.name)));

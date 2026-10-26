@@ -10,7 +10,7 @@ import {
   timeLabel,
 } from "./model";
 import { ScheduleControls } from "./ScheduleControls";
-import { ActivityIcon, hasActivityIcon } from "./ActivityIcon";
+import { ActivityIcon } from "./ActivityIcon";
 export function DayTimeline({
   date,
   data,
@@ -71,7 +71,7 @@ export function DayTimeline({
               {entries.map((entry) => (
                 <div className={`timeline-entry ${entry.source === "scheduled" ? "scheduled-entry" : ""}`} key={entry.id}>
                   <div className="timeline-entry-info">
-                    {hasActivityIcon(entry.icon, entry.name) && <span className="activity-art"><ActivityIcon id={entry.icon} name={entry.name} /></span>}
+                    <span className="activity-art"><ActivityIcon id={entry.icon} name={entry.name} /></span>
                     <div>
                       <div className="entry-name-time"><strong>{entry.name}</strong><time>{timeLabel(entry.startMinute)}</time></div>
                     </div>
