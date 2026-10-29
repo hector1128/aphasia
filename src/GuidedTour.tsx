@@ -62,7 +62,7 @@ export function GuidedTour({ onFinish }: { onFinish: () => void }) {
     };
   }, [current]);
 
-  return <dialog ref={dialog} className="guided-tour" aria-labelledby="tour-title" aria-describedby="tour-description"
+  return <dialog ref={dialog} className={`guided-tour ${step === 0 ? "tour-first-step" : ""}`} aria-labelledby="tour-title" aria-describedby="tour-description"
     onCancel={(event) => { event.preventDefault(); onFinish(); }}>
     <div className="tour-spotlight" style={{ left: position.left, top: position.top, width: position.width, height: position.height }} aria-hidden="true" />
     <div ref={card} className="tour-card" style={{ left: position.cardLeft, top: position.cardTop }}>

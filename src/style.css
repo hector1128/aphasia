@@ -3008,3 +3008,7 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
 
 /* Extra scroll room lets the tour lift the last card above its instructions. */
 .tutorial-active main { padding-bottom: calc(100dvh + 130px); }
+
+/* Measure stable targets and avoid flying in from an unmeasured first position. */
+.tutorial-active .screen-transition { animation: none; }
+.tour-first-step :is(.tour-spotlight, .tour-card) { transition: none; }
