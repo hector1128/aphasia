@@ -1,4 +1,6 @@
 -- Run after schema.sql. Reminder settings are server-owned, outside editable log JSON.
+-- The trusted server needs read-only access to check whether an activity was logged.
+grant select on public.patient_logs to service_role;
 create table if not exists public.activity_reminder_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null default '' check (length(email) <= 254),

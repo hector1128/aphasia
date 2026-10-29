@@ -1,6 +1,10 @@
 -- Run on a development database after schema.sql and reminders.sql.
 -- The transaction rolls back its synthetic account, preferences and delivery records.
 begin;
+-- Run the real worker query with its production role, not the SQL editor owner.
+set local role service_role;
+select count(*) as worker_permission_check from public.claim_activity_reminders();
+reset role;
 do $$
 declare owner_id uuid := gen_random_uuid(); zone text; token_hash text;
   delivery uuid; unsubscribe text; base jsonb := '{"version":2,"name":"Synthetic reminder check","entries":{}}';
