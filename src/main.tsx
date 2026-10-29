@@ -23,6 +23,7 @@ import {
   Volume2,
   ShieldCheck,
   RotateCcw,
+  BookOpen,
 } from "lucide-react";
 import {
   Data,
@@ -70,6 +71,7 @@ import { cachedImportance, rememberImportance } from "./importance";
 import { Values, ScheduleValuePicker } from "./Values";
 import { ReportSettings } from "./ReportSettings";
 import { FaceSettings } from "./FaceSettings";
+import { GuidedTour } from "./GuidedTour";
 import { DailyMood } from "./DailyMood";
 import "./style.css";
 
@@ -109,6 +111,7 @@ function App({ account }: { account?: Account }) {
     }
   });
   const sync = useCloudSync(account, data, setData);
+  const [tourOpen, setTourOpen] = useState(!data.tutorialSeen);
   const [screen, setScreen] = useState<Screen>("home");
   const [name, setName] = useState(data.name);
   const [clock, setClock] = useState(() => new Date());
@@ -338,7 +341,7 @@ function App({ account }: { account?: Account }) {
   );
 
   return (
-    <div className={`app-shell ${screen === "edit" && planning ? "theme-values" : relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
+    <div className={`app-shell ${tourOpen && data.name ? "tutorial-active" : ""} ${screen === "edit" && planning ? "theme-values" : relaxed ? "theme-relax" : screen === "values" ? "theme-values" : "theme-activity"}`}>
       <main>
         <div className={`screen-transition ${screen === "edit" ? "activity-wizard" : ""}`} key={`${screen}-${step}`}>
         {!data.name ? (
@@ -380,6 +383,7 @@ function App({ account }: { account?: Account }) {
               <button
                 className="icon-button"
                 aria-label="Settings"
+                data-tour="settings"
                 onClick={() => {
                   setName(data.name);
                   go("settings");
@@ -410,7 +414,7 @@ function App({ account }: { account?: Account }) {
                   </h1>
                 </div>
                 <div className="home-dashboard">
-                <section className="moment-section">
+                <section className="moment-section" data-tour="current">
                   <div className="hour-selector">
                     <button
                       aria-label="Previous 30 minutes"
@@ -453,6 +457,7 @@ function App({ account }: { account?: Account }) {
                     </div>
                   ))}
                   <button
+                    data-tour="add"
                     className={
                       homeEntries.length
                         ? "secondary"
@@ -477,7 +482,7 @@ function App({ account }: { account?: Account }) {
                 <div className="home-actions">
                 <div className="action-grid">
                   <button
-                    className="action-card plan-card"
+                    className="action-card plan-card" data-tour="log"
                     onClick={() => {
                       setDate(today);
                       go("plan");
@@ -490,7 +495,7 @@ function App({ account }: { account?: Account }) {
                     <ChevronRight className="tile-arrow" size={23} />
                   </button>
                   <button
-                    className="action-card relax-card"
+                    className="action-card relax-card" data-tour="mindfulness"
                     onClick={() => go("relax")}
                   >
                     <span className="tile-icon">
@@ -502,7 +507,7 @@ function App({ account }: { account?: Account }) {
                 </div>
 
                 <div className="action-grid home-secondary-grid">
-                  <button className="action-card mood-card" onClick={() => go("dailyMood")}>
+                  <button className="action-card mood-card" data-tour="mood" onClick={() => go("dailyMood")}>
                     <span className="mood-topline">
                       <span className="tile-icon"><Smile size={30} /></span>
                       {data.ratings[today] !== undefined && <span className="mood-score">{data.ratings[today]} / 10</span>}
@@ -510,7 +515,7 @@ function App({ account }: { account?: Account }) {
                     <h3>Log your mood</h3>
                     <ChevronRight className="tile-arrow" size={23} />
                   </button>
-                  <button className="action-card values-card" onClick={() => go("values")}>
+                  <button className="action-card values-card" data-tour="values" onClick={() => go("values")}>
                     <span className="tile-icon"><Heart size={30} /></span>
                     <h3>My values</h3>
                     <ChevronRight className="tile-arrow" size={23} />
@@ -661,7 +666,7 @@ function App({ account }: { account?: Account }) {
                     go("breathing");
                   }}>
                     <span className="entry-picture">
-                      <ActivityIcon id="mindfulness" size={48} />
+                      <ActivityIcon id="breathing" size={48} />
                     </span>
                     <strong>Breathing</strong>
                     <ChevronRight />
@@ -674,7 +679,7 @@ function App({ account }: { account?: Account }) {
                     }}
                   >
                     <span className="entry-picture">
-                      <ActivityIcon id="mindfulness" size={48} />
+                      <ActivityIcon id="visualization" size={48} />
                     </span>
                     <strong>Visualization</strong>
                     <ChevronRight />
@@ -684,7 +689,7 @@ function App({ account }: { account?: Account }) {
                     onClick={() => go("stretching")}
                   >
                     <span className="entry-picture">
-                      <ActivityIcon id="health" size={48} />
+                      <ActivityIcon id="stretching" size={48} />
                     </span>
                     <strong>Gentle stretching</strong>
                     <ChevronRight />
@@ -813,6 +818,11 @@ function App({ account }: { account?: Account }) {
                     </div>
                   </> : <p>Your log is saved on this browser. Account sign-in is not available on this website yet.</p>}
                 </section>
+                <section className="settings-card" aria-labelledby="tutorial-settings-title">
+                  <div className="settings-card-heading"><span className="settings-card-icon"><BookOpen aria-hidden="true" /></span><h2 id="tutorial-settings-title">App tutorial</h2></div>
+                  <p>Follow a short guide to using My Day. You can skip it at any time.</p>
+                  <button type="button" className="secondary" onClick={() => { go("home"); setTourOpen(true); }}>Show tutorial</button>
+                </section>
                 <ReportSettings data={data} onChange={setData} />
                 <details className="settings-card settings-data">
                   <summary><span className="settings-card-icon"><RotateCcw aria-hidden="true" /></span><h2>Saved data</h2><ChevronRight className="settings-chevron" aria-hidden="true" /></summary>
@@ -848,6 +858,10 @@ function App({ account }: { account?: Account }) {
         )}
         </div>
       </main>
+      {tourOpen && data.name && <GuidedTour onFinish={() => {
+        setTourOpen(false);
+        setData((previous) => ({ ...previous, tutorialSeen: true }));
+      }} />}
       {notice && (
         <div className="toast" role="status">
           <Check size={24} />

@@ -9,6 +9,8 @@ type Candidate = { userId: string; device: FaceDevice };
 export function FaceSignIn({ onActiveChange, disabled = false }: { onActiveChange: (active: boolean) => void; disabled?: boolean }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Candidate | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const [profileId, setProfileId] = useState("");
   const [message, setMessage] = useState("");
   const button = useRef<HTMLButtonElement>(null);
   const wasActive = useRef(false);
@@ -29,7 +31,7 @@ export function FaceSignIn({ onActiveChange, disabled = false }: { onActiveChang
     if (!selected && wasActive.current) button.current?.focus();
     wasActive.current = Boolean(selected);
   }, [selected]);
-  const close = (error = "") => { setSelected(null); setMessage(error); onActiveChange(false); };
+  const close = (error = "") => { setChoosing(false); setSelected(null); setMessage(error); onActiveChange(false); };
   if (!candidates.length) return null;
   return <section className="face-sign-in" aria-label="Face sign-in">
     {selected ? <FaceCamera cancelLabel="Use my password" onCancel={() => close()} onError={close}
@@ -48,10 +50,29 @@ export function FaceSignIn({ onActiveChange, disabled = false }: { onActiveChang
         const result = await cloud.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
         if (result.error) throw Error("Could not finish sign-in. Please use your password.");
       }} /> : <>
-      {candidates.map((candidate, index) => <button key={candidate.userId} ref={index === 0 ? button : undefined}
-        type="button" className="primary" disabled={disabled} onClick={() => { setMessage(""); setSelected(candidate); onActiveChange(true); }}>
-        <Camera aria-hidden="true" /> {candidates.length === 1 ? "Sign in with my face" : `Face sign-in: ${candidate.device.username || `Profile ${index + 1}`}`}
-      </button>)}
+      <button ref={button} type="button" className="primary" disabled={disabled}
+        aria-expanded={candidates.length > 1 ? choosing : undefined}
+        aria-controls={candidates.length > 1 ? "face-profile-picker" : undefined}
+        onClick={() => {
+          setMessage("");
+          if (candidates.length === 1) { setSelected(candidates[0]); onActiveChange(true); }
+          else setChoosing((previous) => !previous);
+        }}>
+        <Camera aria-hidden="true" /> Face sign-in
+      </button>
+      {choosing && <div id="face-profile-picker" className="face-profile-picker">
+        <label htmlFor="face-profile">Choose your name</label>
+        <select id="face-profile" value={profileId} disabled={disabled} onChange={(event) => setProfileId(event.target.value)}>
+          <option value="">Choose a person</option>
+          {candidates.map((candidate, index) => <option key={candidate.userId} value={candidate.userId}>
+            {candidate.device.username || `Profile ${index + 1}`}
+          </option>)}
+        </select>
+        <button type="button" className="secondary" disabled={disabled || !profileId} onClick={() => {
+          const candidate = candidates.find((item) => item.userId === profileId);
+          if (candidate) { setChoosing(false); setSelected(candidate); onActiveChange(true); }
+        }}>Continue</button>
+      </div>}
     </>}
     {message && <p role="alert">{message}</p>}
   </section>;

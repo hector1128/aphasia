@@ -54,13 +54,14 @@ test("all activity choices and custom entries use Lucide icons instead of illust
   }
   assert.match(renderToStaticMarkup(createElement(ActivityIcon, { id: "mindfulness" })), /lucide-brain/);
 });
-test("only importance rating six uses the replacement star card", () => {
+test("importance uses standalone cards including the supplied replacement for six", () => {
   const html = renderToStaticMarkup(createElement(RatingSlider, { value: 6, label: "Importance", onChange: () => {} }));
-  assert.match(html, /href="\/ratings\/importance-6.png"/);
-  assert.match(html, /aria-label="Importance 6 out of 10"/);
-  for (const label of ["Importance", "Enjoyment", "Mood"] as const) {
-    const other = renderToStaticMarkup(createElement(RatingSlider, { value: label === "Importance" ? 7 : 6, label, onChange: () => {} }));
-    assert.doesNotMatch(other, /importance-6.png/);
+  assert.match(html, /src="\/ratings\/importance\/6.png"/);
+  assert.match(html, /alt="Importance 6 out of 10"/);
+  assert.doesNotMatch(html, /<image |clipPath|rating-sheet-picture/);
+  for (const label of ["Enjoyment", "Mood"] as const) {
+    const other = renderToStaticMarkup(createElement(RatingSlider, { value: 6, label, onChange: () => {} }));
+    assert.doesNotMatch(other, /ratings\/importance/);
   }
 });
 test("zero ratings, importance, values, and mindfulness survive storage", () => {

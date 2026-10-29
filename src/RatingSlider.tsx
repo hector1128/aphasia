@@ -1,5 +1,5 @@
 import { Info, Minus, Plus } from "lucide-react";
-import { useId } from "react";
+import { useId, useRef, useState, useLayoutEffect } from "react";
 
 export type RatingKind = "Mood" | "Enjoyment" | "Importance";
 
@@ -20,11 +20,36 @@ const scales = {
 
 export function ScaleInfo({ kind }: { kind: RatingKind }) {
   const id = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const position = () => {
+      if (!button.current || !panel.current) return;
+      const anchor = button.current.getBoundingClientRect();
+      const popup = panel.current.getBoundingClientRect();
+      const left = Math.max(16, Math.min(anchor.left, window.innerWidth - popup.width - 16));
+      const below = anchor.bottom + 12;
+      const top = below + popup.height <= window.innerHeight - 16
+        ? below : Math.max(16, anchor.top - popup.height - 12);
+      panel.current.style.left = `${left}px`;
+      panel.current.style.top = `${top}px`;
+    };
+    position();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+    };
+  }, [open]);
   return <>
-    <button type="button" className="scale-info-button" popoverTarget={id} aria-label={`About the ${kind.toLowerCase()} scale`}>
+    <button ref={button} type="button" className="scale-info-button" popoverTarget={id} aria-label={`About the ${kind.toLowerCase()} scale`}>
       <Info size={24} aria-hidden="true" />
     </button>
-    <div id={id} popover="auto" className="scale-info-panel" role="dialog" aria-labelledby={`${id}-title`}>
+    <div ref={panel} id={id} popover="auto" className="scale-info-panel" role="dialog" aria-labelledby={`${id}-title`}
+      onToggle={(event) => setOpen(event.newState === "open")}>
       <h2 id={`${id}-title`}>{kind}</h2>
       <p>{scales[kind].description}</p>
       <button type="button" className="secondary" popoverTarget={id} popoverTargetAction="hide">Close</button>
@@ -33,65 +58,9 @@ export function ScaleInfo({ kind }: { kind: RatingKind }) {
 }
 
 function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
-  const clipId = useId();
   const score = Math.max(0, Math.min(10, Math.round(value)));
-  if (kind === "Mood") {
-    return (
-      <img
-        className="rating-expression"
-        src={`/ratings/mood/${score}.png`}
-        alt={`Mood ${score} out of 10`}
-      />
-    );
-  }
-
-  // The supplied sheets have six pictures on top and five below. The SVG
-  // viewport crops one picture without changing or duplicating the source art.
-  const top = score < 6;
-  const replacement = kind === "Importance" && score === 6;
-  const sheetWidth = replacement ? 1086 : kind === "Enjoyment" ? 1491 : 1448;
-  const sheetHeight = replacement ? 1448 : kind === "Enjoyment" ? 1055 : 1086;
-  const crop = (() => {
-    if (replacement) return { x: 136, y: 120, width: 814, height: 1116 };
-    if (kind === "Importance") {
-      const topX = [33, 267, 495, 725, 956, 1192];
-      const topWidths = [221, 217, 219, 222, 225, 225];
-      const bottomX = [33, 286, 546, 812, 1101];
-      const bottomWidths = [243, 249, 256, 280, 317];
-      return top
-        ? { x: topX[score], y: 93, width: topWidths[score], height: 354 }
-        : { x: bottomX[score - 6], y: 556, width: bottomWidths[score - 6], height: 384 };
-    }
-    const cellWidth = sheetWidth / (top ? 6 : 5);
-    const inset = 12;
-    return {
-      x: (top ? score : score - 6) * cellWidth + inset,
-      y: top ? 100 : 548,
-      width: cellWidth - inset * 2,
-      height: top ? 300 : 320,
-    };
-  })();
-
-  return (
-    <svg
-      className="rating-expression rating-sheet-picture"
-      viewBox={`${crop.x} ${crop.y} ${crop.width} ${crop.height}`}
-      role="img"
-      aria-label={`${kind} ${score} out of 10`}
-    >
-      <defs>
-        <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-          <rect x={crop.x} y={crop.y} width={crop.width} height={crop.height} />
-        </clipPath>
-      </defs>
-      <image
-        href={replacement ? "/ratings/importance-6.png" : `/ratings/${kind.toLowerCase()}.png`}
-        width={sheetWidth}
-        height={sheetHeight}
-        clipPath={`url(#${clipId})`}
-      />
-    </svg>
-  );
+  return <img className="rating-expression" src={`/ratings/${kind.toLowerCase()}/${score}.png`}
+    alt={`${kind} ${score} out of 10`} />;
 }
 
 export function RatingSlider({
@@ -113,7 +82,7 @@ export function RatingSlider({
       </div>
       <div className="slider-ticks" aria-hidden="true">
         {Array.from({ length: 11 }, (_, i) => (
-          <span key={i} className={i % 5 === 0 ? "anchor-tick" : undefined}>{i}</span>
+          <span key={i} className={i % 5 === 0 ? "anchor-tick" : undefined}>{symbol(i)}{i}</span>
         ))}
       </div>
       <input

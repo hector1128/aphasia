@@ -19,6 +19,7 @@ export type Data = {
   entries: Record<string, Entry>;
   email: string;
   autoEmailReports: boolean;
+  tutorialSeen: boolean;
   values: LifeValue[];
   mindfulness: MindfulnessSession[];
   sleeps: SleepRecord[];
@@ -35,6 +36,7 @@ export const emptyData = (): Data => ({
   name: "",
   email: "",
   autoEmailReports: false,
+  tutorialSeen: false,
   values: [],
   mindfulness: [],
   sleeps: [],
@@ -87,6 +89,8 @@ export function readData(raw: string | null): Data {
     data.readAloud = d.readAloud === true;
     data.email = typeof d.email === "string" ? d.email : "";
     data.autoEmailReports = d.autoEmailReports === true;
+    // Existing accounts predate the tour; only new or unfinished tours auto-open.
+    data.tutorialSeen = d.tutorialSeen !== false;
     if (typeof d.pendingSleepStart === "string" && Number.isFinite(Date.parse(d.pendingSleepStart)))
       data.pendingSleepStart = d.pendingSleepStart;
     data.values = Array.isArray(d.values)

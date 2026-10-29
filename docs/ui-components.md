@@ -2,7 +2,7 @@
 
 Read this file **before every UI change**. Reuse the components and classes below, then update this file in the same change if their appearance or behavior changes. `src/style.css` is the implementation; later rules and media queries override earlier ones. Check the final computed style in the browser when a selector occurs more than once.
 
-All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated October 28, 2026.
+All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated October 29, 2026.
 
 ## Foundations
 
@@ -26,7 +26,7 @@ All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fl
 
 Use section variables for section controls. A scheduled activity keeps purple styling even inside the green Activity Log. An unscheduled current activity uses green life-area icons.
 
-All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Running and Toothbrush use small `createLucideIcon` definitions with the same 24px viewBox and strokes. Meals use EggFried, Sandwich and UtensilsCrossed; Cleaning uses SprayCan, Laundry uses WashingMachine. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
+All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Running, Toothbrush and Stretching use small `createLucideIcon` definitions with the same 24px viewBox and strokes. Meals use EggFried, Sandwich and UtensilsCrossed; Cleaning uses SprayCan, Laundry uses WashingMachine. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
 
 ## Layout and navigation
 
@@ -43,7 +43,7 @@ All app icons use Lucide outline strokes and inherit the section color. `src/Act
 | Mobile nav buttons | Min-height 62; icon 22×22, gap 3; text 16px, 15px at ≤360px; active section has a filled icon and transparent background |
 | Tablet nav | Bottom placement through 1023px; max-width follows shell; normal labels 23px |
 | Desktop nav | Sticky top 24; 230px column; padding 35px 12px; vertical gap 14; item min-height 66, padding 10px 12px, radius 12; active section uses soft background |
-| Nav icons | Lucide icons with `flex-shrink: 0`; active icon fills current color, internal strokes use app surface. Use the same Brain icon for all Mindfulness entry points |
+| Nav icons | Lucide icons with `flex-shrink: 0`; active icon fills current color, internal strokes use app surface. Use Brain for Mindfulness navigation; individual choices use Wind for breathing, Image for visualization and the shared Stretching figure |
 | `.back` | Inline arrow + label, 8px gap, min-height 44, transparent, 23px; linking screen bottom margin 22 |
 | `.toast` | Desktop/tablet ≥768px bottom-right, right 24, max-width 400; mobile above bottom nav with spacing and safe-area inset. Never center it over primary content |
 
@@ -119,14 +119,14 @@ The picker field label and placeholder are **Enter the activity**, including its
 | Timeline name/time on mobile | Name on first line(s), time beneath with 6px gap; time 16px / 1.5. At ≤360px controls wrap beneath content |
 | Logged activity icon | Tile 44×44, radius 10, 1px section border, padding 4; inner art 34×34; upright |
 | Scheduled activity | Surface `#f4eef9`, border `#b69ccb`; purple `#674a86` icons and soft purple tiles; retain completion controls without status sentences |
-| `.rating-slider` | Margin 32px 0; slider target height 52; ticks 0–10 at 23px; track 6px, radius 9, `#8faa8a` |
-| Scale heading info | 44px circular button beside the heading, 24px Info icon, 8px gap, soft section background and 1px section border. Native auto popover supports Close, Escape and outside click; max-width 420px or viewport minus 32px, padding 24, radius 16, 20px / 1.5 body |
+| `.rating-slider` | Margin 32px 0; slider target height 52; ticks 0–10 at 23px, each with its own picture above it (up to 38×44, scales down to fit 11 columns); track 6px, radius 9, `#8faa8a` |
+| Scale heading info | 44px circular button beside the heading, 24px Info icon, 8px gap, soft section background and 1px section border. Native auto popover supports Close, Escape and outside click; opens 12px below its info button, flips above when needed and stays 16px inside the viewport. Repositions on scroll/resize. Opacity and 5px vertical motion over 260ms, including exit; max-width 420px or viewport minus 32px, padding 24, radius 16, 20px / 1.5 body |
 | `.slider-anchors` | Labels above ticks 0, 5 and 10; 16px / 1.35, weight 650, section color, grid columns 1fr / 1.4fr / 1fr, 8px gap. Mood: Very bad / Neutral / Very good. Enjoyment: Not at all / Somewhat / Very much. Importance: Not important / Somewhat important / Very important. Slider describes all anchors to screen readers |
 | Slider thumb | WebKit 38×38 circle, 4px app-surface border and 2px section-color shadow; Firefox inner 32×32 plus border |
 | `.slider-adjust` | Minus / score / plus row; score 30px / 650; margin 18px 0 30px |
 | `.rating-expression` | 140×140 with contain fit; endpoint examples 52×52; no stretching or rotation |
-| Importance art | `public/ratings/importance.png`, original 1448×1086 sheet, except rating 6 uses `public/ratings/importance-6.png` (1086×1448). `RatingPicture` crops each cell with an SVG viewBox and clip path, excluding printed numbers and neighboring cells; rating 6 crop is x136/y120/814×1116. Preserve supplied art and progression |
-| Mood / enjoyment art | Mood uses individual `public/ratings/mood/0.png` through `10.png`; enjoyment uses its own existing sheet crops. Do not substitute importance images for other rating kinds |
+| Importance art | Load individual `public/ratings/importance/0.png` through `10.png` directly. Regenerate with `scripts/crop-ratings.py` (Pillow), using the original `importance.png` sheet and the supplied `importance-6.png` portrait card for six. Crops exclude printed numbers and neighboring cells, capped at 280×280 with aspect ratio preserved. Avoid browser SVG sheet clipping; preserve supplied art and progression |
+| Mood / enjoyment art | Mood uses individual `public/ratings/mood/0.png` through `10.png`; enjoyment uses individual `public/ratings/enjoyment/0.png` through `10.png`, generated from its own sheet by the same crop script. Do not substitute importance images for other rating kinds |
 
 ## Mindfulness and settings
 
@@ -140,7 +140,7 @@ The picker field label and placeholder are **Enter the activity**, including its
 | Breathing durations | 3 equal columns, gap 10; min-height 82, radius 14, padding 8px 3px, 2px blue section border; number 29px, unit 18px |
 | Custom breathing input | Top margin 30, padding-top 26, 1px section-border divider; duration in minutes; typed input and microphone, 12px gap |
 | Stretching video | Preserve 16:9 aspect ratio, full width, no fixed short height; source `48jIXvwXmeQ` |
-| `.settings-page` | Grid gap 20, max-width 1100; 2 columns at ≥1024px; open sections span both columns; mobile gap 16 |
+| `.settings-page` | Single column on every viewport (`minmax(0,1fr)`), width 100%, gap 20, max-width 1100; every card keeps the same width when expanded or setting up face sign-in; mobile gap 16 |
 | `.settings-card` | Padding 24, radius 18, 1px `#dce4d9`, app surface; mobile padding 20px 18px |
 | Settings heading | 14px icon/text gap; icon tile 44×44, radius 12, inner icon 24×24; heading 24px / 1.35, mobile 22px |
 | Settings controls / text | Body and labels 20px / 1.5; buttons min-height 52, text 20px; action row gap 12, wraps |
@@ -159,10 +159,16 @@ The picker field label and placeholder are **Enter the activity**, including its
 | Brand / heading | Brand 24px / 800, icon 38×38 / radius 12; heading 34px; supporting text 20px / 1.5 |
 | Account input | Min-height 60, padding 14px 18px, radius 18, 1px `#c9d9c8`, surface `#f2f6ee`, text 23px; labels 22px / 600 |
 | Account microphone | Min-height 60, radius 16; field bottom margin 30 |
-| Face sign-in | Below the password, 24px top margin; same full-width primary button, no explanatory text underneath. Hide password fields and footer while camera flow is active, keep face sign-in mounted so Cancel restores them. Disable face buttons during a password submission |
+| Face sign-in | Below the password, 24px top margin; same full-width primary button, no explanatory text underneath. Hide password fields and footer while camera flow is active, keep face sign-in mounted so Cancel restores them. One Face sign-in button. With one saved person, start their camera flow directly. With multiple people, expand a labeled native name selector and Continue button (disabled until a person is chosen); picking a name alone never opens the camera. Picker gap 14, top margin 20, select min-height 60, radius 12, 260ms entry. Cancel returns focus to the Face sign-in button. Disable controls during a password submission |
 | Account footer | Flex with wrapping, 12px horizontal and 18px vertical gap; top padding 72, mobile 60 |
 | Account submit | Min-height 60, padding 14px 20px, radius 32, 21px / 700, green background / white text, 24px arrow; hover `#28583a` |
 | Account switch | Transparent, green text 21px / 650, padding 12px 0 |
+
+## Guided tutorial
+
+New accounts automatically start a seven-step tour once their name is available. `tutorialSeen` is saved with account data on Finish, Skip or Escape; legacy accounts without that field count as already seen. Replay from Settings → App tutorial → Show tutorial. The tour explains the current activity, adding an activity, Activity Log, Mindfulness, mood, values and Settings without changing activities or opening the camera.
+
+Use a native modal dialog so background controls are inert and keyboard focus stays inside. Spotlight the corresponding `[data-tour]` target with a 2px app-surface border, radius 16 and `#14251fba` shadow over the rest of the page. Instruction card width min(380px, viewport minus 32px), padding 22, radius 18, green border and app surface. Text 20px / 1.5, heading 24; actions min-height 52 with Back/Next or Finish and a separate 44px Skip control. Card and spotlight move over 260ms; reduced motion disables movement. Announce step instructions politely. Keep card 16px inside the viewport and above or below the target; add temporary bottom scroll room while the tutorial is open so the last home cards can move clear of the instructions. At ≤360px use 18px body and padding; at heights ≤700px use padding 16, heading 22, body 18 / 1.4, 48px actions and 40px Skip.
 
 ## Before finishing a UI change
 

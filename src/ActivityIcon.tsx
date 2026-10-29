@@ -8,7 +8,7 @@ import {
   Puzzle, Sandwich, Scissors, Shapes, Shirt, ShoppingBag, ShoppingCart, Smile,
   Speech, Sprout, Stethoscope, Sunrise, Sunset, Tent, Trees, Trophy, Tv, Users,
   UsersRound, Utensils, Video, Volleyball, Waves, GlassWater, Cookie,
-  EggFried, UtensilsCrossed, SprayCan, WashingMachine, createLucideIcon, type LucideIcon,
+  EggFried, UtensilsCrossed, SprayCan, WashingMachine, Wind, Image, createLucideIcon, type LucideIcon,
 } from "lucide-react";
 import { catalogueActivity } from "./activity-catalogue";
 import { sleepBoundary } from "./model";
@@ -22,6 +22,11 @@ const ToothbrushIcon = createLucideIcon("Toothbrush", [
   ["path", { d: "M10 10v10a1.5 1.5 0 0 0 3 0V10M5 3h4M5 6h4M5 9h4", key: "handle-and-bristles" }],
 ]);
 
+const StretchingIcon = createLucideIcon("Stretching", [
+  ["circle", { cx: "12", cy: "4", r: "2", key: "head" }],
+  ["path", { d: "M12 8v6m0-5L5 5m7 4 7-4m-7 9-4 7m4-7 4 7", key: "stretch" }],
+]);
+
 // Keep stored icon IDs working; all artwork now uses the same Lucide strokes.
 const icons: Record<string, LucideIcon> = {
   phone: Phone, pets: PawPrint, computer: Monitor, journal: NotebookPen,
@@ -31,6 +36,7 @@ const icons: Record<string, LucideIcon> = {
   out: ShoppingBag, health: HeartPulse, work: BriefcaseBusiness,
   music: Music2, cooking: CookingPot, groceries: ShoppingCart,
   mindfulness: Brain, sleep: BedDouble,
+  breathing: Wind, visualization: Image, stretching: StretchingIcon,
 };
 
 // Specific choices share a suitable symbol, rather than their category's icon.
