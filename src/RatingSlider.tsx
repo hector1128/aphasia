@@ -1,7 +1,36 @@
-import { Minus, Plus } from "lucide-react";
+import { Info, Minus, Plus } from "lucide-react";
 import { useId } from "react";
 
-type RatingKind = "Mood" | "Enjoyment" | "Importance";
+export type RatingKind = "Mood" | "Enjoyment" | "Importance";
+
+const scales = {
+  Mood: {
+    description: "Mood means how you feel. Choose a number from 0 (very bad) to 10 (very good). A 5 is neutral: neither bad nor good.",
+    anchors: ["Very bad", "Neutral", "Very good"],
+  },
+  Enjoyment: {
+    description: "Enjoyment means how much you liked the activity. Choose 0 if you did not enjoy it at all, 5 if you enjoyed it somewhat, or 10 if you enjoyed it very much.",
+    anchors: ["Not at all", "Somewhat", "Very much"],
+  },
+  Importance: {
+    description: "Importance means how much the activity matters to you. Choose 0 if it is not important, 5 if it is somewhat important, or 10 if it is very important.",
+    anchors: ["Not important", "Somewhat important", "Very important"],
+  },
+} satisfies Record<RatingKind, { description: string; anchors: [string, string, string] }>;
+
+export function ScaleInfo({ kind }: { kind: RatingKind }) {
+  const id = useId();
+  return <>
+    <button type="button" className="scale-info-button" popoverTarget={id} aria-label={`About the ${kind.toLowerCase()} scale`}>
+      <Info size={24} aria-hidden="true" />
+    </button>
+    <div id={id} popover="auto" className="scale-info-panel" role="dialog" aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`}>{kind}</h2>
+      <p>{scales[kind].description}</p>
+      <button type="button" className="secondary" popoverTarget={id} popoverTargetAction="hide">Close</button>
+    </div>
+  </>;
+}
 
 function RatingPicture({ value, kind }: { value: number; kind: RatingKind }) {
   const clipId = useId();
@@ -74,12 +103,17 @@ export function RatingSlider({
   onChange: (n: number) => void;
   label: RatingKind;
 }) {
+  const anchorsId = useId();
+  const anchors = scales[label].anchors;
   const symbol = (n: number) => <RatingPicture value={n} kind={label} />;
   return (
     <div className="rating-slider">
+      <div className="slider-anchors" id={anchorsId}>
+        {anchors.map((anchor, index) => <span key={anchor}><span className="sr-only">{index * 5}: </span>{anchor}</span>)}
+      </div>
       <div className="slider-ticks" aria-hidden="true">
         {Array.from({ length: 11 }, (_, i) => (
-          <span key={i}>{i}</span>
+          <span key={i} className={i % 5 === 0 ? "anchor-tick" : undefined}>{i}</span>
         ))}
       </div>
       <input
@@ -89,6 +123,7 @@ export function RatingSlider({
         step="1"
         value={value}
         aria-label={label}
+        aria-describedby={anchorsId}
         aria-valuetext={`${value} out of 10`}
         onChange={(e) => onChange(Number(e.target.value))}
       />

@@ -47,7 +47,7 @@ import {
 import { WeekPicker, TimePicker } from "./DateTimePicker";
 import { ActivityIcon } from "./ActivityIcon";
 import { ActivityPicker } from "./ActivityPicker";
-import { RatingSlider } from "./RatingSlider";
+import { RatingSlider, ScaleInfo, type RatingKind } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
 import {
   BreathingGuide,
@@ -85,6 +85,7 @@ type Screen =
   | "dailyMood"
   | "values";
 type Step = ActivityStep;
+const stepScales: Partial<Record<Step, RatingKind>> = { mood: "Mood", enjoyment: "Enjoyment", importance: "Importance" };
 const stepTitles: Record<Step, string> = {
   activity: "What activity?",
   value: "Values",
@@ -314,6 +315,7 @@ function App({ account }: { account?: Account }) {
       setStorageError(true);
     }
   };
+  const ratingKind = screen === "dailyMood" ? "Mood" : screen === "edit" ? stepScales[step] : undefined;
   const header = (
     title: string,
     back?: () => void,
@@ -326,10 +328,11 @@ function App({ account }: { account?: Account }) {
           {backLabel}
         </button>
       )}
-      <div className="page-title">
+      <div className={`page-title${ratingKind ? " scale-title" : ""}`}>
         <h1 ref={heading} tabIndex={-1}>
           {title}
         </h1>
+        {ratingKind && <ScaleInfo kind={ratingKind} />}
       </div>
     </>
   );

@@ -633,10 +633,30 @@ export const activities: ActivityChoice[] = [
 
 export function filterActivities(
   query: string,
-  choices = activities,
+  choices: (ActivityChoice & { aliases?: string[] })[] = activities,
 ): ActivityChoice[] {
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  return choices.filter((choice) =>
-    terms.every((term) => choice.name.toLowerCase().includes(term)),
-  );
+  const words = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/['’]/g, "").match(/[a-z0-9]+/g) ?? [];
+  const grammar = new Set(["i", "im", "am", "was", "were", "a", "an", "the", "my", "some", "to", "for", "with", "at", "on", "in"]);
+  const context = new Set(["eat", "eating", "ate", "have", "having", "had", "go", "going", "went", "do", "doing", "did"]);
+  const queryWords = words(query);
+  const meaningful = queryWords.filter((word) => !grammar.has(word));
+  const specific = meaningful.filter((word) => !context.has(word));
+  const terms = specific.length ? specific : meaningful.length ? meaningful : queryWords;
+  if (!terms.length) return choices;
+  const stem = (word: string) => word.replace(/(?:ing|ed|s)$/, "").replace(/(.)\1$/, "$1");
+  const matches = (terms: string[], text: string) => {
+    const target = words(text);
+    return terms.every((term) => target.some((word) => word.includes(term) || stem(word) === stem(term)));
+  };
+  return choices.map((choice) => {
+    const names = [choice.name, ...(choice.aliases ?? [])];
+    // Rank exact names first, then full phrases, then names ahead of aliases.
+    const score = names.some((name) => matches(terms, name))
+      ? (words(choice.name).join(" ") === queryWords.join(" ") ? 100 : 0) +
+        (names.some((name) => matches(meaningful, name)) ? 10 : 0) +
+        (matches(terms, choice.name) ? 1 : 0)
+      : -1;
+    return { choice, score };
+  }).filter(({ score }) => score >= 0).sort((a, b) => b.score - a.score).map(({ choice }) => choice);
 }

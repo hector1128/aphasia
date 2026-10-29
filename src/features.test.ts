@@ -225,9 +225,9 @@ test("activity browsing has the nine requested categories and exact choices", ()
     ["Exercise", "Walking; Running; Biking; Swimming; Stretching or yoga; Workout; Playing a sport"],
     ["Hobbies and fun", "Reading; Watching TV; Listening to music; Board and card games; Video games; Arts and crafts; Making music; Going to an event"],
     ["Work and community", "Working; Taking a class; Volunteering; Religious service; Caring for someone; Taking a trip"],
-    ["Health and therapy", "Doctor appointment; Speech therapy; Speech practice; Other therapy; Support group"],
+    ["Health and therapy", "Doctor appointment; Speech therapy; Speech practice; Other therapy; Support group; Aphasia House; See Dr. Blackett"],
   ]);
-  assert.equal(mainActivities.length, 54);
+  assert.equal(mainActivities.length, 56);
   assert.ok(mainActivities.every((activity) => activity.areas.length && activity.features.length));
 });
 test("new activities preserve legacy search and recognize equivalent names without merging distinct choices", () => {
@@ -337,6 +337,8 @@ test("the logging picker shows recent and other activities without suggestions",
   assert.match(html, /<h2>Activities<\/h2>/);
   assert.doesNotMatch(html, /<h2>Suggestions<\/h2>/);
   assert.doesNotMatch(html, /Make a smoothie|Make a greeting card|Try clay modeling/);
+  assert.match(html, /placeholder="Enter the activity"/);
+  assert.doesNotMatch(html, /Search activities/);
 });
 test("a selected activity populates the textbox and shows its card with the library collapsed", () => {
   const html = renderToStaticMarkup(createElement(ActivityPicker, {

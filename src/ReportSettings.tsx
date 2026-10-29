@@ -32,6 +32,15 @@ export function ReportSettings({ data, onChange }: { data: Data; onChange: (data
   return <details className="settings-card report-settings">
     <summary><span className="settings-card-icon"><FileText aria-hidden="true" /></span><h2>Reports</h2><ChevronRight className="settings-chevron" aria-hidden="true" /></summary>
     <div className="settings-card-content">
+    <div className="settings-toggle-row">
+      <span id="automatic-report-label">Automatic email reports</span>
+      <button type="button" className="settings-switch" role="switch" aria-labelledby="automatic-report-label"
+        aria-describedby="automatic-report-note" aria-checked={data.autoEmailReports}
+        onClick={() => onChange({ ...data, autoEmailReports: !data.autoEmailReports })}>
+        <span aria-hidden="true" className="settings-switch-track"><span /></span>{data.autoEmailReports ? "On" : "Off"}
+      </button>
+    </div>
+    <p id="automatic-report-note">Email reports aren't automatic yet. Your preference is saved.</p>
     <div className="report-period" role="group" aria-label="Report period">
       {(["day", "week"] as const).map((option) => <button type="button" className="secondary" key={option}
         disabled={busy} aria-pressed={period === option} onClick={() => { setPeriod(option); setStatus(""); }}>

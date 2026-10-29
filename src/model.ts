@@ -18,6 +18,7 @@ export type Data = {
   name: string;
   entries: Record<string, Entry>;
   email: string;
+  autoEmailReports: boolean;
   values: LifeValue[];
   mindfulness: MindfulnessSession[];
   sleeps: SleepRecord[];
@@ -33,6 +34,7 @@ export const emptyData = (): Data => ({
   version: 2,
   name: "",
   email: "",
+  autoEmailReports: false,
   values: [],
   mindfulness: [],
   sleeps: [],
@@ -84,6 +86,7 @@ export function readData(raw: string | null): Data {
     data.name = d.name;
     data.readAloud = d.readAloud === true;
     data.email = typeof d.email === "string" ? d.email : "";
+    data.autoEmailReports = d.autoEmailReports === true;
     if (typeof d.pendingSleepStart === "string" && Number.isFinite(Date.parse(d.pendingSleepStart)))
       data.pendingSleepStart = d.pendingSleepStart;
     data.values = Array.isArray(d.values)

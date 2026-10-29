@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { SpeechField } from "./SpeechField";
 import { X, ArrowLeft, ChevronRight } from "lucide-react";
-import { filterActivities } from "./activities";
 import { ActivityIcon } from "./ActivityIcon";
 import type { ActivityChoice } from "./model";
-import { activityCategories, searchableActivities, catalogueActivity } from "./activity-catalogue";
+import { activityCategories, searchableActivities, catalogueActivity, searchActivities } from "./activity-catalogue";
 
 export function ActivityPicker({
   value,
@@ -20,7 +19,7 @@ export function ActivityPicker({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof activityCategories)[number] | null>(null);
   const choices = category?.activities ?? [];
-  const matches = query.trim() ? filterActivities(query, searchableActivities) : choices;
+  const matches = query.trim() ? searchActivities(query) : choices;
   const seen = new Set<string>();
   const uniqueChoices = (choices: ActivityChoice[]) => choices.filter((choice) => {
     const key = catalogueActivity(choice.name)?.name ?? choice.name.trim().toLowerCase();
@@ -46,7 +45,7 @@ export function ActivityPicker({
       key={choice.name}
       onClick={() => selectChoice(choice)}
     >
-      <ActivityIcon id={choice.icon} name={choice.name} />
+      <span className="area-icon"><ActivityIcon id={choice.icon} name={choice.name} /></span>
       <span>{choice.name}</span>
     </button>
   );
@@ -54,11 +53,11 @@ export function ActivityPicker({
     <>
       <div className="activity-search">
         <label className="sr-only" htmlFor="activity-search">
-          Search activities
+          Enter the activity
         </label>
         <SpeechField
           id="activity-search"
-          placeholder="Search activities"
+          placeholder="Enter the activity"
           value={query || value.name}
           maxLength={100}
           onValueChange={editQuery}
@@ -75,7 +74,7 @@ export function ActivityPicker({
       </div>
       {value.name ? <div className="activity-selection view-transition" key={value.name}>
         <div className="activity-choice" role="status" aria-label="Selected activity">
-          <ActivityIcon id={value.icon} name={value.name} />
+          <span className="area-icon"><ActivityIcon id={value.icon} name={value.name} /></span>
           <span>{value.name}</span>
         </div>
       </div> : <div

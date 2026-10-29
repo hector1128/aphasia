@@ -1,4 +1,4 @@
-import { activities } from "./activities";
+import { activities, filterActivities } from "./activities";
 import type { ActivityChoice, Data, LifeArea } from "./model";
 
 type CatalogueActivity = ActivityChoice & {
@@ -40,8 +40,13 @@ const activityIcons: Record<string, string> = {
   Reading: "read", "Watching TV": "computer", "Listening to music": "music",
   "Board and card games": "game", "Video games": "game", "Making music": "music",
   "Taking a trip": "car", "Caring for someone": "aphasia-house",
+  "Aphasia House": "aphasia-house",
 };
 const activityAliases: Record<string, string[]> = {
+  Breakfast: ["Eating breakfast"], Lunch: ["Eating lunch"], Dinner: ["Eating dinner"],
+  Running: ["Jogging", "Going for a run"],
+  "Aphasia House": ["At Aphasia House"],
+  "See Dr. Blackett": ["Dr Blackett", "Dr. Blackett", "Seeing Dr. Blackett", "Doctor Blackett"],
   Sleeping: ["Sleep", "Went to bed", "Getting ready for bed"],
   Nap: ["Having a nap"], Snack: ["Having a snack"],
   "Coffee or tea": ["Drinking coffee", "Drinking tea"],
@@ -55,11 +60,11 @@ const activityAliases: Record<string, string[]> = {
   "Video call": ["Video calling"],
   Cooking: ["Cook"], Cleaning: ["Cleaning | Doing chores", "Cleaning/Doing chores", "Washing dishes", "Tidying a room", "Vacuuming", "Dusting"],
   Laundry: ["Doing laundry", "Folding clothes"],
-  "Pet care": ["Taking care of pets", "Feeding a pet", "Brushing a pet"],
+  "Pet care": ["Taking care of pets", "Walking the dog", "Feeding a pet", "Brushing a pet"],
   "Grocery shopping": ["Buying groceries"],
   "Other shopping": ["Go shopping", "Shopping"],
   Walking: ["Walking in the park", "Walking with a friend", "Going for a stroll"],
-  Biking: ["Riding a bicycle"], "Stretching or yoga": ["Gentle stretching"],
+  Biking: ["Riding a bicycle", "Riding a bike", "Cycling"], "Stretching or yoga": ["Gentle stretching"],
   Workout: ["Exercise | Fitness activity", "Exercise/Fitness activity", "Chair exercises"],
   Reading: ["Read", "Reading a book", "Reading a newspaper", "Reading a magazine", "Reading poetry"],
   "Watching TV": ["Watch TV", "Watching television"],
@@ -89,6 +94,7 @@ const activityFeatures: Record<string, string[]> = {
   "Speech therapy": ["language", "communication", "therapy", "learning"],
   "Speech practice": ["language", "communication", "therapy", "learning"],
   "Support group": ["connection", "communication", "therapy"],
+  "Aphasia House": ["connection", "communication", "learning", "language", "therapy"],
 };
 
 function activityGroup(name: string, icon: string, areas: LifeArea[], features: string[], names: string) {
@@ -116,7 +122,7 @@ export const activityCategories = [
   activityGroup("Work and community", "work", ["Education/career", "Personal relationships"], ["learning", "community", "connection"],
     "Working; Taking a class; Volunteering; Religious service; Caring for someone; Taking a trip"),
   activityGroup("Health and therapy", "health", ["Mind/body/spirit"], ["self-care", "therapy"],
-    "Doctor appointment; Speech therapy; Speech practice; Other therapy; Support group"),
+    "Doctor appointment; Speech therapy; Speech practice; Other therapy; Support group; Aphasia House; See Dr. Blackett"),
 ];
 export const mainActivities = activityCategories.flatMap((category) => category.activities);
 
@@ -171,6 +177,17 @@ export const searchableActivities = [...catalogue, ...activities].filter((activi
   seen.add(key);
   return true;
 });
+
+export function searchActivities(query: string): ActivityChoice[] {
+  const seen = new Set<string>();
+  return filterActivities(query, searchableActivities).map((choice) => catalogueActivity(choice.name) ?? choice)
+    .filter((choice) => {
+      const key = nameKey(choice.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
 const starters = ["Listen to a new artist", "Try a new fruit", "Send a photo to a friend", "Color a picture", "Watch the sunset"];
 
 // The wider searchable library also informs the profile. Look up its fixed

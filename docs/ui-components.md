@@ -2,7 +2,7 @@
 
 Read this file **before every UI change**. Reuse the components and classes below, then update this file in the same change if their appearance or behavior changes. `src/style.css` is the implementation; later rules and media queries override earlier ones. Check the final computed style in the browser when a selector occurs more than once.
 
-All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated October 25, 2026.
+All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated October 28, 2026.
 
 ## Foundations
 
@@ -26,7 +26,7 @@ All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fl
 
 Use section variables for section controls. A scheduled activity keeps purple styling even inside the green Activity Log. An unscheduled current activity uses green life-area icons.
 
-All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
+All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Running and Toothbrush use small `createLucideIcon` definitions with the same 24px viewBox and strokes. Meals use EggFried, Sandwich and UtensilsCrossed; Cleaning uses SprayCan, Laundry uses WashingMachine. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
 
 ## Layout and navigation
 
@@ -94,10 +94,12 @@ Activity wizards use only bottom Back/Next/Save actions and bottom progress indi
 | `.activity-options` | 2 columns, gap 12; gap 18 at ≥768px, 3 columns at ≥1440px |
 | `.activity-choice` | Min-height 76, padding 16px 12px, radius 12, 2px border; 23px text; values variant background `#f6f2f9`, purple border |
 | Mobile activity choice | Vertical icon then label, gap 10, padding 14px 10px, 19px text; trailing plus top-right |
-| `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color |
-| `.activity-icon` | Upright Lucide SVG, 1.7px stroke at its native 24px viewBox; default 32×32, choice card 48×48, category tile inner icon 32×32; fixed size, no shrinking |
+| `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color; use the same tile for categories, activities, recent choices, suggestions and the selected card |
+| `.activity-icon` | Upright Lucide SVG, 1.7px stroke at its native 24px viewBox; default 32×32, picker tile inner icon 32×32; fixed size, no shrinking |
 
 Selecting a library activity populates the text field and keeps a visible selected card. Browse activities through the nine categories in `activityCategories` in `src/activity-catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and suggestion candidates stay searchable. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
+
+The picker field label and placeholder are **Enter the activity**, including its microphone label. Search matches partial words, aliases and simple phrases regardless of word order, ignores conversational filler, ranks exact matches first and deduplicates equivalent names. Keep both custom activity entry and legacy library search available.
 
 ## Calendar, current activities and ratings
 
@@ -118,6 +120,8 @@ Selecting a library activity populates the text field and keeps a visible select
 | Logged activity icon | Tile 44×44, radius 10, 1px section border, padding 4; inner art 34×34; upright |
 | Scheduled activity | Surface `#f4eef9`, border `#b69ccb`; purple `#674a86` icons and soft purple tiles; retain completion controls without status sentences |
 | `.rating-slider` | Margin 32px 0; slider target height 52; ticks 0–10 at 23px; track 6px, radius 9, `#8faa8a` |
+| Scale heading info | 44px circular button beside the heading, 24px Info icon, 8px gap, soft section background and 1px section border. Native auto popover supports Close, Escape and outside click; max-width 420px or viewport minus 32px, padding 24, radius 16, 20px / 1.5 body |
+| `.slider-anchors` | Labels above ticks 0, 5 and 10; 16px / 1.35, weight 650, section color, grid columns 1fr / 1.4fr / 1fr, 8px gap. Mood: Very bad / Neutral / Very good. Enjoyment: Not at all / Somewhat / Very much. Importance: Not important / Somewhat important / Very important. Slider describes all anchors to screen readers |
 | Slider thumb | WebKit 38×38 circle, 4px app-surface border and 2px section-color shadow; Firefox inner 32×32 plus border |
 | `.slider-adjust` | Minus / score / plus row; score 30px / 650; margin 18px 0 30px |
 | `.rating-expression` | 140×140 with contain fit; endpoint examples 52×52; no stretching or rotation |
@@ -142,6 +146,7 @@ Selecting a library activity populates the text field and keeps a visible select
 | Settings controls / text | Body and labels 20px / 1.5; buttons min-height 52, text 20px; action row gap 12, wraps |
 | Reports / saved data details | Native details/summary, summary min-height 48; content padding-top 24; chevron turns 90deg; keyboard focus visible |
 | Settings switch | Track 48×28, radius 20, padding 3; thumb 22×22 circle; active moves 20px; switch target min-height 48 |
+| Automatic email reports | Reuse settings switch in Reports; Off by default, persist `autoEmailReports` as a preference only. Show that reports are not automatic yet. Do not trigger email requests, timers or schedules from this setting until delivery is implemented |
 | Face consent | Checkbox 28×28, 12px gap; setup actions min-height 48; camera max-height 380, width 100%, contain fit, radius 16, mirrored preview |
 | Face unavailable state | Keep card visible with explanation and Retry. Do not hide it, expose server secrets, bypass consent, or open camera before setup consent |
 

@@ -3,15 +3,24 @@ import {
   Camera, Car, Church, Clapperboard, ClipboardList, Cloud, Coffee, CookingPot,
   Dices, Dumbbell, Fish, Flower2, Footprints, Frame, Gamepad2, Gem, Gift,
   GraduationCap, Hammer, HandHeart, Headphones, HeartHandshake, HeartPulse,
-  House, Landmark, Library, ListMusic, Mail, MessageCircle, Monitor, Moon,
+  House, Landmark, Library, ListMusic, Mail, MessageCircle, Monitor,
   Music2, NotebookPen, Palette, PartyPopper, PawPrint, PersonStanding, Phone,
   Puzzle, Sandwich, Scissors, Shapes, Shirt, ShoppingBag, ShoppingCart, Smile,
-  Speech, Sprout, Stethoscope, Sun, Sunrise, Sunset, Tent, Trees, Trophy, Tv, Users,
+  Speech, Sprout, Stethoscope, Sunrise, Sunset, Tent, Trees, Trophy, Tv, Users,
   UsersRound, Utensils, Video, Volleyball, Waves, GlassWater, Cookie,
-  type LucideIcon,
+  EggFried, UtensilsCrossed, SprayCan, WashingMachine, createLucideIcon, type LucideIcon,
 } from "lucide-react";
 import { catalogueActivity } from "./activity-catalogue";
 import { sleepBoundary } from "./model";
+
+const RunningIcon = createLucideIcon("Running", [
+  ["circle", { cx: "16", cy: "4", r: "2", key: "head" }],
+  ["path", { d: "m10 8 4-1 3 4 4 1M14 7l-3 6 5 3-1 5M11 13l-4 4H3M10 8l-3 4-3-1", key: "body" }],
+]);
+const ToothbrushIcon = createLucideIcon("Toothbrush", [
+  ["rect", { x: "9", y: "2", width: "5", height: "8", rx: "1.5", key: "head" }],
+  ["path", { d: "M10 10v10a1.5 1.5 0 0 0 3 0V10M5 3h4M5 6h4M5 9h4", key: "handle-and-bristles" }],
+]);
 
 // Keep stored icon IDs working; all artwork now uses the same Lucide strokes.
 const icons: Record<string, LucideIcon> = {
@@ -26,16 +35,19 @@ const icons: Record<string, LucideIcon> = {
 
 // Specific choices share a suitable symbol, rather than their category's icon.
 const nameIcons: [LucideIcon, string][] = [
-  [Sunrise, "Breakfast; Wake up; Waking up; Woke up; Getting up"],
-  [Sun, "Lunch"],
-  [Moon, "Dinner"],
+  [EggFried, "Breakfast"],
+  [Sandwich, "Lunch"],
+  [UtensilsCrossed, "Dinner"],
+  [Sunrise, "Wake up; Waking up; Woke up; Getting up"],
   [Apple, "Snack; Try a new fruit"],
   [Coffee, "Coffee or tea; Invite someone for tea; Visit a new café; Going to a cafe"],
   [Utensils, "Eating out; Have a meal outside; Try a new restaurant"],
   [BedDouble, "Sleeping; Nap; Resting; Taking a break; Getting ready for bed"],
   [Bath, "Shower or bath"],
-  [Shirt, "Getting dressed; Laundry; Making the bed"],
-  [Smile, "Brushing teeth; Washing hands; Doing skin care"],
+  [Shirt, "Getting dressed; Making the bed"],
+  [WashingMachine, "Laundry"],
+  [ToothbrushIcon, "Brushing teeth"],
+  [Smile, "Washing hands; Doing skin care"],
   [Scissors, "Hair and grooming; Sewing; Knitting; Crocheting"],
   [Users, "Visiting family; Visiting friends; Look through family photos together; Having visitors; Playing with grandchildren; Talking with a neighbor"],
   [HeartHandshake, "Time with partner; Caring for someone; Play a game with someone; Helping someone"],
@@ -44,14 +56,15 @@ const nameIcons: [LucideIcon, string][] = [
   [Video, "Video call"],
   [MessageCircle, "Texting; Reading messages"],
   [CookingPot, "Cooking; Cook a family recipe; Take a cooking class; Making a sandwich; Preparing vegetables"],
-  [House, "Cleaning"],
+  [SprayCan, "Cleaning"],
+  [House, "Aphasia House"],
   [Hammer, "Home repairs"],
   [PawPrint, "Pet care; Walking the dog; Visit an animal shelter"],
   [Sprout, "Gardening; Plant herbs; Learn to grow a plant; Help with a community garden; Watering plants"],
   [ShoppingCart, "Grocery shopping; Visit a farmers market; Going to the market; Making a shopping list"],
   [ShoppingBag, "Other shopping"],
   [Footprints, "Walking; Walk somewhere new; Hiking; Visiting a nature trail; Dancing; Try chair dancing; Try a beginner dance class"],
-  [Activity, "Running"],
+  [RunningIcon, "Running"],
   [Bike, "Biking"],
   [Waves, "Swimming; Beach visit"],
   [PersonStanding, "Stretching or yoga; Try a gentle movement class"],
@@ -68,7 +81,7 @@ const nameIcons: [LucideIcon, string][] = [
   [HandHeart, "Volunteering; Donate books; Put together a care package"],
   [Church, "Religious service"],
   [Car, "Taking a trip; Road trips; Riding in a car; Planning a trip"],
-  [Stethoscope, "Doctor appointment; Seeing a dentist"],
+  [Stethoscope, "Doctor appointment; Seeing a dentist; See Dr. Blackett"],
   [Speech, "Speech therapy; Speech practice"],
   [HeartPulse, "Other therapy; Physical therapy; Occupational therapy; Taking medicine; Having a massage"],
   [UsersRound, "Support group; Join a hobby group; Going to a community center"],
