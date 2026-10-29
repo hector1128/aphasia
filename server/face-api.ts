@@ -57,7 +57,7 @@ export function faceMiddleware(config: Config, overrides: {
     if (req.method !== "POST") return reply(405, { error: "Use face verification in Settings." });
     try {
       const origin = new URL(req.headers.origin || "");
-      if (origin.origin !== config.FACE_APP_ORIGIN || !["https:", "http:"].includes(origin.protocol)) throw Error();
+      if (![config.FACE_APP_ORIGIN, config.APP_ORIGIN].includes(origin.origin) || !["https:", "http:"].includes(origin.protocol)) throw Error();
     } catch { return reply(403, { error: "Use face verification from this app." }); }
     if (!req.headers["content-type"]?.startsWith("application/json")) return reply(415, { error: messages.invalid });
     let body: Record<string, unknown>;

@@ -5,7 +5,7 @@ import { PDFDocument } from "pdf-lib";
 import { reportMiddleware } from "../server/report-api";
 import { emptyData } from "./model";
 
-async function reportServer(fetcher: typeof fetch, config = { RESEND_API_KEY: "synthetic-resend-key", REPORT_FROM: "reports@example.com" }) {
+async function reportServer(fetcher: typeof fetch, config: Record<string, string> = { RESEND_API_KEY: "synthetic-resend-key", REPORT_FROM: "reports@example.com", REPORT_REPLY_TO: "lab@example.edu" }) {
   const middleware = reportMiddleware(config, undefined, fetcher);
   const server = createServer((req, res) => void middleware(req, res, () => res.end()));
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -31,6 +31,7 @@ test("Resend accepts daily and weekly reports with real base64 PDF attachments a
       assert.equal(new Headers(init?.headers).get("authorization"), "Bearer synthetic-resend-key");
       const body = JSON.parse(String(init?.body));
       assert.equal(body.from, "reports@example.com");
+      assert.equal(body.reply_to, "lab@example.edu");
       assert.deepEqual(body.to, ["recipient@example.com"]);
       assert.equal(body.attachments[0].filename, `my-day-${period}-2026-10-25.pdf`);
       const pdf = Buffer.from(body.attachments[0].content, "base64");

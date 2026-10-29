@@ -8,6 +8,7 @@ import { weeklyReportData } from "../src/weekly.js";
 import { buildWeeklyReportPdf } from "../src/report-week.js";
 import { cloudConfig } from "../src/cloud-config.js";
 import { createClient } from "@supabase/supabase-js";
+import { sendResend } from "./email.js";
 export type MailConfig = Record<string, string>;
 export function validateRequest(body: unknown) {
   const b = body as { to: string; date: string; period?: unknown; data: unknown };
@@ -134,6 +135,7 @@ export function reportMiddleware(
       const pdf = input.period === "week" ? await buildWeeklyReportPdf(input.data, input.date) : await buildReportPdf(input.data, input.date);
       const message = {
         from: config.REPORT_FROM,
+        ...(config.REPORT_REPLY_TO ? { replyTo: config.REPORT_REPLY_TO } : {}),
         to: input.to,
         subject: `My Day ${input.period === "week" ? "weekly" : "daily"} report - ${input.date}`,
         text: `The ${input.period === "week" ? "weekly" : "daily"} report for ${input.date} is attached as a PDF. Missing information is marked in the report.`,
@@ -141,16 +143,9 @@ export function reportMiddleware(
           content: Buffer.from(pdf), contentType: "application/pdf" }],
       } satisfies SendMailOptions;
       if (!sendMail && config.RESEND_API_KEY) {
-        const response = await fetcher("https://api.resend.com/emails", {
-          method: "POST", redirect: "error", signal: AbortSignal.timeout(20000),
-          headers: { Authorization: `Bearer ${config.RESEND_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ from: message.from, to: [message.to], subject: message.subject, text: message.text,
-            attachments: message.attachments.map((attachment) => ({ filename: attachment.filename,
-              content: attachment.content.toString("base64") })) }),
-        });
-        const result: unknown = await response.json();
-        if (!response.ok || !result || typeof result !== "object" || !("id" in result) ||
-            typeof result.id !== "string" || !result.id.trim()) throw Error("Email not accepted");
+        await sendResend(config, { to: input.to, subject: message.subject, text: message.text,
+          attachments: message.attachments.map((attachment) => ({ filename: attachment.filename,
+            content: attachment.content.toString("base64") })) }, fetcher);
       } else {
         const transport = sendMail ? null : nodemailer.createTransport({
             host: config.SMTP_HOST,

@@ -8,5 +8,10 @@
     "rootDir": ".",
     "outDir": "tmp/server-runtime"
   },
-  "include": ["api/report.ts", "api/face.ts", "api/face-login.ts"]
+  "include": [
+    "api/report.ts",
+    "api/face.ts",
+    "api/face-login.ts",
+    "api/reminders.ts"
+  ]
 }

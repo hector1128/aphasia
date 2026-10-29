@@ -3012,3 +3012,9 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
 /* Measure stable targets and avoid flying in from an unmeasured first position. */
 .tutorial-active .screen-transition { animation: none; }
 .tour-first-step :is(.tour-spotlight, .tour-card) { transition: none; }
+
+.reminder-settings form { display: grid; gap: 14px; margin: 20px 0; }
+.reminder-settings form label, .reminder-settings form input, .reminder-settings .speech-field { margin: 0; }
+.reminder-settings select { width: 100%; min-width: 0; min-height: 52px; padding: 12px; border: 1px solid var(--section-border); border-radius: 12px; background: #f2f6ee; color: #243d38; font: inherit; font-size: 20px; }
+.reminder-settings .reminder-consent { display: flex; align-items: flex-start; gap: 12px; }
+.reminder-consent input { flex: 0 0 26px; width: 26px; height: 26px; min-height: 26px; padding: 0; accent-color: var(--section); }

@@ -45,6 +45,16 @@ test("face gateway hides the feature when globally disabled", async () => {
   } finally { await disabled.close(); }
 });
 
+test("the canonical custom domain and original face origin work without trusting unrelated domains", async () => {
+  const api = await gateway({}, { ...config, APP_ORIGIN: "https://aphasia-myapp.com", FACE_PROTOTYPE_ENABLED: "false" });
+  try {
+    for (const origin of [config.FACE_APP_ORIGIN, "https://aphasia-myapp.com"])
+      assert.equal((await api.request({ action: "status" }, { Origin: origin })).status, 200);
+    for (const origin of ["https://aphasia-myapp.com.evil.example", "https://other.example"])
+      assert.equal((await api.request({ action: "status" }, { Origin: origin })).status, 403);
+  } finally { await api.close(); }
+});
+
 test("any authenticated account can enroll without manual approval, including with obsolete allowlist settings", async () => {
   for (const id of [user, otherUser]) {
     const api = await gateway({ authenticate: async () => ({ id, recentPassword: true }), fetch: async (_input, init) => {

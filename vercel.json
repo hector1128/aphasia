@@ -9,7 +9,14 @@
       "maxDuration": 60,
       "excludeFiles": "{node_modules/**,public/**,src/**,dist/**,output/**,tmp/**,docs/**,.git/**,.env*,face-service/.env*,face-service/.venv/**,face-service/data/**,face-service/models/**,face-service/bundled-models/source/**,**/__pycache__/**,**/test_*.py}"
     },
-    "api/face.ts": { "maxDuration": 60 },
-    "api/face-login.ts": { "maxDuration": 60 }
+    "api/face.ts": {
+      "maxDuration": 60
+    },
+    "api/face-login.ts": {
+      "maxDuration": 60
+    },
+    "api/reminders.ts": {
+      "maxDuration": 180
+    }
   }
 }

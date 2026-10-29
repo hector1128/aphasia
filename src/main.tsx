@@ -69,6 +69,7 @@ import { ItemActions } from "./ItemActions";
 import { activitySteps, type ActivityStep } from "./activity-flow";
 import { cachedImportance, rememberImportance } from "./importance";
 import { Values, ScheduleValuePicker } from "./Values";
+import { ReminderSettings } from "./ReminderSettings";
 import { ReportSettings } from "./ReportSettings";
 import { FaceSettings } from "./FaceSettings";
 import { GuidedTour } from "./GuidedTour";
@@ -823,6 +824,7 @@ function App({ account }: { account?: Account }) {
                   <p>Follow a short guide to using My Day. You can skip it at any time.</p>
                   <button type="button" className="secondary" onClick={() => { go("home"); setTourOpen(true); }}>Show tutorial</button>
                 </section>
+                <ReminderSettings signedIn={Boolean(account)} />
                 <ReportSettings data={data} onChange={setData} />
                 <details className="settings-card settings-data">
                   <summary><span className="settings-card-icon"><RotateCcw aria-hidden="true" /></span><h2>Saved data</h2><ChevronRight className="settings-chevron" aria-hidden="true" /></summary>
@@ -834,7 +836,7 @@ function App({ account }: { account?: Account }) {
                         else setNotice("No existing browser log to import.");
                       } catch { setNotice("Could not read the existing browser log."); }
                     }}>Import this browser’s existing log</button>}
-                <p>Clear your saved activities, values, and preferences to start again.</p>
+                <p>Clear your saved activities, values, and app preferences to start again. Turn off activity reminders above if you want to stop emails.</p>
                 <button className="secondary reset-button" onClick={reset}>
                   Start over
                 </button>
