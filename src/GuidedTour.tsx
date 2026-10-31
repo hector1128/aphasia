@@ -2,8 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 
 const steps = [
-  { target: "current", title: "Your day", text: "See what you are doing now. Use the arrows to look at another time." },
-  { target: "add", title: "Add an activity", text: "Choose an activity and rate how you felt. You can also schedule an activity for later." },
+  { target: "current", title: "Your day", text: "Here, you can see all your current and scheduled activities. Use the arrows to look at another time." },
+  { target: "add", title: "Add an activity", text: "Log what you did and rate how you felt. You can also schedule an activity for later." },
   { target: "log", title: "Your activity log", text: "See your activities by day. Choose a day to see what you did or planned." },
   { target: "mindfulness", title: "Take a pause", text: "Try breathing, imagine a calm place, or do gentle stretches." },
   { target: "mood", title: "How was your day?", text: "Choose a face and number to record how you feel today." },
