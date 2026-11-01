@@ -592,7 +592,7 @@ function App({ account }: { account?: Account }) {
                       selectedDate,
                       selectedDate === later.date ? later.startMinute : 540,
                       "plan",
-                      true,
+                      false,
                     );
                   }}
                 >
@@ -630,6 +630,7 @@ function App({ account }: { account?: Account }) {
                   />
                 )}
                 {step === "time" && <>
+                  <p className="activity-time-date">{new Date(`${draft.date}T12:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
                   <TimePicker value={{ startMinute: draft.startMinute, durationMinutes: draft.durationMinutes ?? 30 }}
                     showEnd={planning} onChange={(range) => setDraft({ ...draft, ...range })} />
                   {planning && !draft.seriesId && <div className="repeat-settings">

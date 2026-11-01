@@ -3054,3 +3054,4 @@ main:has(.value-link-screen) .topbar, main:has(.value-link-screen) .page-title {
 .reminder-time-choice > label input { flex: 0 0 26px; width: 26px; height: 26px; min-height: 26px; padding: 0; margin: 0; accent-color: var(--section); }
 .reminder-time-choice .time-select { width: min(100%, 290px); }
 .time-select-options button[aria-selected="true"], .time-select-options button:hover { background: var(--section-soft, #f0eafa); color: var(--section, #674a86); }
+.activity-time-date { margin: 0 0 20px; color: #697770; font-size: 19px; }

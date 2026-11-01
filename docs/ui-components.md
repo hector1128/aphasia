@@ -66,7 +66,7 @@ At ≥1440px the home dashboard has two columns, fractions .95 and 1.15 with a 3
 | `.wizard-footer` | Auto top margin, padding-top 32; actions gap 14, progress 40px below actions |
 | `.wizard-progress` | Centered, gap 10; bars 28×8, radius 8, `#dce4d7`; active bar 44px wide and section color |
 
-Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days. Logging ends with Duration (except point-in-time sleep/wake markers). Adding from Home or a selected calendar block keeps that day and always asks for time. Standalone planning and scheduling from Values retain the day step.
+Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days. Logging ends with Duration (except point-in-time sleep/wake markers). Adding from Home or a selected calendar block keeps that day and always asks for time. Scheduling from Values and editing a one-off plan retain the day step; Activity Log’s Plan activity uses its selected day. The time step shows that day as a 19px supporting caption.
 
 ## Activity choices, values and life areas
 
