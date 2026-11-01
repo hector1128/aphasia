@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { type Data, type Entry, lifeAreas, timeLabel, dateKey } from "./model.js";
+import { type Data, type Entry, lifeAreas, timeLabel, entryTimeLabel, dateKey } from "./model.js";
 import { reportData } from "./report-data.js";
 
 const PAGE_W = 595.28;
@@ -172,7 +172,7 @@ export async function buildReportPdf(data: Data, date: string): Promise<Uint8Arr
   section("Activities and ratings", paleGreen, 70);
   table(
     [{ label: "Time", width: 74 }, { label: "Activity", width: 177 }, { label: "Status", width: 76 }, { label: "Mood", width: 61 }, { label: "Enjoy.", width: 62 }, { label: "Value", width: 61 }],
-    entries.map((entry: Entry) => [timeLabel(entry.startMinute), entry.name, entry.status === "done" ? "Done" : entry.status === "missed" ? "Not done" : "Planned", score(entry.status === "done" ? entry.mood : undefined), score(entry.status === "done" ? entry.rating : undefined), score(entry.status === "done" ? entry.importance : undefined)]),
+    entries.map((entry: Entry) => [entryTimeLabel(entry), entry.name, entry.status === "done" ? "Done" : entry.status === "missed" ? "Not done" : "Planned", score(entry.status === "done" ? entry.mood : undefined), score(entry.status === "done" ? entry.rating : undefined), score(entry.status === "done" ? entry.importance : undefined)]),
   );
 
   section("Sleep", palePurple, 70);

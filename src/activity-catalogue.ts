@@ -1,5 +1,5 @@
-import { activities, filterActivities } from "./activities";
-import type { ActivityChoice, Data, LifeArea } from "./model";
+import { activities, filterActivities } from "./activities.js";
+import type { ActivityChoice, Data, LifeArea } from "./model.js";
 
 type CatalogueActivity = ActivityChoice & {
   areas: LifeArea[];
@@ -178,9 +178,9 @@ export const searchableActivities = [...catalogue, ...activities].filter((activi
   return true;
 });
 
-export function searchActivities(query: string): ActivityChoice[] {
+export function searchActivities(query: string, personal: ActivityChoice[] = []): ActivityChoice[] {
   const seen = new Set<string>();
-  return filterActivities(query, searchableActivities).map((choice) => catalogueActivity(choice.name) ?? choice)
+  return filterActivities(query, [...personal, ...searchableActivities]).map((choice) => catalogueActivity(choice.name) ?? choice)
     .filter((choice) => {
       const key = nameKey(choice.name);
       if (seen.has(key)) return false;
@@ -213,6 +213,7 @@ export function suggestedActivities(data: Data, now = new Date()): ActivityChoic
   const tried = new Set(completed.map((entry) => nameKey(catalogueActivity(entry.name)?.name ?? entry.name)));
   const planned = new Set(Object.values(data.entries).filter((entry) => entry.source === "scheduled" && entry.status === "planned")
     .map((entry) => nameKey(catalogueActivity(entry.name)?.name ?? entry.name)));
+  for (const rule of data.recurringActivities) if (!rule.endDate || new Date(`${rule.endDate}T23:59:59`).getTime() >= now.getTime()) planned.add(nameKey(catalogueActivity(rule.name)?.name ?? rule.name));
   const profile = new Map<string, number>();
   for (const entry of completed) {
     const matched = catalogueActivity(entry.name) ?? legacyActivities.find((candidate) =>

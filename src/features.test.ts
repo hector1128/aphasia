@@ -49,7 +49,7 @@ test("all activity choices and custom entries use Lucide icons instead of illust
     assert.match(html, /aria-hidden="true"/);
     assert.doesNotMatch(html, /<img|<image|illustrations\//);
   }
-  for (const [name, icon] of [["Grocery shopping", "shopping-cart"], ["Video call", "video"], ["Biking", "bike"], ["Speech practice", "speech"], ["My own activity", "activity"]]) {
+  for (const [name, icon] of [["Grocery shopping", "shopping-cart"], ["Video call", "video"], ["Biking", "bike"], ["Speech practice", "speech"], ["My own activity", "circle"]]) {
     assert.ok(renderToStaticMarkup(createElement(ActivityIcon, { id: "custom", name })).includes(`lucide-${icon}`));
   }
   assert.match(renderToStaticMarkup(createElement(ActivityIcon, { id: "mindfulness" })), /lucide-brain/);
@@ -249,7 +249,7 @@ test("calendar entries show the activity name without a rating", () => {
     onAdd: () => {},
     onEdit: () => {},
     onDelete: () => {},
-    onToggle: () => {},
+    onToggle: () => {}, onResize: () => true,
   }));
   assert.match(html, /Walking/);
   assert.doesNotMatch(html, /Enjoyment 5/);
@@ -299,13 +299,14 @@ test("full-library history contributes meaningful features without trusting cust
   const custom = saveEntry(emptyData(), make("custom", { name: "My own activity", icon: "music", date: "2026-10-16" }));
   assert.deepEqual(suggestedActivities(custom, now), suggestedActivities(emptyData(), now));
 });
-test("time controls share one microphone beside the formatted time", () => {
-  const html = renderToStaticMarkup(createElement(TimePicker, { value: 16 * 60 + 39, onChange: () => {} }));
-  assert.match(html, /4:39 PM/);
-  assert.equal((html.match(/aria-label="Dictate time"/g) ?? []).length, 1);
-  assert.doesNotMatch(html, /Type a time instead|Say a time|Dictate Hour|Dictate Minute/);
-  assert.ok(html.indexOf('aria-label="Hour"') < html.indexOf('aria-label="Minute"'));
-  assert.ok(html.indexOf('aria-label="Minute"') < html.indexOf('aria-label="AM or PM"'));
+test("time controls show separate start/end choices in half-hour blocks", () => {
+  const html = renderToStaticMarkup(createElement(TimePicker, { value: { startMinute: 990, durationMinutes: 60 }, onChange: () => {} }));
+  assert.match(html, /4:30 PM/);
+  assert.match(html, /5:30 PM/);
+  assert.match(html, /Start time/);
+  assert.match(html, /End time/);
+  assert.equal((html.match(/aria-label="Dictate start time"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /<select|4:15 PM|4:45 PM|time-wheel/);
 });
 test("picker separates recent, suggested and other activities; scheduling shows personal values", () => {
   const data = emptyData();

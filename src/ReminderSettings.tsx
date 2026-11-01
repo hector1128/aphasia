@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { SpeechField } from "./SpeechField";
+import { TimeSelect } from "./DateTimePicker";
 import { cloud } from "./cloud";
-import { parseReminderPreferences, type ReminderPreferences } from "./reminders";
+import { parseReminderPreferences, defaultReminderTimes, validReminderTimes, type ReminderTimes, type ReminderPreferences } from "./reminders";
 
 const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const zones = [...new Set(["UTC", browserZone(), ...Intl.supportedValuesOf("timeZone")])].sort();
@@ -24,6 +25,7 @@ export function ReminderSettings({ signedIn }: { signedIn: boolean }) {
   const [channel, setChannel] = useState<"off" | "email">("off");
   const [email, setEmail] = useState("");
   const [timeZone, setTimeZone] = useState(browserZone);
+  const [times, setTimes] = useState<ReminderTimes>(defaultReminderTimes);
   const [consent, setConsent] = useState(false);
   const [available, setAvailable] = useState(false);
   const [busy, setBusy] = useState(signedIn);
@@ -34,7 +36,7 @@ export function ReminderSettings({ signedIn }: { signedIn: boolean }) {
     const controller = new AbortController();
     setBusy(true);
     void reminderRequest(undefined, controller.signal).then(({ preferences: pref, available }) => {
-      setPreferences(pref); setAvailable(available);
+      setPreferences(pref); setAvailable(available); setTimes(pref.times);
       setChannel(pref.enabled || pref.pending ? "email" : "off");
       setEmail(pref.email); setTimeZone(pref.email ? pref.timeZone : browserZone());
       setConsent(pref.enabled || pref.pending);
@@ -47,13 +49,13 @@ export function ReminderSettings({ signedIn }: { signedIn: boolean }) {
 
   return <section className="settings-card reminder-settings" aria-labelledby="reminders-title">
     <div className="settings-card-heading"><span className="settings-card-icon"><Bell aria-hidden="true" /></span><h2 id="reminders-title">Activity reminders</h2></div>
-    <p>If you have not logged an activity by 4 PM, we can remind you to add one.</p>
+    <p>Choose a good morning or good night reminder, or a 4 PM reminder if you have not logged an activity.</p>
     {!signedIn ? <p>Sign in to set up reminders.</p> : <>
       <form onSubmit={async (event) => {
         event.preventDefault(); setBusy(true); setStatus("");
         try {
-          const result = await reminderRequest({ action: "save", enabled: channel === "email", email, timeZone, consent });
-          setPreferences(result.preferences); setAvailable(result.available);
+          const result = await reminderRequest({ action: "save", enabled: channel === "email", email, timeZone, consent, times });
+          setPreferences(result.preferences); setAvailable(result.available); setTimes(result.preferences.times);
           setStatus(result.preferences.pending ? "Check your inbox and confirm your email to start reminders."
             : result.preferences.enabled ? "Email reminders are on." : "Email reminders are off.");
         } catch (error) { setStatus(error instanceof Error ? error.message : "Could not save reminders."); }
@@ -72,11 +74,24 @@ export function ReminderSettings({ signedIn }: { signedIn: boolean }) {
           <select id="reminder-zone" value={timeZone} disabled={busy} onChange={(event) => setTimeZone(event.target.value)}>
             {zones.map((zone) => <option key={zone} value={zone}>{zone.replaceAll("_", " ").replaceAll("/", " / ")}</option>)}
           </select>
+          <fieldset className="reminder-times"><legend>When should we remind you?</legend>
+            <div className="reminder-time-choice"><label><input type="checkbox" checked={times.morning !== null} disabled={busy}
+              onChange={(event) => setTimes({ ...times, morning: event.target.checked ? 480 : null })} />Good morning</label>
+              {times.morning !== null && <TimeSelect label="Morning reminder time" value={times.morning} disabled={busy} onChange={(morning) => setTimes({ ...times, morning })} />}
+            </div>
+            <div className="reminder-time-choice"><label><input type="checkbox" checked={times.afternoon} disabled={busy}
+              onChange={(event) => setTimes({ ...times, afternoon: event.target.checked })} />4 PM, if I haven’t logged an activity</label></div>
+            <div className="reminder-time-choice"><label><input type="checkbox" checked={times.evening !== null} disabled={busy}
+              onChange={(event) => setTimes({ ...times, evening: event.target.checked ? 1260 : null })} />Good night</label>
+              {times.evening !== null && <TimeSelect label="Night reminder time" value={times.evening} disabled={busy} onChange={(evening) => setTimes({ ...times, evening })} />}
+            </div>
+          </fieldset>
+          {!validReminderTimes(times) && <p role="status">Choose at least one reminder.</p>}
           <label className="reminder-consent"><input type="checkbox" checked={consent} required disabled={busy} onChange={(event) => setConsent(event.target.checked)} />
-            <span>Email me a daily reminder at 4 PM in this time zone if I have not logged an activity.</span></label>
+            <span>Email me the reminders selected above in this time zone. I can turn them off at any time.</span></label>
           <p>Confirm your email before reminders start. You can turn them off here or from a reminder email.</p>
         </>}
-        <button className="primary" disabled={busy || !preferences || (channel === "email" && (!available || !consent))}>{busy ? "Please wait…" : "Save reminders"}</button>
+        <button className="primary" disabled={busy || !preferences || (channel === "email" && (!available || !consent || !validReminderTimes(times)))}>{busy ? "Please wait…" : "Save reminders"}</button>
       </form>
       {preferences?.pending && <p>Your email is waiting for confirmation.</p>}
       {preferences?.enabled && <p>Email reminders are on for {preferences.email}.</p>}

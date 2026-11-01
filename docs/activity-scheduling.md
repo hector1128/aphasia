@@ -1,0 +1,13 @@
+# Activity timing and personal activities
+
+An activity is stored once, with a start and optional `durationMinutes`. New activities use half-hour boundaries and durations in multiples of 30 minutes. End times can reach midnight on the selected day. Legacy entries without a duration retain their original half-hour coverage and minute-precise timestamps until edited. `entriesInSlot` and `entriesOnDate` provide the shared view for Home, Activity Log, Values and reports. Occupied blocks never multiply an activity's count or ratings.
+
+Logging from Home or a calendar block keeps the selected date, asks for the start time, then ratings, then duration. Point-in-time sleep/wake markers retain their automatic sleep-period behavior. Scheduled activities choose Start and End together; their Repeat checkbox offers daily, weekdays or weekly schedules. Standalone scheduling still includes a day picker.
+
+`Data.recurringActivities` holds repeating schedules. Each occurrence has a deterministic `seriesId@date` identity. Calendar dates are expanded on demand, so recurring activities stay at their local wall-clock time over daylight saving changes and do not create an unbounded set of future records. Completing or editing an occurrence stores only that occurrence in `entries`. Deleting one adds its date to the series exclusions. Stopping a series ends it from the selected date; historical completed occurrences remain. Edits to one occurrence do not edit the template or other dates.
+
+Activity Log's Start and End handles resize by half-hour blocks with pointer/touch drag or arrow keys. Pointer cancellation and Escape discard previews. A completed activity cannot be moved to start in the future. The time picker remains an alternative to dragging, including durations beyond the visible timeline.
+
+`Data.myActivities` keeps the user's selected and custom activities independently of the eight recent choices. Unknown custom choices rotate through six persisted geometric icon IDs. Reusing a name reuses its icon. Older logs derive this collection from entries, values and recents on load. The picker displays My activities before the nine standard categories. Search uses local spelling tolerance and offers an explicit corrected choice while retaining custom text; no entered names are sent to a spelling service.
+
+Run `npm test`, `npm run build` and `npm run lint`. `src/activity-schedule.test.ts` checks persistence, recurrence/DST, occurrence edits/deletion, duration coverage/counting, resize bounds, geometric rotation and typo matching. Verify the actual wizard and pointer resizing on narrow and wide viewports before changing shared timing behavior.

@@ -1,3 +1,4 @@
+begin;
 -- Run after schema.sql. Reminder settings are server-owned, outside editable log JSON.
 -- The trusted server needs read-only access to check whether an activity was logged.
 grant select on public.patient_logs to service_role;
@@ -24,19 +25,40 @@ create table if not exists public.activity_reminder_deliveries (
   provider_id text,
   primary key (user_id, local_date)
 );
+-- Existing installations keep the 4 PM reminder and do not opt into new emails.
+alter table public.activity_reminder_preferences
+  add column if not exists morning_minute integer check (morning_minute between 0 and 1439 and morning_minute % 30 = 0),
+  add column if not exists evening_minute integer check (evening_minute between 0 and 1439 and evening_minute % 30 = 0),
+  add column if not exists afternoon_enabled boolean not null default true;
+alter table public.activity_reminder_deliveries
+  add column if not exists kind text not null default 'afternoon' check (kind in ('morning', 'afternoon', 'evening')),
+  add column if not exists scheduled_minute integer not null default 960 check (scheduled_minute between 0 and 1439);
+alter table public.activity_reminder_deliveries drop constraint if exists activity_reminder_deliveries_pkey;
+alter table public.activity_reminder_deliveries add primary key (user_id, local_date, kind);
 alter table public.activity_reminder_preferences enable row level security;
 alter table public.activity_reminder_deliveries enable row level security;
 revoke all on public.activity_reminder_preferences, public.activity_reminder_deliveries from public, anon, authenticated;
 grant all on public.activity_reminder_preferences, public.activity_reminder_deliveries to service_role;
 
-create or replace function public.request_activity_reminder(owner_id uuid, recipient text, zone text, token_hash text)
+drop function if exists public.request_activity_reminder(uuid, text, text, text);
+create or replace function public.request_activity_reminder(owner_id uuid, recipient text, zone text, token_hash text, reminder_schedule jsonb default null)
 returns boolean language plpgsql set search_path = '' as $$
 declare previous public.activity_reminder_preferences; needs_confirmation boolean;
+  morning integer; evening integer; afternoon boolean;
 begin
   if length(recipient) > 254 or recipient !~ '^[^[:space:]@<>;,]+@[^[:space:]@<>;,]+\.[^[:space:]@<>;,]+$'
     or not exists (select 1 from pg_catalog.pg_timezone_names where name = zone)
     or token_hash !~ '^[a-f0-9]{64}$' then raise exception 'INVALID_PREFERENCES'; end if;
-  -- A row lock also serializes simultaneous confirmation requests for one account.
+  if reminder_schedule is not null then
+    if jsonb_typeof(reminder_schedule) <> 'object' or jsonb_typeof(reminder_schedule->'afternoon') is distinct from 'boolean'
+      or not (reminder_schedule ? 'morning' and reminder_schedule ? 'evening') then raise exception 'INVALID_SCHEDULE'; end if;
+    morning := (reminder_schedule->>'morning')::integer;
+    evening := (reminder_schedule->>'evening')::integer;
+    afternoon := (reminder_schedule->>'afternoon')::boolean;
+    if (morning is not null and (morning < 0 or morning > 1439 or morning % 30 <> 0))
+      or (evening is not null and (evening < 0 or evening > 1439 or evening % 30 <> 0))
+      or (morning is null and evening is null and not afternoon) then raise exception 'INVALID_SCHEDULE'; end if;
+  end if;
   insert into public.activity_reminder_preferences(user_id) values (owner_id) on conflict do nothing;
   select * into previous from public.activity_reminder_preferences where user_id = owner_id for update;
   needs_confirmation := previous.email <> recipient or previous.verified_at is null;
@@ -44,6 +66,9 @@ begin
     then raise exception 'RATE_LIMITED'; end if;
   update public.activity_reminder_preferences set
     email = recipient, time_zone = zone, enabled = not needs_confirmation,
+    morning_minute = case when reminder_schedule is null then previous.morning_minute else morning end,
+    evening_minute = case when reminder_schedule is null then previous.evening_minute else evening end,
+    afternoon_enabled = case when reminder_schedule is null then previous.afternoon_enabled else afternoon end,
     verified_at = case when needs_confirmation then null else previous.verified_at end,
     confirmation_hash = case when needs_confirmation then token_hash end,
     confirmation_expires_at = case when needs_confirmation then now() + interval '24 hours' end,
@@ -91,35 +116,45 @@ returns boolean language sql immutable set search_path = '' as $$
     );
 $$;
 
-create or replace function public.claim_activity_reminders()
-returns table (user_id uuid, local_date date, email text, unsubscribe_token text, claim_id uuid)
+create or replace function public.activity_reminder_window(local_now timestamp, reminder_kind text, reminder_minute integer, document_data jsonb)
+returns boolean language sql immutable set search_path = '' as $$
+  select coalesce(reminder_kind in ('morning', 'afternoon', 'evening') and reminder_minute is not null
+    and extract(hour from local_now) * 60 + extract(minute from local_now) >= reminder_minute
+    and extract(hour from local_now) * 60 + extract(minute from local_now) < reminder_minute + 60
+    and (reminder_kind <> 'afternoon' or public.activity_reminder_due(document_data, local_now)), false);
+$$;
+drop function if exists public.claim_activity_reminders();
+create function public.claim_activity_reminders()
+returns table (user_id uuid, local_date date, email text, unsubscribe_token text, claim_id uuid, kind text)
 language sql set search_path = '' as $$
-  insert into public.activity_reminder_deliveries as delivery (user_id, local_date, email, unsubscribe_token)
-    select pref.user_id, (now() at time zone pref.time_zone)::date, pref.email, pref.unsubscribe_token
+  insert into public.activity_reminder_deliveries as delivery (user_id, local_date, email, unsubscribe_token, kind, scheduled_minute)
+    select pref.user_id, (now() at time zone pref.time_zone)::date, pref.email, pref.unsubscribe_token, chosen.kind, chosen.minute
       from public.activity_reminder_preferences pref left join public.patient_logs log on log.user_id = pref.user_id
+      cross join lateral (values ('morning', pref.morning_minute), ('afternoon', case when pref.afternoon_enabled then 960 end), ('evening', pref.evening_minute)) as chosen(kind, minute)
       where pref.enabled and pref.verified_at is not null
-        and public.activity_reminder_due(log.data, now() at time zone pref.time_zone)
+        and public.activity_reminder_window(now() at time zone pref.time_zone, chosen.kind, chosen.minute, log.data)
         and not exists (select 1 from public.activity_reminder_deliveries old
-          where old.user_id = pref.user_id and old.local_date = (now() at time zone pref.time_zone)::date
+          where old.user_id = pref.user_id and old.local_date = (now() at time zone pref.time_zone)::date and old.kind = chosen.kind
             and (old.sent_at is not null or old.attempts >= 3 or old.claimed_at > now() - interval '5 minutes'
-              or old.email <> pref.email or old.unsubscribe_token <> pref.unsubscribe_token))
-      order by pref.user_id limit 10
-    on conflict (user_id, local_date) do update set claim_id = excluded.claim_id,
+              or old.email <> pref.email or old.unsubscribe_token <> pref.unsubscribe_token or old.scheduled_minute <> chosen.minute))
+      order by pref.user_id, chosen.kind limit 10
+    on conflict (user_id, local_date, kind) do update set claim_id = excluded.claim_id,
       claimed_at = now(), attempts = delivery.attempts + 1
       where delivery.sent_at is null and delivery.attempts < 3 and delivery.claimed_at <= now() - interval '5 minutes'
-        and delivery.email = excluded.email and delivery.unsubscribe_token = excluded.unsubscribe_token
-    returning delivery.user_id, delivery.local_date, delivery.email, delivery.unsubscribe_token, delivery.claim_id;
+        and delivery.email = excluded.email and delivery.unsubscribe_token = excluded.unsubscribe_token and delivery.scheduled_minute = excluded.scheduled_minute
+    returning delivery.user_id, delivery.local_date, delivery.email, delivery.unsubscribe_token, delivery.claim_id, delivery.kind;
 $$;
 create or replace function public.activity_reminder_still_due(delivery_claim uuid)
 returns boolean language sql set search_path = '' as $$
   select exists (select 1 from public.activity_reminder_deliveries delivery
     join public.activity_reminder_preferences pref on pref.user_id = delivery.user_id
     left join public.patient_logs log on log.user_id = pref.user_id
+    cross join lateral (values ('morning', pref.morning_minute), ('afternoon', case when pref.afternoon_enabled then 960 end), ('evening', pref.evening_minute)) as chosen(kind, minute)
     where delivery.claim_id = delivery_claim and delivery.sent_at is null
       and pref.enabled and pref.verified_at is not null and pref.email = delivery.email
-      and pref.unsubscribe_token = delivery.unsubscribe_token
+      and pref.unsubscribe_token = delivery.unsubscribe_token and delivery.kind = chosen.kind and delivery.scheduled_minute = chosen.minute
       and delivery.local_date = (now() at time zone pref.time_zone)::date
-      and public.activity_reminder_due(log.data, now() at time zone pref.time_zone));
+      and public.activity_reminder_window(now() at time zone pref.time_zone, chosen.kind, chosen.minute, log.data));
 $$;
 create or replace function public.finish_activity_reminder(delivery_claim uuid, email_id text)
 returns void language sql set search_path = '' as $$
@@ -127,11 +162,13 @@ returns void language sql set search_path = '' as $$
     where claim_id = delivery_claim and sent_at is null;
 $$;
 
-revoke all on function public.request_activity_reminder(uuid, text, text, text),
+revoke all on function public.request_activity_reminder(uuid, text, text, text, jsonb),
   public.disable_activity_reminder(uuid), public.confirm_activity_reminder(text),
-  public.unsubscribe_activity_reminder(text), public.activity_reminder_due(jsonb, timestamp),
+  public.unsubscribe_activity_reminder(text), public.activity_reminder_due(jsonb, timestamp), public.activity_reminder_window(timestamp, text, integer, jsonb),
   public.claim_activity_reminders(), public.activity_reminder_still_due(uuid), public.finish_activity_reminder(uuid, text) from public, anon, authenticated;
-grant execute on function public.request_activity_reminder(uuid, text, text, text),
+grant execute on function public.request_activity_reminder(uuid, text, text, text, jsonb),
   public.disable_activity_reminder(uuid), public.confirm_activity_reminder(text),
-  public.unsubscribe_activity_reminder(text), public.activity_reminder_due(jsonb, timestamp),
+  public.unsubscribe_activity_reminder(text), public.activity_reminder_due(jsonb, timestamp), public.activity_reminder_window(timestamp, text, integer, jsonb),
   public.claim_activity_reminders(), public.activity_reminder_still_due(uuid), public.finish_activity_reminder(uuid, text) to service_role;
+
+commit;

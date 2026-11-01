@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { type Data, timeLabel } from "./model.js";
+import { type Data, entryTimeLabel } from "./model.js";
 import { weeklyStats } from "./weekly.js";
 
 export async function buildWeeklyReportPdf(data: Data, date: string, now = new Date()): Promise<Uint8Array> {
@@ -105,7 +105,7 @@ export async function buildWeeklyReportPdf(data: Data, date: string, now = new D
   const rating = (n?: number) => n === undefined ? "--" : String(n);
   for (const entry of [...stats.entries].sort((a, b) => a.date.localeCompare(b.date) || a.startMinute - b.startMinute)) {
     const value = data.values.find((v) => v.id === entry.valueId)?.name || entry.lifeArea;
-    drawRow([entry.date, timeLabel(entry.startMinute), `${entry.name}${value ? ` | ${value}` : ""}`,
+    drawRow([entry.date, entryTimeLabel(entry), `${entry.name}${value ? ` | ${value}` : ""}`,
       entry.source === "logged" ? "Logged" : entry.status === "done" ? "Plan: done" : entry.status === "missed" ? "Plan: not done" : "Scheduled",
       rating(entry.status === "done" ? entry.mood : undefined), rating(entry.status === "done" ? entry.rating : undefined), rating(entry.status === "done" ? entry.importance : undefined)]);
   }

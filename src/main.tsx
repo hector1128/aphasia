@@ -44,9 +44,12 @@ import {
   slotDate,
   entriesInSlot,
   rememberActivity,
+  entryEnd, entryTimeLabel, findEntry, repeatActivity, stopRepeating, type Repeat,
 } from "./model";
-import { WeekPicker, TimePicker } from "./DateTimePicker";
+import { WeekPicker, TimePicker, DurationPicker } from "./DateTimePicker";
+import { nextActivitySlot } from "./date-time";
 import { ActivityIcon } from "./ActivityIcon";
+import { personalActivity } from "./personal-activities";
 import { ActivityPicker } from "./ActivityPicker";
 import { RatingSlider, ScaleInfo, type RatingKind } from "./RatingSlider";
 import { DayTimeline } from "./DayTimeline";
@@ -94,6 +97,7 @@ const stepTitles: Record<Step, string> = {
   value: "Values",
   day: "Which day?",
   time: "What time?",
+  duration: "How long did it last?",
   mood: "How did you feel?",
   enjoyment: "How much did you enjoy it?",
   importance: "How important was it?",
@@ -123,8 +127,9 @@ function App({ account }: { account?: Account }) {
   const [draft, setDraft] = useState<Entry | null>(null);
   const [step, setStep] = useState<Step>("activity");
   const [completingPlan, setCompletingPlan] = useState(false);
-  const [timeValid, setTimeValid] = useState(true);
-  const [chooseTime, setChooseTime] = useState(false);
+  const [repeat, setRepeat] = useState<Repeat | "none">("none");
+  const [importanceRated, setImportanceRated] = useState(false);
+  const [chooseDay, setChooseDay] = useState(false);
   useReadAloud(data.readAloud);
   const [returnTo, setReturnTo] = useState<"home" | "plan" | "values">("home");
   const [focusedValueId, setFocusedValueId] = useState<string>();
@@ -142,7 +147,7 @@ function App({ account }: { account?: Account }) {
   const editingEntry = Boolean(draft && data.entries[draft.id]);
   const planning = draft?.source === "scheduled" && draft.status !== "done" && !completingPlan;
   const valueMissing = step === "value" && data.values.length > 0 && !draft?.lifeArea;
-  const steps = activitySteps({ planning, completing: completingPlan, chooseTime,
+  const steps = activitySteps({ planning, completing: completingPlan, chooseDay,
     sleep: Boolean(draft && sleepBoundary(draft.name)),
     importanceCached: Boolean(draft && cachedImportance(data, draft.name, clock) !== undefined),
     valueLinked: returnTo === "values" && Boolean(draft?.valueId) });
@@ -208,28 +213,31 @@ function App({ account }: { account?: Account }) {
       icon: "custom",
       date: selectedDate,
       startMinute: selectedMinute,
+      durationMinutes: 30,
       status,
       source: status === "planned" ? "scheduled" : "logged",
     });
     setCompletingPlan(false);
-    setChooseTime(chooseDateAndTime);
-    setTimeValid(true);
+    setChooseDay(chooseDateAndTime);
+    setRepeat("none");
+    setImportanceRated(false);
     setReturnTo(origin);
     setStep("activity");
     go("edit");
   };
   const scheduleFromValue = (value: LifeValue) => {
-    const later = new Date();
-    later.setHours(0, currentSlot(later) + 30, 0, 0);
+    const later = nextActivitySlot();
     setFocusedValueId(value.id);
-    newEntry("planned", dateKey(later), currentSlot(later), "values", true);
+    newEntry("planned", later.date, later.startMinute, "values", true);
     setDraft((entry) => entry ? { ...entry, valueId: value.id, lifeArea: value.area } : entry);
   };
   const editEntry = (entry: Entry, origin: "home" | "plan") => {
-    setDraft({ ...entry });
+    const startMinute = Math.floor(entry.startMinute / 30) * 30;
+    setDraft({ ...entry, startMinute, durationMinutes: Math.min(1440 - startMinute, Math.ceil((entryEnd(entry) - startMinute) / 30) * 30) });
     setCompletingPlan(false);
-    setChooseTime(entry.source === "scheduled" && entry.status !== "done");
-    setTimeValid(true);
+    setChooseDay(entry.source === "scheduled" && entry.status !== "done" && !entry.seriesId);
+    setRepeat("none");
+    setImportanceRated(false);
     setReturnTo(origin);
     setStep("activity");
     go("edit");
@@ -238,8 +246,19 @@ function App({ account }: { account?: Account }) {
     setData((previous) => removeEntry(previous, id));
     setNotice("Activity deleted");
   };
+  const resizeEntry = (entry: Entry) => {
+    if (entry.status === "done" && slotDate(entry.date, entry.startMinute) > new Date()) {
+      setNotice("A logged activity must start now or earlier."); return false;
+    }
+    setData((previous) => {
+      const current = findEntry(previous, entry.id);
+      return current ? saveActivity(previous, { ...current, startMinute: entry.startMinute, durationMinutes: entry.durationMinutes }) : previous;
+    });
+    setNotice("Activity duration updated");
+    return true;
+  };
   const scheduleOutcome = (id: string, outcome: "done" | "missed", origin: "home" | "plan") => {
-    const entry = data.entries[id];
+    const entry = findEntry(data, id);
     if (!entry || entry.source !== "scheduled" || slotDate(entry.date, entry.startMinute) > new Date()) return;
     if (outcome === "missed") {
       setData((previous) => setScheduledStatus(previous, id, outcome));
@@ -248,11 +267,14 @@ function App({ account }: { account?: Account }) {
     }
     setDraft({ ...entry, status: "done" });
     setCompletingPlan(true);
+    setRepeat("none");
+    setImportanceRated(false);
     setReturnTo(origin);
     setStep("mood");
     go("edit");
   };
   const chooseActivity = (choice: ActivityChoice) => {
+    choice = personalActivity(data.myActivities, choice);
     setDraft((prev) => (prev ? { ...prev, ...choice,
       ...(choice.name !== prev.name ? { mood: undefined, rating: undefined, importance: undefined } : {}) } : prev));
     if (choice.name.trim()) setData((prev) => rememberActivity(prev, choice));
@@ -264,7 +286,7 @@ function App({ account }: { account?: Account }) {
       setNotice("Choose now or an earlier time.");
       return false;
     }
-    const old = data.entries[entry.id];
+    const old = findEntry(data, entry.id);
     const unchanged =
       old && old.date === entry.date && old.startMinute === entry.startMinute;
     if (entry.source === "scheduled" && entry.status !== "done" && !unchanged && !future) {
@@ -273,13 +295,13 @@ function App({ account }: { account?: Account }) {
     }
     return true;
   };
-  const save = (entry: Entry, importanceRated = false) => {
+  const save = (entry: Entry, ratedImportance = importanceRated) => {
     if (!entry.name.trim() || !validateTime(entry)) return;
     setData((prev) => {
-      const importance = importanceRated ? entry.importance : cachedImportance(prev, entry.name);
-      const next = saveActivity(prev, { ...entry, name: entry.name.trim(),
-        ...(entry.status === "done" && importance !== undefined ? { importance } : {}) });
-      return importanceRated && importance !== undefined
+      const importance = ratedImportance ? entry.importance : cachedImportance(prev, entry.name);
+      const prepared = { ...entry, name: entry.name.trim(), ...(entry.status === "done" && importance !== undefined ? { importance } : {}) };
+      const next = repeat !== "none" && planning && !entry.seriesId ? repeatActivity(prev, prepared, repeat) : saveActivity(prev, prepared);
+      return ratedImportance && importance !== undefined
         ? rememberImportance(next, entry.name, importance) : next;
     });
     setDate(entry.date);
@@ -290,12 +312,14 @@ function App({ account }: { account?: Account }) {
   const nextStep = () => {
     if (!draft) return;
     if (valueMissing) return;
-    if (step === "time" && (!timeValid || !validateTime(draft))) return;
+    if (step === "time" && !validateTime(draft)) return;
     const updated = { ...draft,
       ...(step === "mood" ? { mood: draft.mood ?? 5 } : {}),
       ...(step === "enjoyment" ? { rating: draft.rating ?? 5 } : {}),
-      ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}) };
-    if (lastStep) { save(updated, step === "importance"); return; }
+      ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}),
+      ...(step === "duration" ? { durationMinutes: draft.durationMinutes ?? 30 } : {}) };
+    if (step === "importance") setImportanceRated(true);
+    if (lastStep) { save(updated, step === "importance" || importanceRated); return; }
     setDraft(updated);
     setStep(steps[steps.indexOf(step) + 1]);
   };
@@ -447,7 +471,7 @@ function App({ account }: { account?: Account }) {
                         <span className="activity-art">
                           <ActivityIcon id={entry.icon} size={48} name={entry.name} />
                         </span>
-                        <div className="home-entry-description"><strong>{entry.name}</strong></div>
+                        <div className="home-entry-description"><strong>{entry.name}</strong><time>{entryTimeLabel(entry)}</time></div>
                       </div>
                       <div className="entry-controls">
                         <ScheduleControls entry={entry} now={clock} onOutcome={(id, outcome) => scheduleOutcome(id, outcome, "home")} />
@@ -545,6 +569,7 @@ function App({ account }: { account?: Account }) {
                   data={data}
                   onEdit={(entry) => editEntry(entry, "plan")}
                   onDelete={deleteEntry}
+                  onResize={resizeEntry}
                   onToggle={(id, outcome) => scheduleOutcome(id, outcome, "plan")}
                   onAdd={(selectedMinute) =>
                     newEntry(
@@ -560,12 +585,12 @@ function App({ account }: { account?: Account }) {
                 <button
                   className="primary"
                   onClick={() => {
-                    const later = Math.min(currentSlot() + 30, 1410);
-                    const selectedDate = date < today ? today : date;
+                    const later = nextActivitySlot();
+                    const selectedDate = date < later.date ? later.date : date;
                     newEntry(
                       "planned",
                       selectedDate,
-                      selectedDate === today ? later : 540,
+                      selectedDate === later.date ? later.startMinute : 540,
                       "plan",
                       true,
                     );
@@ -583,6 +608,7 @@ function App({ account }: { account?: Account }) {
                     key={draft.id}
                     value={draft}
                     recent={data.recentActivities}
+                    mine={data.myActivities}
                     suggestions={planning ? suggestedActivities(data) : []}
                     onChange={chooseActivity}
                   />
@@ -603,17 +629,20 @@ function App({ account }: { account?: Account }) {
                     onChange={(date) => setDraft({ ...draft, date })}
                   />
                 )}
-                {step === "time" && (
-                  <>
-                    <TimePicker
-                      value={draft.startMinute}
-                      onValidityChange={setTimeValid}
-                      onChange={(startMinute) =>
-                        setDraft({ ...draft, startMinute })
-                      }
-                    />
-                  </>
-                )}
+                {step === "time" && <>
+                  <TimePicker value={{ startMinute: draft.startMinute, durationMinutes: draft.durationMinutes ?? 30 }}
+                    showEnd={planning} onChange={(range) => setDraft({ ...draft, ...range })} />
+                  {planning && !draft.seriesId && <div className="repeat-settings">
+                    <label className="repeat-checkbox"><input type="checkbox" checked={repeat !== "none"} onChange={(event) => setRepeat(event.target.checked ? "daily" : "none")} />Repeat this activity</label>
+                    {repeat !== "none" && <div className="repeat-choices" role="group" aria-label="Repeat frequency">
+                      {(["daily", "weekdays", "weekly"] as const).map((frequency) => <button type="button" key={frequency} aria-pressed={repeat === frequency}
+                        className={repeat === frequency ? "active" : ""} onClick={() => setRepeat(frequency)}>{frequency === "daily" ? "Every day" : frequency === "weekdays" ? "Weekdays" : "Every week"}</button>)}
+                    </div>}
+                  </div>}
+                  {draft.seriesId && <div className="repeat-settings"><p>This activity repeats. Edits here apply only to this date.</p>
+                    <button type="button" className="secondary" onClick={() => { const seriesId = draft.seriesId; if (!seriesId) return; setData((previous) => stopRepeating(previous, seriesId, draft.date)); setDraft({ ...draft, seriesId: undefined }); setNotice("Repeats stopped from this date. Save to keep this activity."); }}>Stop repeating from this date</button></div>}
+                </>}
+                {step === "duration" && <DurationPicker startMinute={draft.startMinute} value={draft.durationMinutes ?? 30} onChange={(durationMinutes) => setDraft({ ...draft, durationMinutes })} />}
                 {step === "mood" && (
                   <RatingSlider
                     label="Mood"
@@ -637,9 +666,8 @@ function App({ account }: { account?: Account }) {
                     }
                   />
                 )}
-                {step === "time" && !timeValid && <p role="alert">Enter an hour from 1 to 12 and minutes from 00 to 59.</p>}
                 {step === "importance" && (
-                  <button className="wizard-skip" onClick={() => save({ ...draft, importance: undefined })}>Skip rating</button>
+                  <button className="wizard-skip" onClick={() => { setImportanceRated(false); if (steps.includes("duration")) { setDraft({ ...draft, importance: undefined }); setStep("duration"); } else save({ ...draft, importance: undefined }, false); }}>Skip rating</button>
                 )}
                 <div className="wizard-footer">
                   <div className="wizard-actions">
@@ -647,7 +675,7 @@ function App({ account }: { account?: Account }) {
                       <button type="button" className="wizard-back" onClick={previousStep}><ArrowLeft aria-hidden="true" />Back</button>
                     )}
                     <button type="button" className="wizard-next"
-                      disabled={valueMissing || (step === "activity" && !draft.name.trim()) || (step === "time" && !timeValid)}
+                      disabled={valueMissing || (step === "activity" && !draft.name.trim())}
                       onClick={nextStep}>
                       {lastStep ? <><span>Save activity</span><Check aria-hidden="true" /></> : <><span>Next</span><ArrowRight aria-hidden="true" /></>}
                     </button>

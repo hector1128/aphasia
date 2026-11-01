@@ -1,10 +1,10 @@
-import { type Data, dateKey, slotDate } from "./model.js";
+import { type Data, dateKey, slotDate, entriesOnDate } from "./model.js";
 import { weekDates } from "./date-time.js";
 export const average = (values: number[]) => values.length
   ? values.reduce((total, value) => total + value, 0) / values.length : undefined;
 export function weeklyStats(data: Data, selectedDate: string, now = new Date()) {
   const dates = weekDates(selectedDate).map(dateKey);
-  const entries = Object.values(data.entries).filter((entry) => dates.includes(entry.date) && !entry.sleepId && !entry.sleepBoundary);
+  const entries = dates.flatMap((date) => entriesOnDate(data, date)).filter((entry) => !entry.sleepId && !entry.sleepBoundary);
   const done = entries.filter((entry) => entry.status === "done");
   const daily = dates.map((date) => {
     const activities = done.filter((entry) => entry.date === date);
@@ -44,8 +44,8 @@ export function weeklyReportData(data: Data, date: string): Data {
   const dates = weekDates(date).map(dateKey);
   const first = dates[0], last = dates[6];
   return {
-    ...data, email: "", recentActivities: [],
-    entries: Object.fromEntries(Object.entries(data.entries).filter(([, entry]) => dates.includes(entry.date))),
+    ...data, email: "", recentActivities: [], myActivities: [], recurringActivities: [],
+    entries: Object.fromEntries(dates.flatMap((date) => entriesOnDate(data, date)).map((entry) => [entry.id, entry])),
     ratings: Object.fromEntries(Object.entries(data.ratings).filter(([day]) => dates.includes(day))),
     mindfulness: data.mindfulness.filter((session) => dates.includes(session.date)),
     sleeps: data.sleeps.filter((sleep) => dateKey(new Date(sleep.end)) >= first && dateKey(new Date(sleep.start)) <= last),

@@ -153,3 +153,44 @@ test("provider failures stay retryable, and missing email configuration cannot b
     assert.doesNotMatch(await response.text(), /private upstream|synthetic-private/);
   } finally { await failing.close(); }
 });
+
+test("morning and night schedules validate and are saved only with explicit permission", async () => {
+  const { validReminderTimes, defaultReminderTimes } = await import("./reminders");
+  assert.deepEqual(defaultReminderTimes(), { morning: null, afternoon: true, evening: null });
+  assert.ok(validReminderTimes({ morning: 480, evening: 1260, afternoon: false }));
+  for (const times of [{ morning: -1, evening: 1260, afternoon: true }, { morning: 481, evening: null, afternoon: true },
+    { morning: null, evening: null, afternoon: false }, { morning: "480", evening: 1260, afternoon: true }]) assert.equal(validReminderTimes(times), false);
+  const times = { morning: 480, evening: 1260, afternoon: false };
+  let saves = 0;
+  const api = await server(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith('/auth/v1/user')) return Response.json({ id: userId });
+    if (url.endsWith('/rpc/request_activity_reminder')) { saves++; assert.deepEqual(JSON.parse(String(init?.body)).reminder_schedule, times); return Response.json(false); }
+    return Response.json({ ...pref, enabled: true, verified_at: '2026-11-01T12:00:00Z', morning_minute: 480, evening_minute: 1260, afternoon_enabled: false });
+  });
+  try {
+    const body = { action: 'save', enabled: true, email: 'person@example.com', timeZone: 'America/New_York', consent: true, times };
+    assert.equal((await api.request({ ...body, times: { ...times, morning: 481 } })).status, 400);
+    assert.equal((await api.request({ ...body, consent: false })).status, 400);
+    const response = await api.request(body);
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).preferences.times, times);
+    assert.equal(saves, 1);
+  } finally { await api.close(); }
+});
+test("morning and night reminders have distinct messages and retry keys on the same day", async () => {
+  const keys = new Set<string>(), subjects = new Set<string>();
+  const api = await server(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith('claim_activity_reminders')) return Response.json(['morning', 'evening'].map((kind) => ({ kind, user_id: userId, local_date: '2026-11-01', email: 'person@example.com', unsubscribe_token: 'd'.repeat(64), claim_id: kind })));
+    if (url.endsWith('activity_reminder_still_due')) return Response.json(true);
+    if (url === 'https://api.resend.com/emails') { keys.add(new Headers(init?.headers).get('idempotency-key') || ''); subjects.add(JSON.parse(String(init?.body)).subject); return Response.json({ id: 'test-email' }); }
+    return Response.json(null);
+  });
+  try {
+    const run = () => api.request({ action: 'run' }, { headers: { Authorization: `Bearer ${config.CRON_SECRET}` } });
+    assert.deepEqual(await (await run()).json(), { accepted: 2, failed: 0, skipped: 0 });
+    await run(); assert.equal(keys.size, 2);
+    assert.deepEqual([...subjects].sort(), ['Good morning from My Day', 'Good night from My Day']);
+  } finally { await api.close(); }
+});

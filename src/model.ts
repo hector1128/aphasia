@@ -1,8 +1,17 @@
+import { personalActivity, personalActivities } from "./personal-activities.js";
 export type ActivityChoice = { name: string; icon: string };
+export type Repeat = "daily" | "weekdays" | "weekly";
+export type RecurringActivity = ActivityChoice & {
+  id: string; startDate: string; startMinute: number; durationMinutes: number;
+  frequency: Repeat; excludedDates: string[]; endDate?: string;
+  lifeArea?: LifeArea; valueId?: string;
+};
 export type Entry = ActivityChoice & {
   id: string;
   date: string;
   startMinute: number;
+  durationMinutes?: number;
+  seriesId?: string;
   source: "logged" | "scheduled";
   status: "planned" | "done" | "missed";
   lifeArea?: LifeArea;
@@ -26,6 +35,8 @@ export type Data = {
   ratings: Record<string, number>;
   importanceRatings: Record<string, { rating: number; ratedAt: string }>;
   recentActivities: ActivityChoice[];
+  myActivities: ActivityChoice[];
+  recurringActivities: RecurringActivity[];
   readAloud: boolean;
   pendingSleepStart?: string;
 };
@@ -44,6 +55,8 @@ export const emptyData = (): Data => ({
   ratings: {},
   importanceRatings: {},
   recentActivities: [],
+  myActivities: [],
+  recurringActivities: [],
   readAloud: false,
 });
 export const dateKey = (d: Date) =>
@@ -51,7 +64,19 @@ export const dateKey = (d: Date) =>
 export const currentSlot = (d = new Date()) =>
   d.getHours() * 60 + (d.getMinutes() < 30 ? 0 : 30);
 export const timeLabel = (minute: number) =>
-  `${Math.floor(minute / 60) % 12 || 12}:${String(minute % 60).padStart(2, "0")} ${minute < 720 ? "AM" : "PM"}`;
+  `${Math.floor(minute / 60) % 12 || 12}:${String(minute % 60).padStart(2, "0")} ${minute % 1440 < 720 ? "AM" : "PM"}`;
+export const entryEnd = (entry: Entry) => entry.startMinute + (entry.durationMinutes ?? 30 - entry.startMinute % 30);
+export const entryTimeLabel = (entry: Entry) => entry.durationMinutes === undefined ? timeLabel(entry.startMinute)
+  : `${timeLabel(entry.startMinute)} – ${timeLabel(entryEnd(entry))}`;
+export function resizeActivity(entry: Entry, edge: "start" | "end", minute: number): Entry {
+  const boundary = Math.round(minute / 30) * 30;
+  const end = Math.ceil(entryEnd(entry) / 30) * 30;
+  const startMinute = edge === "start" ? Math.max(0, Math.min(end - 30, boundary)) : Math.floor(entry.startMinute / 30) * 30;
+  const endMinute = edge === "end" ? Math.min(1440, Math.max(startMinute + 30, boundary)) : end;
+  return { ...entry, startMinute, durationMinutes: endMinute - startMinute };
+}
+export const validDuration = (start: number, duration: unknown): duration is number =>
+  typeof duration === "number" && Number.isInteger(duration) && duration >= 30 && duration % 30 === 0 && start + duration <= 1440;
 export const slotDate = (date: string, minute: number) =>
   new Date(
     `${date}T${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}:00`,
@@ -161,6 +186,8 @@ export function readData(raw: string | null): Data {
         id,
         date: source.date,
         startMinute,
+        ...(validDuration(startMinute, source.durationMinutes) ? { durationMinutes: source.durationMinutes } : {}),
+        ...(typeof source.seriesId === "string" ? { seriesId: source.seriesId } : {}),
         name: source.name,
         icon: source.icon,
         source: source.source === "scheduled" || source.status !== "done" ? "scheduled" : "logged",
@@ -191,14 +218,35 @@ export function readData(raw: string | null): Data {
         ActivityChoice[]
       >((result, choice) => (result.some((c) => c.name.toLowerCase() === choice.name.toLowerCase()) ? result : [...result, { name: choice.name, icon: choice.icon }]), [])
       .slice(0, 8);
+    data.myActivities = Array.isArray(d.myActivities) ? d.myActivities.filter(validChoice) : [];
+    data.myActivities = personalActivities(data);
+    const icons = new Map(data.myActivities.map((choice) => [choice.name.trim().toLocaleLowerCase(), choice.icon]));
+    for (const entry of Object.values(data.entries)) entry.icon = icons.get(entry.name.trim().toLocaleLowerCase()) ?? entry.icon;
+    data.recentActivities = data.recentActivities.map((choice) => ({ ...choice, icon: icons.get(choice.name.trim().toLocaleLowerCase()) ?? choice.icon }));
+    data.values = data.values.map((value) => ({ ...value, activities: value.activities.map((choice) => ({ ...choice, icon: icons.get(choice.name.trim().toLocaleLowerCase()) ?? choice.icon })) }));
+    data.recurringActivities = Array.isArray(d.recurringActivities) ? d.recurringActivities.flatMap((item: unknown): RecurringActivity[] => {
+      if (!validChoice(item) || !("id" in item) || typeof item.id !== "string" || !item.id ||
+        !("startDate" in item) || !validDate(item.startDate) || !("startMinute" in item) || !validMinute(item.startMinute) ||
+        !("durationMinutes" in item) || !validDuration(item.startMinute, item.durationMinutes) || !("frequency" in item) ||
+        (item.frequency !== "daily" && item.frequency !== "weekdays" && item.frequency !== "weekly")) return [];
+      const area = "lifeArea" in item ? lifeAreas.find((area) => area === item.lifeArea) : undefined;
+      return [{ id: item.id, name: item.name, icon: icons.get(item.name.trim().toLocaleLowerCase()) ?? item.icon,
+        startDate: item.startDate, startMinute: item.startMinute, durationMinutes: item.durationMinutes, frequency: item.frequency,
+        excludedDates: "excludedDates" in item && Array.isArray(item.excludedDates) ? item.excludedDates.filter(validDate) : [],
+        ...("endDate" in item && validDate(item.endDate) ? { endDate: item.endDate } : {}),
+        ...(area ? { lifeArea: area } : {}),
+        ...("valueId" in item && typeof item.valueId === "string" ? { valueId: item.valueId } : {}) }];
+    }) : [];
     return data;
   } catch {
     return emptyData();
   }
 }
 export function rememberActivity(data: Data, choice: ActivityChoice): Data {
+  choice = personalActivity(data.myActivities, choice);
   return {
     ...data,
+    myActivities: data.myActivities.some((item) => item.name.toLocaleLowerCase() === choice.name.toLocaleLowerCase()) ? data.myActivities : [...data.myActivities, choice],
     recentActivities: [
       { name: choice.name, icon: choice.icon },
       ...data.recentActivities.filter(
@@ -208,6 +256,7 @@ export function rememberActivity(data: Data, choice: ActivityChoice): Data {
   };
 }
 export function saveEntry(data: Data, entry: Entry): Data {
+  entry = { ...entry, ...personalActivity(data.myActivities, entry) };
   const values = data.values.map((value) => {
     if (entry.source !== "scheduled" || value.id !== entry.valueId ||
         value.activities.some((activity) => activity.name.trim().toLowerCase() === entry.name.trim().toLowerCase())) return value;
@@ -245,13 +294,13 @@ export function setScheduledStatus(
   status: "planned" | "done" | "missed",
   now = new Date(),
 ): Data {
-  const entry = data.entries[id];
+  const entry = findEntry(data, id);
   if (!entry || entry.source !== "scheduled" || slotDate(entry.date, entry.startMinute) > now)
     return data;
   return saveActivity(data, { ...entry, status });
 }
 export function completeEntry(data: Data, id: string): Data {
-  const entry = data.entries[id];
+  const entry = findEntry(data, id);
   return entry ? saveEntry(data, { ...entry, status: "done" }) : data;
 }
 export function entriesInSlot(
@@ -259,8 +308,8 @@ export function entriesInSlot(
   date: string,
   minute: number,
 ): Entry[] {
-  return Object.values(data.entries).filter(
-    (entry) => entry.date === date && Math.floor(entry.startMinute / 30) === Math.floor(minute / 30),
+  return entriesOnDate(data, date).filter(
+    (entry) => entry.startMinute < minute + 30 && entryEnd(entry) > minute,
   ).sort((a, b) => a.startMinute - b.startMinute || a.name.localeCompare(b.name));
 }
 
@@ -320,7 +369,7 @@ export function addSleep(
       startMinute = currentSlot(time);
     if (
       Object.values(entries).some(
-        (e) => e.date === date && Math.floor(e.startMinute / 30) === Math.floor(startMinute / 30),
+        (e) => e.date === date && e.startMinute < startMinute + 30 && entryEnd(e) > startMinute,
       )
     )
       continue;
@@ -394,7 +443,42 @@ function reconcileSleep(data: Data, now = new Date()): Data {
     : withoutPending;
 }
 export function removeEntry(data: Data, id: string): Data {
+  const removed = findEntry(data, id);
   const entries = { ...data.entries };
   delete entries[id];
-  return reconcileSleep({ ...data, entries });
+  return reconcileSleep({ ...data, entries, recurringActivities: data.recurringActivities.map((rule) =>
+    rule.id === removed?.seriesId ? { ...rule, excludedDates: [...new Set([...rule.excludedDates, removed.date])] } : rule) });
+}
+
+export function entriesOnDate(data: Data, date: string): Entry[] {
+  const entries = Object.values(data.entries).filter((entry) => entry.date === date);
+  const day = new Date(`${date}T12:00`).getDay();
+  for (const rule of data.recurringActivities) {
+    if (date < rule.startDate || (rule.endDate && date > rule.endDate) || rule.excludedDates.includes(date) ||
+      (rule.frequency === "weekly" && day !== new Date(`${rule.startDate}T12:00`).getDay()) ||
+      (rule.frequency === "weekdays" && (day === 0 || day === 6))) continue;
+    const id = `${rule.id}@${date}`;
+    if (data.entries[id]) continue;
+    entries.push({ id, seriesId: rule.id, date, name: rule.name, icon: rule.icon, startMinute: rule.startMinute,
+      durationMinutes: rule.durationMinutes, source: "scheduled", status: "planned", lifeArea: rule.lifeArea, valueId: rule.valueId });
+  }
+  return entries.sort((a, b) => a.startMinute - b.startMinute || a.name.localeCompare(b.name));
+}
+export function findEntry(data: Data, id: string): Entry | undefined {
+  if (data.entries[id]) return data.entries[id];
+  const date = id.slice(-10);
+  return validDate(date) ? entriesOnDate(data, date).find((entry) => entry.id === id) : undefined;
+}
+export function repeatActivity(data: Data, entry: Entry, frequency: Repeat): Data {
+  entry = { ...entry, ...personalActivity(data.myActivities, entry) };
+  const rule: RecurringActivity = { id: entry.id, name: entry.name, icon: entry.icon, startDate: entry.date,
+    startMinute: entry.startMinute, durationMinutes: entry.durationMinutes ?? 30, frequency, excludedDates: [],
+    lifeArea: entry.lifeArea, valueId: entry.valueId };
+  return saveActivity({ ...data, recurringActivities: [...data.recurringActivities, rule] },
+    { ...entry, id: `${rule.id}@${entry.date}`, seriesId: rule.id });
+}
+export function stopRepeating(data: Data, seriesId: string, date: string): Data {
+  const previous = new Date(`${date}T12:00`); previous.setDate(previous.getDate() - 1);
+  return { ...data, recurringActivities: data.recurringActivities.map((rule) => rule.id === seriesId ? { ...rule, endDate: dateKey(previous) } : rule),
+    entries: Object.fromEntries(Object.entries(data.entries).filter(([, entry]) => entry.seriesId !== seriesId || entry.date < date || entry.status !== "planned")) };
 }

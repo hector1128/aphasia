@@ -1,4 +1,4 @@
-import { Data, lifeAreas, timeLabel, dateKey } from "./model.js";
+import { Data, lifeAreas, dateKey, entriesOnDate, entryTimeLabel, entryEnd } from "./model.js";
 const missing = "Not completed";
 const score = (n?: number) => (n === undefined ? missing : `${n}/10`);
 export function reportData(data: Data, date: string): Data {
@@ -6,8 +6,9 @@ export function reportData(data: Data, date: string): Data {
     ...data,
     email: "",
     recentActivities: [],
+    myActivities: [], recurringActivities: [],
     entries: Object.fromEntries(
-      Object.entries(data.entries).filter(([, e]) => e.date === date),
+      entriesOnDate(data, date).map((entry) => [entry.id, entry]),
     ),
     ratings:
       data.ratings[date] === undefined ? {} : { [date]: data.ratings[date] },
@@ -19,8 +20,7 @@ export function reportData(data: Data, date: string): Data {
   };
 }
 export function reportSections(data: Data, date: string) {
-  const entries = Object.values(data.entries)
-    .filter((e) => e.date === date)
+  const entries = entriesOnDate(data, date)
     .sort(
       (a, b) => a.startMinute - b.startMinute || a.name.localeCompare(b.name),
     );
@@ -31,7 +31,7 @@ export function reportSections(data: Data, date: string) {
   done.forEach((e) => freq.set(e.name, (freq.get(e.name) ?? 0) + 1));
   const maxCount = Math.max(0, ...freq.values());
   const maxEnjoy = Math.max(-1, ...rated.map((e) => e.rating!));
-  const covered = new Set(entries.map((e) => Math.floor(e.startMinute / 30)));
+  const covered = new Set(entries.flatMap((entry) => Array.from({ length: Math.ceil(entryEnd(entry) / 30) - Math.floor(entry.startMinute / 30) }, (_, i) => Math.floor(entry.startMinute / 30) + i)));
   return [
     {
       title: "Day overview",
@@ -50,8 +50,8 @@ export function reportSections(data: Data, date: string) {
         ? entries.filter((e) => !e.sleepId).map(
             (e) =>
               e.sleepBoundary
-                ? `${timeLabel(e.startMinute)} | ${e.name}\nSleep period ${e.sleepBoundary === "sleep" ? "started" : "ended"}`
-                : `${timeLabel(e.startMinute)} | ${e.name}\n${e.status === "done" ? "Completed" : e.status === "missed" ? "Not completed" : "Planned - unanswered"}\nMood: ${score(e.status === "done" ? e.mood : undefined)}    Enjoyment: ${score(e.status === "done" ? e.rating : undefined)}    Importance: ${score(e.status === "done" ? e.importance : undefined)}`,
+                ? `${entryTimeLabel(e)} | ${e.name}\nSleep period ${e.sleepBoundary === "sleep" ? "started" : "ended"}`
+                : `${entryTimeLabel(e)} | ${e.name}\n${e.status === "done" ? "Completed" : e.status === "missed" ? "Not completed" : "Planned - unanswered"}\nMood: ${score(e.status === "done" ? e.mood : undefined)}    Enjoyment: ${score(e.status === "done" ? e.rating : undefined)}    Importance: ${score(e.status === "done" ? e.importance : undefined)}`,
           )
         : [missing],
     },

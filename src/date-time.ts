@@ -1,4 +1,9 @@
-import { dateKey } from "./model.js";
+import { dateKey, currentSlot } from "./model.js";
+export function nextActivitySlot(now = new Date()) {
+  const next = new Date(now);
+  next.setHours(0, currentSlot(now) + 30, 0, 0);
+  return { date: dateKey(next), startMinute: currentSlot(next) };
+}
 
 export function weekDates(selectedDate: string): Date[] {
   const monday = new Date(`${selectedDate}T12:00`);

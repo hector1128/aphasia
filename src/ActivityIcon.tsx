@@ -1,5 +1,5 @@
 import {
-  Activity, Apple, Bath, BedDouble, Bike, Bird, BookOpen, Brain, BriefcaseBusiness,
+  Circle, Triangle, Square, Diamond, Hexagon, Pentagon, Apple, Bath, BedDouble, Bike, Bird, BookOpen, Brain, BriefcaseBusiness,
   Camera, Car, Church, Clapperboard, ClipboardList, Cloud, Coffee, CookingPot,
   Dices, Dumbbell, Fish, Flower2, Footprints, Frame, Gamepad2, Gem, Gift,
   GraduationCap, Hammer, HandHeart, Headphones, HeartHandshake, HeartPulse,
@@ -37,6 +37,9 @@ const icons: Record<string, LucideIcon> = {
   music: Music2, cooking: CookingPot, groceries: ShoppingCart,
   mindfulness: Brain, sleep: BedDouble,
   breathing: Wind, visualization: Image, stretching: StretchingIcon,
+  "my-activities": Shapes,
+  "shape-circle": Circle, "shape-triangle": Triangle, "shape-square": Square,
+  "shape-diamond": Diamond, "shape-hexagon": Hexagon, "shape-pentagon": Pentagon,
 };
 
 // Specific choices share a suitable symbol, rather than their category's icon.
@@ -123,7 +126,7 @@ const iconByName = new Map(nameIcons.flatMap(([Icon, names]) =>
 export function ActivityIcon({ id, size = 32, name = "" }: { id: string; size?: number; name?: string }) {
   const canonicalName = catalogueActivity(name)?.name ?? name;
   const boundary = sleepBoundary(name);
-  const Icon = iconByName.get(canonicalName.trim().toLowerCase()) ??
-    (boundary === "wake" ? Sunrise : boundary === "sleep" ? BedDouble : icons[id]) ?? Activity;
+  const Icon = (id.startsWith("shape-") ? icons[id] : undefined) ?? iconByName.get(canonicalName.trim().toLowerCase()) ??
+    (boundary === "wake" ? Sunrise : boundary === "sleep" ? BedDouble : icons[id]) ?? Circle;
   return <Icon className="activity-icon" size={size} strokeWidth={1.7} aria-hidden="true" />;
 }

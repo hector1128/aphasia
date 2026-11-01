@@ -8,6 +8,7 @@ import {
   LifeValue,
   lifeAreas,
   dateKey,
+  entriesOnDate,
 } from "./model";
 import { weekDates } from "./date-time";
 import { WeekPicker } from "./DateTimePicker";
@@ -17,8 +18,8 @@ import { ActivityIcon } from "./ActivityIcon";
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
 export function valueActivitiesOnDay(data: Data, day: string) {
-  return Object.values(data.entries)
-    .filter((entry) => entry.date === day && !entry.sleepId && !entry.sleepBoundary)
+  return entriesOnDate(data, day)
+    .filter((entry) => !entry.sleepId && !entry.sleepBoundary)
     .sort((a, b) => a.startMinute - b.startMinute)
     .filter((entry, index, entries) => entries.findIndex((other) =>
       other.name.trim().toLowerCase() === entry.name.trim().toLowerCase()) === index);
@@ -163,6 +164,7 @@ export function Values({
             <ActivityPicker
               value={choice}
               recent={data.recentActivities}
+              mine={data.myActivities}
               onChange={setChoice}
             />
             <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>

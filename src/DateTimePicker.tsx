@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Microphone } from "./SpeechField";
 import { parseSpokenTime } from "./speech";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { dateKey, timeLabel } from "./model";
-import { weekDates, shiftWeek, to24Hour } from "./date-time";
+import { weekDates, shiftWeek } from "./date-time";
 
 const dayNames = ["M", "T", "W", "Th", "F", "Sa", "Su"];
 
@@ -81,95 +81,96 @@ export function WeekPicker({
   );
 }
 
-function TimeWheel({ label, options, value, onChange }: {
-  label: string; options: string[]; value: number; onChange: (index: number) => void;
+export function TimeSelect({ label, value, onChange, min = 0, max = 1410, disabled = false }: {
+  label: string; value: number; onChange: (minute: number) => void; min?: number; max?: number; disabled?: boolean;
 }) {
-  const wheel = useRef<HTMLDivElement>(null);
-  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const change = useRef(onChange);
-  change.current = onChange;
+  const id = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 150 });
+  const options = Array.from({ length: Math.max(0, Math.floor((max - min) / 30) + 1) }, (_, i) => min + i * 30);
+  const optionLabel = (minute: number) => `${timeLabel(minute)}${minute === 1440 ? " (midnight)" : ""}`;
   useEffect(() => {
-    const element = wheel.current;
-    if (!element) return;
-    const align = () => {
-      if (element.clientHeight && Math.abs(element.scrollTop - value * 48) > 1)
-        element.scrollTo({ top: value * 48 });
-    };
-    align();
-    // The wheels may first mount hidden beside desktop fields, then become visible.
-    const resize = new ResizeObserver(align);
-    resize.observe(element);
-    return () => resize.disconnect();
-  }, [value]);
-  useEffect(() => () => clearTimeout(pending.current), []);
-  return <div className="time-wheel" ref={wheel} role="listbox" aria-label={label}
-    tabIndex={0} aria-activedescendant={`wheel-${label}-${value}`}
-    onKeyDown={(event) => {
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-      event.preventDefault();
-      onChange(Math.max(0, Math.min(options.length - 1, value + (event.key === "ArrowDown" ? 1 : -1))));
-    }}
-    onScroll={() => {
-      clearTimeout(pending.current);
-      pending.current = setTimeout(() => {
-        if (wheel.current) change.current(Math.max(0, Math.min(options.length - 1, Math.round(wheel.current.scrollTop / 48))));
-      }, 140);
-    }}>
-    {options.map((option, index) => <button type="button" role="option" tabIndex={-1}
-      id={`wheel-${label}-${index}`} aria-selected={value === index} className={value === index ? "selected" : ""}
-      key={option} onClick={() => onChange(index)}>{option}</button>)}
+    if (!open) return;
+    const close = (event: Event) => { if (!(event.target instanceof Node) || !panel.current?.contains(event.target)) panel.current?.hidePopover(); };
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    const selected = panel.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+    selected?.scrollIntoView({ block: "nearest" });
+    selected?.focus({ preventScroll: true });
+    return () => { window.removeEventListener("resize", close); window.removeEventListener("scroll", close, true); };
+  }, [open]);
+  const show = () => {
+    if (!button.current) return;
+    const rect = button.current.getBoundingClientRect();
+    const height = Math.min(260, options.length * 48 + 16);
+    setPosition({ left: Math.max(12, Math.min(rect.left, window.innerWidth - Math.max(150, rect.width) - 12)),
+      top: rect.bottom + height + 12 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - height - 8), width: Math.max(150, rect.width) });
+    panel.current?.togglePopover();
+  };
+  return <div className="time-select">
+    <span id={`${id}-label`} className="time-select-label">{label}</span>
+    <button type="button" ref={button} className="time-select-trigger" aria-labelledby={`${id}-label ${id}-value`}
+      aria-haspopup="listbox" aria-expanded={open} aria-controls={id} disabled={disabled} onClick={show}
+      onKeyDown={(event) => { if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); if (!open) show(); } }}>
+      <span id={`${id}-value`}>{timeLabel(value)}</span><ChevronDown size={20} aria-hidden="true" />
+    </button>
+    <div id={id} popover="auto" ref={panel} role="listbox" aria-labelledby={`${id}-label`} className="time-select-options"
+      style={position} onToggle={(event) => setOpen(event.newState === "open")}
+      onKeyDown={(event) => {
+        const buttons = Array.from(panel.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+        const index = buttons.findIndex((item) => item === document.activeElement);
+        let next: number;
+        if (event.key === "ArrowDown") next = Math.min(buttons.length - 1, index + 1);
+        else if (event.key === "ArrowUp") next = Math.max(0, index - 1);
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = buttons.length - 1;
+        else if (event.key === "Tab") { panel.current?.hidePopover(); return; }
+        else if (event.key === "Escape") { panel.current?.hidePopover(); button.current?.focus(); return; }
+        else return;
+        event.preventDefault(); buttons[next]?.focus();
+      }}>
+      {options.map((minute) => <button type="button" role="option" key={minute} aria-selected={minute === value}
+        tabIndex={minute === value ? 0 : -1} onClick={() => { onChange(minute); panel.current?.hidePopover(); button.current?.focus(); }}>{optionLabel(minute)}</button>)}
+    </div>
   </div>;
 }
-export function TimePicker({ value, onChange, onValidityChange }: {
-  value: number; onChange: (value: number) => void; onValidityChange?: (valid: boolean) => void;
+
+export function TimePicker({ value, onChange, showEnd = true }: {
+  showEnd?: boolean;
+  value: { startMinute: number; durationMinutes: number };
+  onChange: (value: { startMinute: number; durationMinutes: number }) => void;
 }) {
-  const hour24 = Math.floor(value / 60);
-  const hour = hour24 % 12 || 12;
-  const minute = value % 60;
-  const period = hour24 < 12 ? "AM" : "PM";
-  const [hourText, setHourText] = useState(String(hour));
-  const [minuteText, setMinuteText] = useState(String(minute).padStart(2, "0"));
-  const [voiceMessage, setVoiceMessage] = useState("");
-  useEffect(() => { onValidityChange?.(true); }, [onValidityChange]);
-  const enter = (h: string, m: string) => {
-    setHourText(h); setMinuteText(m);
-    const valid = /^\d{1,2}$/.test(h) && /^\d{1,2}$/.test(m) && +h >= 1 && +h <= 12 && +m <= 59;
-    onValidityChange?.(valid);
-    if (valid) onChange(to24Hour(+h, period) * 60 + +m);
-  };
-  const select = (h: number, m: number, p: "AM" | "PM" = period) => {
-    setHourText(String(h)); setMinuteText(String(m).padStart(2, "0"));
-    onValidityChange?.(true);
-    onChange(to24Hour(h, p) * 60 + m);
-  };
-  return <div className="precise-time-picker">
-    <div className="time-heading">
-      <strong>{timeLabel(value)}</strong>
-      <Microphone label="time" alternative="use the time controls" onResult={(text) => {
-        const result = parseSpokenTime(text);
-        if (result === undefined) setVoiceMessage('Try “four thirty-nine PM”. Include AM or PM.');
-        else { select(Math.floor(result / 60) % 12 || 12, result % 60, result < 720 ? "AM" : "PM"); setVoiceMessage(""); }
-      }} />
+  const [message, setMessage] = useState("");
+  const changeStart = (startMinute: number) => onChange({ startMinute, durationMinutes: Math.min(value.durationMinutes, 1440 - startMinute) });
+  return <div className="activity-time-range">
+    <div className={`time-range-fields ${showEnd ? "" : "start-only"}`}>
+      <TimeSelect label="Start time" value={value.startMinute} onChange={changeStart} />
+      {showEnd && <span className="time-range-separator" aria-hidden="true">–</span>}
+      {showEnd && <TimeSelect label="End time" value={value.startMinute + value.durationMinutes} min={value.startMinute + 30} max={1440}
+        onChange={(endMinute) => onChange({ ...value, durationMinutes: endMinute - value.startMinute })} />}
     </div>
-    {voiceMessage && <p role="status">{voiceMessage}</p>}
-    <div className="typed-time" role="group" aria-label="Time">
-      <label>Hour<input aria-label="Hour" inputMode="numeric" value={hourText} maxLength={2}
-        onChange={(event) => enter(event.target.value, minuteText)} /></label>
-      <label>Minute<input aria-label="Minute" inputMode="numeric" value={minuteText} maxLength={2}
-        onChange={(event) => enter(hourText, event.target.value)} /></label>
-      <div className="period-field"><span>AM/PM</span><div className="period-blocks" role="group" aria-label="AM or PM">
-        {(["AM", "PM"] as const).map((option) => <button type="button" key={option}
-          className={period === option ? "active" : ""} aria-pressed={period === option}
-          onClick={() => select(hour, minute, option)}>{option}</button>)}
-      </div></div>
-    </div>
-    <div className="mobile-time-wheels" role="group" aria-label="Scroll to choose time">
-      <TimeWheel label="Hour" options={Array.from({ length: 12 }, (_, i) => String(i + 1))}
-        value={hour - 1} onChange={(index) => select(index + 1, minute)} />
-      <TimeWheel label="Minute" options={Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"))}
-        value={minute} onChange={(index) => select(hour, index)} />
-      <TimeWheel label="Period" options={["AM", "PM"]} value={period === "AM" ? 0 : 1}
-        onChange={(index) => select(hour, minute, index === 0 ? "AM" : "PM")} />
-    </div>
+    {showEnd ? <p>{value.durationMinutes / 30} half-hour {value.durationMinutes === 30 ? "block" : "blocks"} · {durationLabel(value.durationMinutes)}</p> : <p>You’ll choose the duration after the ratings.</p>}
+    <div className="dictate-time"><Microphone label="start time" alternative="choose a time from the list" onResult={(text) => {
+      const minute = parseSpokenTime(text);
+      if (minute === undefined) setMessage('Try “four thirty PM”. Include AM or PM.');
+      else { changeStart(Math.min(1410, Math.round(minute / 30) * 30)); setMessage("Time set to the nearest half hour."); }
+    }} /><span>Or say the start time.</span></div>
+    {message && <p role="status">{message}</p>}
+  </div>;
+}
+export function durationLabel(minutes: number) {
+  const hours = Math.floor(minutes / 60), rest = minutes % 60;
+  return [hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : "", rest ? `${rest} minutes` : ""].filter(Boolean).join(" ");
+}
+export function DurationPicker({ startMinute, value, onChange }: { startMinute: number; value: number; onChange: (minutes: number) => void }) {
+  return <div className="duration-picker"><p>Choose how long the activity lasted, in 30-minute blocks.</p>
+    <div className="duration-adjust"><button type="button" className="block-arrow" aria-label="30 minutes shorter" disabled={value <= 30} onClick={() => onChange(value - 30)}>−</button>
+      <strong aria-live="polite">{durationLabel(value)}</strong>
+      <button type="button" className="block-arrow" aria-label="30 minutes longer" disabled={startMinute + value + 30 > 1440} onClick={() => onChange(value + 30)}>+</button></div>
+    <div className="duration-presets">{[30, 60, 90, 120].filter((duration) => startMinute + duration <= 1440).map((duration) =>
+      <button type="button" key={duration} aria-pressed={value === duration} className={value === duration ? "active" : ""} onClick={() => onChange(duration)}>{durationLabel(duration)}</button>)}</div>
+    <p>{timeLabel(startMinute)} – {timeLabel(startMinute + value)}</p>
   </div>;
 }

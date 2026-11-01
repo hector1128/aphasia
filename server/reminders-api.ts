@@ -2,19 +2,22 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cloudConfig } from "../src/cloud-config.js";
-import { validReminderEmail, validTimeZone } from "../src/reminders.js";
+import { validReminderEmail, validTimeZone, validReminderTimes, reminderMessage } from "../src/reminders.js";
 import { sendResend } from "./email.js";
 
 type Config = Record<string, string | undefined>;
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 const isToken = (token: unknown): token is string => typeof token === "string" && /^[a-f0-9]{64}$/.test(token);
-const preferenceColumns = "email,time_zone,enabled,verified_at,confirmation_expires_at";
+const preferenceColumns = "email,time_zone,enabled,verified_at,confirmation_expires_at,morning_minute,afternoon_enabled,evening_minute";
 function summary(row: unknown) {
   const pref = row && typeof row === "object" ? row : {};
   return { email: "email" in pref && typeof pref.email === "string" ? pref.email : "",
     timeZone: "time_zone" in pref && typeof pref.time_zone === "string" ? pref.time_zone : "UTC",
     enabled: "enabled" in pref && pref.enabled === true,
     confirmed: "verified_at" in pref && typeof pref.verified_at === "string",
+    times: { morning: "morning_minute" in pref && typeof pref.morning_minute === "number" ? pref.morning_minute : null,
+      afternoon: !("afternoon_enabled" in pref) || pref.afternoon_enabled !== false,
+      evening: "evening_minute" in pref && typeof pref.evening_minute === "number" ? pref.evening_minute : null },
     pending: "confirmation_expires_at" in pref && typeof pref.confirmation_expires_at === "string" && Date.parse(pref.confirmation_expires_at) > Date.now() };
 }
 function appOrigin(config: Config) {
@@ -77,7 +80,7 @@ export function remindersMiddleware(config: Config, fetcher: typeof fetch = fetc
         : body && typeof body === "object" && "token" in body ? body.token : null;
       if (!isToken(token)) return reply(400, landing("Link unavailable", "Please open a new link from your email or update reminders in Settings."));
       if (req.method === "GET") return reply(200, landing(action === "confirm" ? "Confirm your email" : "Turn off email reminders?",
-        action === "confirm" ? "Get a reminder at 4 PM in your time zone if you have not logged an activity today. You can turn reminders off at any time."
+        action === "confirm" ? "Get the reminders you selected in your time zone. You can turn them off at any time."
           : "You will no longer receive the daily activity reminder.", action, token));
       if (!adminConfigured()) return reply(503, landing("Reminders unavailable", "Please try again later."));
       try {
@@ -86,7 +89,7 @@ export function remindersMiddleware(config: Config, fetcher: typeof fetch = fetc
         if (error) throw error;
         if (!data) return reply(400, landing("Link unavailable", "This link has expired or has already been used. Please update reminders in Settings."));
         return reply(200, landing(action === "confirm" ? "Email reminders are on" : "Email reminders are off",
-          action === "confirm" ? "We will remind you at 4 PM if you have not logged an activity. You can change this in Settings." : "You can turn them on again in Settings."));
+          action === "confirm" ? "We will send the reminders you selected. You can change the times or turn them off in Settings." : "You can turn them on again in Settings."));
       } catch { return reply(503, landing("Could not update reminders", "Please try again later.")); }
     }
 
@@ -113,9 +116,12 @@ export function remindersMiddleware(config: Config, fetcher: typeof fetch = fetc
             const current = await client.rpc("activity_reminder_still_due", { delivery_claim: job.claim_id });
             if (current.error) throw current.error;
             if (current.data !== true) { skipped++; continue; }
-            const id = await sendResend(config, { to: job.email, subject: "A reminder from My Day",
-              text: `A quick reminder to log an activity today.\n\nOpen My Day: ${origin}/\n\nTurn off reminders: ${origin}/api/reminders?action=unsubscribe&token=${job.unsubscribe_token}` },
-            fetcher, `activity-reminder/${hash(`${job.user_id}/${job.local_date}`)}`, 8000);
+            const kind = job.kind ?? "afternoon";
+            if (kind !== "morning" && kind !== "afternoon" && kind !== "evening") throw Error("Invalid reminder kind");
+            const message = reminderMessage(kind);
+            const id = await sendResend(config, { to: job.email, subject: message.subject,
+              text: `${message.text}\n\nOpen My Day: ${origin}/\n\nTurn off reminders: ${origin}/api/reminders?action=unsubscribe&token=${job.unsubscribe_token}` },
+            fetcher, `activity-reminder/${hash(`${job.user_id}/${job.local_date}${kind === "afternoon" ? "" : `/${kind}`}`)}`, 8000);
             const finished = await client.rpc("finish_activity_reminder", { delivery_claim: job.claim_id, email_id: id });
             if (finished.error) throw finished.error;
             accepted++;
@@ -150,15 +156,15 @@ export function remindersMiddleware(config: Config, fetcher: typeof fetch = fetc
           appOrigin(config);
           if (!("email" in body) || typeof body.email !== "string" || !validReminderEmail(body.email.trim()) ||
             !("timeZone" in body) || typeof body.timeZone !== "string" || !validTimeZone(body.timeZone) ||
-            !("consent" in body) || body.consent !== true) return reply(400, { error: "Enter your email, time zone, and permission to receive reminders." });
+            !("consent" in body) || body.consent !== true || ("times" in body && !validReminderTimes(body.times))) return reply(400, { error: "Enter your email, time zone, and permission to receive reminders." });
           const confirmation = randomBytes(32).toString("hex");
           const result = await client.rpc("request_activity_reminder", { owner_id: userId, recipient: body.email.trim().toLowerCase(),
-            zone: body.timeZone, token_hash: hash(confirmation) });
+            zone: body.timeZone, token_hash: hash(confirmation), reminder_schedule: "times" in body ? body.times : null });
           if (result.error?.message.includes("RATE_LIMITED")) return reply(429, { error: "Please wait a minute before requesting another confirmation." });
           if (result.error) throw result.error;
           if (result.data === true) {
             try { await sendResend(config, { to: body.email.trim().toLowerCase(), subject: "Confirm your My Day email reminders",
-              text: `Confirm that you want an activity reminder at 4 PM if you have not logged an activity that day.\n\n${appOrigin(config)}/api/reminders?action=confirm&token=${confirmation}\n\nThis link expires in 24 hours. If you did not request reminders, ignore this email.` }, fetcher, undefined, 8000); }
+              text: `Confirm that you want the activity reminders you selected in My Day. You can change the times or turn them off in Settings.\n\n${appOrigin(config)}/api/reminders?action=confirm&token=${confirmation}\n\nThis link expires in 24 hours. If you did not request reminders, ignore this email.` }, fetcher, undefined, 8000); }
             catch { return reply(502, { error: "Could not send your confirmation email. Please try again in a minute." }); }
           }
         }

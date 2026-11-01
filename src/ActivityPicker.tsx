@@ -4,22 +4,27 @@ import { X, ArrowLeft, ChevronRight } from "lucide-react";
 import { ActivityIcon } from "./ActivityIcon";
 import type { ActivityChoice } from "./model";
 import { activityCategories, searchableActivities, catalogueActivity, searchActivities } from "./activity-catalogue";
+import { filterActivities } from "./activities";
+import { personalActivity } from "./personal-activities";
 
 export function ActivityPicker({
   value,
   recent,
   onChange,
   suggestions = [],
+  mine = [],
 }: {
   suggestions?: ActivityChoice[];
+  mine?: ActivityChoice[];
   value: ActivityChoice;
   recent: ActivityChoice[];
   onChange: (choice: ActivityChoice) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<(typeof activityCategories)[number] | null>(null);
-  const choices = category?.activities ?? [];
-  const matches = query.trim() ? searchActivities(query) : choices;
+  const [category, setCategory] = useState<{ name: string; icon: string; activities: ActivityChoice[] } | null>(null);
+  const choices = category?.name === "My activities" ? mine : category?.activities ?? [];
+  const matches = query.trim() ? [...searchActivities(query, mine)] : choices;
+  const correction = query.trim() && !filterActivities(query, [...mine, ...searchableActivities], false).length ? matches[0] : undefined;
   const seen = new Set<string>();
   const uniqueChoices = (choices: ActivityChoice[]) => choices.filter((choice) => {
     const key = catalogueActivity(choice.name)?.name ?? choice.name.trim().toLowerCase();
@@ -31,7 +36,7 @@ export function ActivityPicker({
   const suggestionChoices = uniqueChoices(suggestions);
   const selectChoice = (choice: ActivityChoice) => {
     setQuery("");
-    onChange({ name: choice.name, icon: choice.icon });
+    onChange(personalActivity(mine, choice));
     document.getElementById("activity-search")?.focus();
   };
   const editQuery = (text: string) => {
@@ -60,6 +65,7 @@ export function ActivityPicker({
           placeholder="Enter the activity"
           value={query || value.name}
           maxLength={100}
+          spellCheck autoCorrect="on" autoCapitalize="sentences"
           onValueChange={editQuery}
         />
         {(query || value.name) && (
@@ -72,6 +78,7 @@ export function ActivityPicker({
           </button>
         )}
       </div>
+      {correction && <div className="spelling-suggestion" role="status"><span>Did you mean</span><button type="button" onClick={() => selectChoice(correction)}>{correction.name}?</button></div>}
       {value.name ? <div className="activity-selection view-transition" key={value.name}>
         <div className="activity-choice" role="status" aria-label="Selected activity">
           <span className="area-icon"><ActivityIcon id={value.icon} name={value.name} /></span>
@@ -96,7 +103,7 @@ export function ActivityPicker({
             <section>
               <h2>Activities</h2>
               <div className="activity-options">
-                {activityCategories.map((group) => (
+                {[{ name: "My activities", icon: "my-activities", activities: mine }, ...activityCategories].map((group) => (
                   <button type="button" className="activity-choice" key={group.name} onClick={() => setCategory(group)}>
                     <span className="area-icon"><ActivityIcon id={group.icon} /></span>
                     <span>{group.name}</span><ChevronRight />
@@ -110,7 +117,7 @@ export function ActivityPicker({
             {!query.trim() && <button type="button" className="back" onClick={() => setCategory(null)}><ArrowLeft />All activities</button>}
             <h2>{query.trim() ? "Matching activities" : category?.name}</h2>
             <div className="activity-options">{matches.map(renderChoice)}</div>
-            {!matches.length && <p>No activities found.</p>}
+            {!matches.length && <p>{category?.name === "My activities" && !query.trim() ? "Activities you choose or create will appear here." : "No activities found."}</p>}
           </section>
         )}
         {query.trim() &&

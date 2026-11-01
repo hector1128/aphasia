@@ -1,4 +1,4 @@
-import type { ActivityChoice } from "./model";
+import type { ActivityChoice } from "./model.js";
 
 export const activities: ActivityChoice[] = [
   {
@@ -634,6 +634,7 @@ export const activities: ActivityChoice[] = [
 export function filterActivities(
   query: string,
   choices: (ActivityChoice & { aliases?: string[] })[] = activities,
+  allowTypos = true,
 ): ActivityChoice[] {
   const words = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().replace(/['’]/g, "").match(/[a-z0-9]+/g) ?? [];
@@ -647,7 +648,8 @@ export function filterActivities(
   const stem = (word: string) => word.replace(/(?:ing|ed|s)$/, "").replace(/(.)\1$/, "$1");
   const matches = (terms: string[], text: string) => {
     const target = words(text);
-    return terms.every((term) => target.some((word) => word.includes(term) || stem(word) === stem(term)));
+    return terms.every((term) => target.some((word) => word.includes(term) || stem(word) === stem(term) ||
+      (allowTypos && term.length >= 4 && word.length >= 4 && Math.abs(term.length - word.length) <= 2 && spellingDistance(term, word) <= (Math.max(term.length, word.length) >= 7 ? 2 : 1))));
   };
   return choices.map((choice) => {
     const names = [choice.name, ...(choice.aliases ?? [])];
@@ -659,4 +661,14 @@ export function filterActivities(
       : -1;
     return { choice, score };
   }).filter(({ score }) => score >= 0).sort((a, b) => b.score - a.score).map(({ choice }) => choice);
+}
+
+// Damerau–Levenshtein also handles adjacent swapped letters, e.g. "brekafast".
+export function spellingDistance(a: string, b: string): number {
+  const rows = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+  }
+  return rows[a.length][b.length];
 }

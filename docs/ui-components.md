@@ -2,7 +2,7 @@
 
 Read this file **before every UI change**. Reuse the components and classes below, then update this file in the same change if their appearance or behavior changes. `src/style.css` is the implementation; later rules and media queries override earlier ones. Check the final computed style in the browser when a selector occurs more than once.
 
-All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated October 29, 2026.
+All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated November 1, 2026.
 
 ## Foundations
 
@@ -26,7 +26,7 @@ All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fl
 
 Use section variables for section controls. A scheduled activity keeps purple styling even inside the green Activity Log. An unscheduled current activity uses green life-area icons.
 
-All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Running, Toothbrush and Stretching use small `createLucideIcon` definitions with the same 24px viewBox and strokes. Meals use EggFried, Sandwich and UtensilsCrossed; Cleaning uses SprayCan, Laundry uses WashingMachine. Unknown custom activities use Lucide Activity. Rating artwork and instructional photographs remain separate from icons.
+All app icons use Lucide outline strokes and inherit the section color. `src/ActivityIcon.tsx` maps activity names and saved icon IDs to Lucide components; add matches there instead of adding colored illustrations or separate icon renderers. Running, Toothbrush and Stretching use small `createLucideIcon` definitions with the same 24px viewBox and strokes. Meals use EggFried, Sandwich and UtensilsCrossed; Cleaning uses SprayCan, Laundry uses WashingMachine. Unknown custom activities receive one of six Lucide geometric shapes, rotating Circle → Triangle → Square → Diamond → Hexagon → Pentagon. Persist that assignment in `myActivities`; reuse it in every view. Rating artwork and instructional photographs remain separate from icons.
 
 ## Layout and navigation
 
@@ -66,7 +66,7 @@ At ≥1440px the home dashboard has two columns, fractions .95 and 1.15 with a 3
 | `.wizard-footer` | Auto top margin, padding-top 32; actions gap 14, progress 40px below actions |
 | `.wizard-progress` | Centered, gap 10; bars 28×8, radius 8, `#dce4d7`; active bar 44px wide and section color |
 
-Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days.
+Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days. Logging ends with Duration (except point-in-time sleep/wake markers). Adding from Home or a selected calendar block keeps that day and always asks for time. Standalone planning and scheduling from Values retain the day step.
 
 ## Activity choices, values and life areas
 
@@ -97,9 +97,9 @@ Activity wizards use only bottom Back/Next/Save actions and bottom progress indi
 | `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color; use the same tile for categories, activities, recent choices, suggestions and the selected card |
 | `.activity-icon` | Upright Lucide SVG, 1.7px stroke at its native 24px viewBox; default 32×32, picker tile inner icon 32×32; fixed size, no shrinking |
 
-Selecting a library activity populates the text field and keeps a visible selected card. Browse activities through the nine categories in `activityCategories` in `src/activity-catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and suggestion candidates stay searchable. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
+Selecting a library activity populates the text field and keeps a visible selected card. Show My activities first, containing the user’s chosen/custom activities, followed by the nine categories in `activityCategories` in `src/activity-catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and suggestion candidates stay searchable. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
 
-The picker field label and placeholder are **Enter the activity**, including its microphone label. Search matches partial words, aliases and simple phrases regardless of word order, ignores conversational filler, ranks exact matches first and deduplicates equivalent names. Keep both custom activity entry and legacy library search available.
+The picker field label and placeholder are **Enter the activity**, including its microphone label. Search matches partial words, aliases and simple phrases regardless of word order, ignores conversational filler, ranks exact matches first and deduplicates equivalent names. Keep both custom activity entry and legacy library search available. Enable native spelling/autocorrect hints and local typo matching (including transposed letters). Offer an explicit “Did you mean” correction; always retain the original custom entry option. Never silently rewrite personal names.
 
 ## Calendar, current activities and ratings
 
@@ -108,14 +108,17 @@ The picker field label and placeholder are **Enter the activity**, including its
 | `.week-heading` | Flex, centered month label, 8px gap, 20px bottom margin; label 25px, 23px at ≤360px |
 | `.week-selector` | 7 equal columns, 3px gaps, 32px bottom margin; each day min-height 86, padding 10px 0, radius 8, 1px `#cbd8c8`, text 23px / 1.25 |
 | Selected day | Section-colored fill, white text, 2px section-color shadow; `aria-pressed=true` |
-| `.typed-time` ≥768px | Hour, minute, AM/PM in that order, columns 1fr 1fr 1.5fr, gap 16; controls min-height 64; input text 27px |
-| `.time-heading` | Time and microphone in same row, 16px gap; time 32px; margin-bottom 28 |
-| Mobile time wheels | 3 columns, 8px gap, radius 16, 2px `#b69ccb`, surface `#eee7f5`; wheel height 240, option height 48, 25px text, selected weight 800 |
+| `.time-range-fields` | Start and End blocks separated by an en dash; columns 1fr / 24px / 1fr, gap 20, max-width 560. Mobile gap 10 with a 12px separator. Logging shows only Start here and asks duration after the ratings |
+| `TimeSelect` | Custom button/listbox, no native select. Trigger min-height 64, padding 14px 16px (mobile horizontal 10), radius 12, 2px section border, section-soft surface; text 22px / mobile 19px; 19px label / mobile 18px. Options in 30-minute increments, end strictly after start, through midnight |
+| Time listbox | Native auto popover with fixed positioning, 8px from trigger; flips above and stays 12px within the viewport. Max-height min(260px,60dvh), padding 8, radius 14, app surface; options min-height 48, 20px text. Escape/outside click closes; arrow/Home/End keys move focus, Enter selects, Tab dismisses. Fade/5px motion over 260ms; reduced motion disables it |
+| Recurrence | 26px checkbox below scheduling times, separated by 28px top margin + 24px padding and border. Every day / Weekdays / Every week buttons min-height 52, radius 12, padding 12px 16px, 12px gap. Existing series edits apply only to the selected date; Stop repeating ends the series from that date |
+| Duration | Final logging step. 30-minute increments, min 30, bounded to midnight. Minus/value/plus columns 48px / 1fr / 48px with 16px gap; 25px value. Presets 30/60/90/120 minutes use min-height 52, radius 12, section colors |
 | `.moment-section` | Radius 19, 1px section border; mobile padding 12; separates current-time header from activities |
 | Home current activity | Min-height 88, padding 18px 16px, 14px gap; mobile padding 12 horizontally, 10px gap, name 20px / 1.35 |
 | Timeline | Scrollable full day, max-height min(640px,68dvh); desktop min(760px,78dvh); margin 24px 0 32px, padding 8px 5px |
 | `.timeline-hour` | Min-height 140; padding 16px 10px, gap 18; occupied hour uses section-soft surface |
 | `.timeline-entry` | 1px section border, radius 10, app surface; mobile padding 14px 12px, gap 12 |
+| Duration handles | Start handle in the first occupied block, End handle in the last; 44px target, 16px text, 20px GripHorizontal, 8px gap, radius 8, section-soft surface. Pointer/touch drag snaps to half hours; arrow keys resize by one block. Escape/pointer cancellation discards the preview. Continuation cards use a dashed border and show the end time; a resize preview outlines covered blocks |
 | Timeline name/time on mobile | Name on first line(s), time beneath with 6px gap; time 16px / 1.5. At ≤360px controls wrap beneath content |
 | Logged activity icon | Tile 44×44, radius 10, 1px section border, padding 4; inner art 34×34; upright |
 | Scheduled activity | Surface `#f4eef9`, border `#b69ccb`; purple `#674a86` icons and soft purple tiles; retain completion controls without status sentences |
@@ -147,7 +150,7 @@ The picker field label and placeholder are **Enter the activity**, including its
 | Reports / saved data details | Native details/summary, summary min-height 48; content padding-top 24; chevron turns 90deg; keyboard focus visible |
 | Settings switch | Track 48×28, radius 20, padding 3; thumb 22×22 circle; active moves 20px; switch target min-height 48 |
 | Automatic email reports | Reuse settings switch in Reports; Off by default, persist `autoEmailReports` as a preference only. Show that reports are not automatic yet. Do not trigger email requests, timers or schedules from this setting until delivery is implemented |
-| Activity reminders | Reuse a full-width `.settings-card` in the vertical stack; 44px Bell tile and standard heading. Form grid gap 14, labels 20px, selects min-height 52, radius 12, 12px padding, section border and `#f2f6ee` surface. Reuse SpeechField for the email. Consent checkbox 26×26, 12px text gap, label wraps. Off by default; Email requires address confirmation, time zone and explicit consent. Text option is disabled with “coming later.” Show pending/on/off and unavailable/error states honestly; Refresh rechecks confirmation. Allow turning reminders off even if sending is unavailable. Preferences are server-owned and separate from editable log data |
+| Activity reminders | Reuse a full-width `.settings-card` in the vertical stack; 44px Bell tile and standard heading. Form grid gap 14, labels 20px, selects min-height 52, radius 12, 12px padding, section border and `#f2f6ee` surface. Reuse SpeechField for the email. Consent checkbox 26×26, 12px text gap, label wraps. Off by default; Email requires address confirmation, time zone and explicit consent. Text option is disabled with “coming later.” Offer separate Good morning (default 8 AM when selected), 4 PM if no log, and Good night (default 9 PM when selected) checkboxes. Morning/night use TimeSelect; defaults remain unselected for existing users. Time fieldsets use radius 14, padding 20px 16px, gap 20; checkbox targets 26px. Show pending/on/off and unavailable/error states honestly; Refresh rechecks confirmation. Allow turning reminders off even if sending is unavailable. Preferences are server-owned and separate from editable log data |
 | Face consent | Checkbox 28×28, 12px gap; setup actions min-height 48; camera max-height 380, width 100%, contain fit, radius 16, mirrored preview |
 | Face unavailable state | Keep card visible with explanation and Retry. Do not hide it, expose server secrets, bypass consent, or open camera before setup consent |
 

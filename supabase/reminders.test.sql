@@ -48,4 +48,36 @@ begin
   assert not public.activity_reminder_still_due(delivery);
 end;
 $$;
+do $$
+declare owner_id uuid := gen_random_uuid(); zone text; token_hash text; minute integer; claimed integer; morning_claim uuid;
+begin
+  assert public.activity_reminder_window(timestamp '2026-11-01 08:00', 'morning', 480, null);
+  assert not public.activity_reminder_window(timestamp '2026-11-01 07:59', 'morning', 480, null);
+  assert not public.activity_reminder_window(timestamp '2026-11-01 09:00', 'morning', 480, null);
+  assert public.activity_reminder_window(timestamptz '2026-11-01 13:00+00' at time zone 'America/New_York', 'morning', 480, null);
+  assert public.activity_reminder_window(timestamptz '2026-10-31 12:00+00' at time zone 'America/New_York', 'morning', 480, null);
+  assert public.activity_reminder_window(timestamp '2026-11-01 21:00', 'evening', 1260, '{"entries":{"x":{"date":"2026-11-01","status":"done","startMinute":600}}}');
+  select name into zone from pg_timezone_names where extract(hour from now() at time zone name) = 16 limit 1;
+  minute := floor((extract(hour from now() at time zone zone) * 60 + extract(minute from now() at time zone zone)) / 30) * 30;
+  token_hash := encode(sha256(convert_to(owner_id::text, 'UTF8')), 'hex');
+  insert into auth.users(id) values (owner_id);
+  assert public.request_activity_reminder(owner_id, 'synthetic-times@example.com', zone, token_hash,
+    jsonb_build_object('morning', minute, 'evening', minute, 'afternoon', true));
+  assert public.confirm_activity_reminder(token_hash);
+  select count(*) into claimed from public.claim_activity_reminders() where user_id = owner_id;
+  assert claimed = 3;
+  assert not exists (select 1 from public.claim_activity_reminders() where user_id = owner_id);
+  select claim_id into morning_claim from public.activity_reminder_deliveries where user_id = owner_id and kind = 'morning';
+  assert public.activity_reminder_still_due(morning_claim);
+  -- Moving a reminder window cancels an already claimed message from the old window.
+  assert not public.request_activity_reminder(owner_id, 'synthetic-times@example.com', zone, token_hash,
+    jsonb_build_object('morning', 0, 'evening', minute, 'afternoon', false));
+  assert not public.activity_reminder_still_due(morning_claim);
+  -- Older clients do not opt users into new reminder times or erase chosen times.
+  assert not public.request_activity_reminder(owner_id, 'synthetic-times@example.com', zone, token_hash);
+  assert (select morning_minute = 0 and evening_minute = minute and not afternoon_enabled from public.activity_reminder_preferences where user_id = owner_id);
+  perform public.disable_activity_reminder(owner_id);
+  assert not public.activity_reminder_still_due(morning_claim);
+end;
+$$;
 rollback;
