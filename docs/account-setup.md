@@ -1,6 +1,6 @@
 # Account setup
 
-The connected free Supabase project is `aphasia-my-day`, reference `bothqvgqqfhlzhjsvzry`. Its public URL and publishable browser key are in `src/cloud-config.ts`. These identify the project; they do not grant access to patient records. Never put a secret or service-role key in browser code.
+The connected free Supabase project is `aphasia-my-day`, reference `bothqvgqqfhlzhjsvzry`. Its public URL and publishable browser key are in `src/services/supabase/cloud-config.ts`. These identify the project; they do not grant access to patient records. Never put a secret or service-role key in browser code.
 
 ## Current configuration
 
@@ -16,7 +16,7 @@ Users choose a unique name and password. The app normalizes the name and derives
 
 1. Create a project and run `supabase/schema.sql` in its SQL editor.
 2. Enable email/password authentication and disable email confirmation if keeping name-only sign-in.
-3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the browser build. Alternatively replace the public settings in `src/cloud-config.ts`.
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the browser build. Alternatively replace the public settings in `src/services/supabase/cloud-config.ts`.
 4. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` on the email server if overriding the committed project.
 5. Rebuild and verify two separate accounts cannot read each other's logs.
 

@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
-import { reportMiddleware } from "./server/report-api";
-import { remindersMiddleware } from "./server/reminders-api";
-import { faceMiddleware } from "./server/face-api";
+import { reportMiddleware } from "./server/reports/api";
+import { remindersMiddleware } from "./server/reminders/api";
+import { faceMiddleware } from "./server/face/api";
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env } as Record<
     string,

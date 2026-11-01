@@ -8,7 +8,7 @@ The requested layout changes are implemented. This review records remaining issu
 
 The Settings button calls `reset` immediately. This replaces activities, values, mood, sleep and mindfulness with an empty document, which the normal cloud-save flow then syncs. There is no confirmation, undo or automatic backup. A mistaken tap can therefore erase the account's log across devices.
 
-Evidence: source path traced through `src/main.tsx` (`reset` and the Start over button) and `src/useCloudSync.ts` (normal save). The destructive action was deliberately not exercised against the cloud account.
+Evidence: source path traced through `src/main.tsx` (`reset` and the Start over button) and `src/services/supabase/useCloudSync.ts` (normal save). The destructive action was deliberately not exercised against the cloud account.
 
 Recommended revision: show a clear confirmation with a backup/download option before clearing, and offer recovery for accidental deletion. Individual activity/value deletion also currently has no undo.
 
@@ -18,7 +18,7 @@ Scheduling can assign `entry.valueId` directly, including a newly created value 
 
 Reproduction executed: a completed Cook entry with `valueId: "v"` and a matching Cooking for myself value with no separately linked catalogue activities produced `Done today: Not completed` in the value section. The entry itself remains in the activity log. Both the report section generator and PDF renderer use this name-only test.
 
-Evidence: runnable fixture executed against `reportSections`; source in `src/report-data.ts` and `src/report.ts`.
+Evidence: runnable fixture executed against `reportSections`; source in `src/features/reports/report-data.ts` and `src/features/reports/report.ts`.
 
 Recommended revision: include completed entries assigned by value ID, while retaining name matching for older manually linked activities. Missing information should read Not recorded rather than implying the person did not complete an activity.
 
@@ -34,7 +34,7 @@ Recommended revision: add a Now action and distinguish deliberate history browsi
 
 Sign out is disabled whenever sync status is not saved. Its action also requires a successful sync. A person using a shared device cannot sign out while the connection is unavailable or a conflict is waiting for review, even though the app has a local account cache.
 
-Evidence: source in the account section of `src/main.tsx` and `src/useCloudSync.ts`. Network disconnection was not simulated in this browser session.
+Evidence: source in the account section of `src/main.tsx` and `src/services/supabase/useCloudSync.ts`. Network disconnection was not simulated in this browser session.
 
 Recommended revision: provide a clear local sign-out route that preserves unsynced work, explains what remains on the device, and offers a backup or explicit choice before discarding anything.
 
@@ -42,7 +42,7 @@ Recommended revision: provide a clear local sign-out route that preserves unsync
 
 The feature graph is deterministic and excludes previously completed equivalents and pending plans. However, generic Reading history currently places At Aphasia House, Speech therapy and Participate in research among the top five. Shared language/learning features can outweigh whether a suggested activity fits the person's routine or available services.
 
-Evidence: observed in the live picker and traced through `src/activity-catalogue.ts`.
+Evidence: observed in the live picker and traced through `src/domain/activities/catalogue.ts`.
 
 Recommended revision: review these relationships with the content owner. Give specific shared activities more weight, and consider making service-based choices depend on an explicit preference or relevant history. This is a recommendation-quality concern, not a broken save or ranking operation.
 

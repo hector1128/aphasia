@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc -b && vite build",
-    "test": "node --import tsx --test src/*.test.ts && npm run test:server && npm run test:dev",
+    "test": "node scripts/test.mjs && npm run test:server && npm run test:dev",
     "test:dev": "node --test scripts/dev.test.mjs",
-    "test:sleep": "node --import tsx --test --test-name-pattern=sleep src/features.test.ts",
+    "test:sleep": "node scripts/test.mjs --test-name-pattern=sleep",
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

@@ -31,36 +31,30 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 
 ## Activities and values
 
-- Logging from Home or a calendar slot uses the selected date/time and asks only for the activity and ratings. Activity choices populate the textbox, which can be edited or cleared to reopen choices. Bottom Back/Next or Back/Save controls replace the top navigation arrows; the step indicator is below the controls. Ratings can be skipped. Editing a logged activity preserves its time.
-- Scheduling from a selected slot uses that date/time; the separate Plan activity button includes date and exact-time choices. People with no saved values can continue without one. Future activities show a disabled clock. Due activities have an empty box that opens ratings, then becomes a green check. Unchecking marks the activity not completed. Back exits ratings without changing the schedule.
-- Calendar rows cover half-hour slots and show each activity's exact time. Scheduled activities are purple, without extra status text. Settings has its own space above the content on pages outside Home.
-- The 21 tracker activities are the main choices under five life areas. The larger original library remains searchable, and custom names still work. Recent choices, five suggestions and life areas appear together as one growing grid without section headings or a nested scroll area. Suggestions use a curated activity-to-feature graph, recency and frequency, exclude previously completed equivalents and pending plans, and start with general activities for new users.
-- Scheduling shows personal values in a responsive grid. Its plus tile creates a value under a life area, selects it and returns to the current activity.
-- Values use five life areas. Each saved value expands inline into a two-column activity grid. Its plus tile links activities from the week or catalogue. Shared three-bar menus hold edit/delete actions. Add activity tiles use a solid border and left-aligned content. On desktop, linked activities use compact artwork/name/menu rows.
-- Logging Sleep and then Wake up fills empty half-hour rows between the exact times. Ordinary morning activities do not imply waking. Try yesterday at 10:17 PM and today at 7:19 AM. The original exact interval determines sleep duration.
+- Logging keeps the date and starting time selected on Home or Activity Log, then asks for the activity, ratings and duration. Duration changes in 30-minute increments. Mood and enjoyment are required; importance can be skipped or reused for two weeks.
+- Scheduling asks for Start and End through custom half-hour lists, each with its own microphone. Repeat offers daily, weekdays or weekly. Scheduling from Values also asks for the day and retains that value.
+- Activities fill every occupied half-hour on Home and Activity Log, while counting once in reports. Drag the first/last handle or use its arrow keys to resize. Scheduled activities use purple.
+- My activities appears first, followed by nine activity categories. Logging separates recent choices from categories; scheduling adds up to five personalized suggestions. Search includes the wider library and all suggestion candidates, supports simple phrases and spelling corrections, and always allows custom names. Unknown choices rotate through six stable geometric icons.
+- Values use five life areas. Add activity offers choices from this week, filtered by day, or scheduling directly into the value.
+- Sleep and Wake up fill empty half-hour rows between those exact times. Ordinary morning activities do not imply waking.
 
 ## Mindfulness and accessibility
 
 Breathing supports one, three or five minutes, plus custom minutes with a microphone. Typed decimals and common spoken durations are accepted. Pause and resume work for every duration. Visualization offers six themes. Drop narration files into `public/audio/visualization` using the filenames in its README. All six narration recordings are included; audio never starts automatically.
 
-Text fields have optional microphone buttons. Time uses one microphone beside the selected time. Mobile uses the hour/minute/period wheels; tablet and desktop place the hour, minute and AM/PM controls in one row. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. Users review the transcript before continuing. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
+Text fields have optional microphone buttons. Scheduling offers separate start/end dictation; times require AM or PM and round to half hours. Passwords use normal secure entry. Dictation depends on browser support, microphone permission and the browser's speech service. The read-aloud setting supports first-tap speech and second-tap activation on touch devices, or a 900 ms mouse hover. Keyboard activation remains unchanged.
 
 ## Reports
 
 Settings provides daily and weekly PDF downloads and manual email delivery. Weekly PDFs include mood graphs, activity, sleep and mindfulness charts, statistics and activity tables. Averages exclude missing ratings. The current week's activity average uses elapsed calendar days. Sleep averages include days with recorded sleep; sleep belongs to its wake-up day. Completion rates include due scheduled activities and exclude future plans.
 
-Email requires server-side SMTP configuration. The Vercel endpoint authenticates hosted requests and limits sending per account. See [email setup](docs/email-report-setup.md).
+Email supports Resend or server-side SMTP configuration. The Vercel endpoint authenticates hosted requests and limits sending per account. See [email setup](docs/email-report-setup.md).
 
-## Editable areas
+## Find and change code
 
-- `src/activity-catalogue.ts`: main tracker choices, life-area mapping, equivalent names, graph features and recommendation ranking.
-- `src/activities.ts`: wider searchable activity library.
-- `src/RatingSlider.tsx`: rating interaction and images.
-- `src/Relaxation.tsx`: exercise themes and breathing guide.
-- `src/style.css`: layout and colors.
-- `src/cloud-config.ts`: public connection settings only.
-- `supabase/schema.sql`: private log storage and revision-checked saves.
-- `docs/content-and-licensing.md`: illustration and exercise sources.
+See the [repository guide](docs/repository-guide.md) for the folder map, edit locations, module responsibilities and validation workflow. Read [the UI reference](docs/ui-components.md) before UI changes.
+
+The main activity list and suggestion pool are in `src/domain/activities/catalogue.ts`; shared icon mappings are in `src/features/activities/ActivityIcon.tsx`. Tests live next to their feature/domain and `npm test` discovers them recursively.
 
 PDF text supports English and common Western accented characters. Other characters use `?` until a Unicode font is embedded.
 

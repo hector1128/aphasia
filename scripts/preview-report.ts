@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { emptyData, type Entry } from "../src/model";
-import { buildWeeklyReportPdf } from "../src/report-week";
+import { emptyData, type Entry } from "../src/domain/model";
+import { buildWeeklyReportPdf } from "../src/features/reports/report-week";
 const data = emptyData(); data.name = "Design Test";
 const days = ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"];
 const names = ["Walking", "Reading", "Visiting family", "Making lunch", "Listening to music"];
