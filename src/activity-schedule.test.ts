@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { type Entry, emptyData, entriesInSlot, entriesOnDate, readData, saveActivity, saveEntry, repeatActivity, findEntry, removeEntry, stopRepeating, resizeActivity, setScheduledStatus, dateKey } from "./model";
-import { personalActivity, customShapes } from "./personal-activities";
+import { personalActivity, personalActivities, customShapes } from "./personal-activities";
 import { searchActivities } from "./activity-catalogue";
 import { weeklyStats, weeklyReportData } from "./weekly";
 import { reportSections } from "./report-data";
@@ -61,6 +61,10 @@ test("duration resizing stays in the day and has a minimum of one block", () => 
   assert.equal(resizeActivity(activity({ startMinute: 995, durationMinutes: undefined }), "end", 1050).durationMinutes, 60);
 });
 test("personal custom choices rotate six shapes, retain their icon and appear first in the category list", () => {
+  const linked = emptyData();
+  linked.values = [{ id: "family", name: "Family", area: "Personal relationships", activities: [{ name: "Playing with my niece", icon: "shape-circle" }] }];
+  linked.myActivities = personalActivities(linked);
+  assert.equal(personalActivity(linked.myActivities, { name: "Eating at Olive Garden", icon: "custom" }).icon, "shape-triangle");
   let data = emptyData();
   for (let i = 0; i < 7; i++) data = saveEntry(data, activity({ id: String(i), name: `Unique custom pastime ${i}`, icon: "custom" }));
   assert.deepEqual(data.myActivities.map((item) => item.icon), [...customShapes, customShapes[0]]);

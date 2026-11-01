@@ -14,6 +14,7 @@ import { weekDates } from "./date-time";
 import { WeekPicker } from "./DateTimePicker";
 import { ActivityPicker } from "./ActivityPicker";
 import { ActivityIcon } from "./ActivityIcon";
+import { personalActivities } from "./personal-activities";
 
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
@@ -47,11 +48,13 @@ export function Values({
   const [choice, setChoice] = useState({ name: "", icon: "custom" });
   const [selectedDay, setSelectedDay] = useState(() => dateKey(new Date()));
   const selected = data.values.find((v) => v.id === id);
-  const update = (v: LifeValue) =>
-    onChange({
+  const update = (v: LifeValue) => {
+    const next = {
       ...data,
       values: data.values.map((item) => (item.id === v.id ? v : item)),
-    });
+    };
+    onChange({ ...next, myActivities: personalActivities(next) });
+  };
   const link = (a: { name: string; icon: string }) => {
     if (selected)
       update({
