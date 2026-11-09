@@ -17,7 +17,8 @@ export function TimeSelect({ label, value, onChange, min = 0, max = 1410, disabl
     const close = (event: Event) => { if (!(event.target instanceof Node) || !panel.current?.contains(event.target)) panel.current?.hidePopover(); };
     window.addEventListener("resize", close);
     window.addEventListener("scroll", close, true);
-    const selected = panel.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+    const selected = panel.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')
+      ?? panel.current?.querySelector<HTMLButtonElement>('[role="option"]');
     selected?.scrollIntoView({ block: "nearest" });
     selected?.focus({ preventScroll: true });
     return () => { window.removeEventListener("resize", close); window.removeEventListener("scroll", close, true); };

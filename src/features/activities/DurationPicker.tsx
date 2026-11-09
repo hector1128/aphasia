@@ -1,14 +1,11 @@
-import { timeLabel } from "../../domain/model";
+import { entryEnd, timeLabel } from "../../domain/model";
+import { TimeSelect } from "../../shared/ui/TimeSelect";
 
-export function durationLabel(minutes: number) {
-  const hours = Math.floor(minutes / 60), rest = minutes % 60;
-  return [hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : "", rest ? `${rest} minutes` : ""].filter(Boolean).join(" ");
-}
-export function DurationPicker({ startMinute, value, onChange }: { startMinute: number; value: number; onChange: (minutes: number) => void }) {
+export function DurationPicker({ startMinute, value, onChange }: { startMinute: number; value?: number; onChange: (minutes: number) => void }) {
+  const endMinute = entryEnd({ startMinute, durationMinutes: value });
   return <div className="duration-picker">
-    <p className="duration-time-range" aria-live="polite">{timeLabel(startMinute)} – {timeLabel(startMinute + value)}</p>
-    <div className="duration-adjust"><button type="button" className="block-arrow" aria-label="30 minutes shorter" disabled={value <= 30} onClick={() => onChange(value - 30)}>−</button>
-      <strong aria-live="polite">{durationLabel(value)}</strong>
-      <button type="button" className="block-arrow" aria-label="30 minutes longer" disabled={startMinute + value + 30 > 1440} onClick={() => onChange(value + 30)}>+</button></div>
+    <p className="duration-time-range" aria-live="polite">{timeLabel(startMinute)} – {timeLabel(endMinute)}</p>
+    {startMinute + 30 <= 1440 && <TimeSelect label="End time" value={endMinute} min={startMinute + 30} max={1440}
+      onChange={(end) => onChange(end - startMinute)} />}
   </div>;
 }

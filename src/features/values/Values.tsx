@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { SpeechField } from "../../shared/ui/SpeechField";
-import { ArrowLeft, CalendarDays, ChevronRight, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, Plus } from "lucide-react";
 import { ItemActions } from "../../shared/ui/ItemActions";
 import {
   Data,
+  type ActivityChoice,
   LifeArea,
   LifeValue,
   lifeAreas,
@@ -15,6 +16,7 @@ import { WeekPicker } from "../../shared/ui/WeekPicker";
 import { ActivityPicker } from "../activities/ActivityPicker";
 import { ActivityIcon } from "../activities/ActivityIcon";
 import { personalActivities } from "../../domain/activities/personal";
+import { suggestedActivities } from "../../domain/activities/catalogue";
 
 import { AreaIcon, areaLabel } from "./LifeAreaIcon";
 
@@ -34,7 +36,7 @@ export function Values({
 }: {
   data: Data;
   onChange: (data: Data) => void;
-  onSchedule: (value: LifeValue) => void;
+  onSchedule: (value: LifeValue, activity: ActivityChoice) => void;
   initialValueId?: string;
 }) {
   const initialValue = data.values.find((value) => value.id === initialValueId);
@@ -44,7 +46,7 @@ export function Values({
   const [replacing, setReplacing] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
-  const [linkMode, setLinkMode] = useState<"choose" | "week" | "add" | null>(null);
+  const [linkMode, setLinkMode] = useState<"week" | "picker" | null>(null);
   const [choice, setChoice] = useState({ name: "", icon: "custom" });
   const [selectedDay, setSelectedDay] = useState(() => dateKey(new Date()));
   const selected = data.values.find((v) => v.id === id);
@@ -55,7 +57,7 @@ export function Values({
     };
     onChange({ ...next, myActivities: personalActivities(next) });
   };
-  const link = (a: { name: string; icon: string }) => {
+  const link = (a: ActivityChoice) => {
     if (selected)
       update({
         ...selected,
@@ -73,7 +75,7 @@ export function Values({
     setChoice({ name: "", icon: "custom" });
   };
   const days = weekDates(dateKey(new Date())).map(dateKey);
-  const dayChoices = valueActivitiesOnDay(data, selectedDay);
+  const dayChoices = linkMode === "week" ? valueActivitiesOnDay(data, selectedDay) : [];
   if (!area)
     return (
       <div className="value-list view-transition" key="life-areas">
@@ -134,19 +136,17 @@ export function Values({
   if (selected && linkMode)
     return (
       <div className="value-link-screen" key={`link-${linkMode}`}>
-        <button className="back" onClick={() => { setLinkMode(null); setId(null); setReplacing(null); setChoice({ name: "", icon: "custom" }); }}>
+        <button className="back" onClick={() => {
+          if (linkMode === "week") { setLinkMode("picker"); return; }
+          setLinkMode(null); setId(null); setReplacing(null); setChoice({ name: "", icon: "custom" });
+        }}>
           <ArrowLeft />
-          Back to value
+          {linkMode === "week" ? "Back to activity picker" : "Back to value"}
         </button>
-        <h1 className="sr-only">
-          {linkMode === "week" ? "Choose an activity from this week" : "Add an activity to this value"}
+        <h1>
+          {linkMode === "week" ? "Choose from this week" : replacing ? "Edit activity" : "Choose an activity"}
         </h1>
-        {linkMode === "choose" ? (
-          <div className="value-link-options">
-            <button className="entry-row value-navigation-row" onClick={() => setLinkMode("week")}><span className="value-heart"><CalendarDays aria-hidden="true" /></span><strong>Choose from this week</strong><ChevronRight aria-hidden="true" /></button>
-            <button className="entry-row value-navigation-row" onClick={() => onSchedule(selected)}><span className="value-heart"><Plus aria-hidden="true" /></span><strong>Schedule an activity</strong><ChevronRight aria-hidden="true" /></button>
-          </div>
-        ) : linkMode === "week" ? (
+        {linkMode === "week" ? (
           <div className="value-week-activities">
             <WeekPicker value={selectedDay} onChange={setSelectedDay} min={days[0]} max={days[6]} />
             <h2 className="value-day-heading">{new Date(`${selectedDay}T12:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</h2>
@@ -159,20 +159,21 @@ export function Values({
               </button>
             ))}</div>
           ) : (
-            <div className="view-transition" key={selectedDay}><p role="status">No activities on this day. Choose another day or schedule an activity.</p><button className="primary" onClick={() => onSchedule(selected)}>Schedule an activity</button></div>
+            <p role="status">No activities on this day. Choose another day or go back to the activity picker.</p>
           )}
           </div>
         ) : (
           <>
             <ActivityPicker
               value={choice}
-              recent={data.recentActivities}
               mine={data.myActivities}
-              onChange={setChoice}
+              suggestions={suggestedActivities(data)}
+              onChange={(activity) => {
+                if (activity.name && !replacing) link(activity);
+                else setChoice(activity);
+              }}
             />
-            <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>
-              {replacing ? "Save activity" : "+ Add activity"}
-            </button>
+            {replacing && <button className="primary" disabled={!choice.name} onClick={() => link(choice)}>Save activity</button>}
             <button className="secondary choose-week" onClick={() => setLinkMode("week")}>Choose from this week</button>
           </>
         )}
@@ -211,13 +212,17 @@ export function Values({
                       <div className="value-activity-card" key={a.name}>
                         <span className="activity-art"><ActivityIcon id={a.icon} name={a.name} /></span>
                         <strong>{a.name}</strong>
+                        <button type="button" className="item-actions-trigger value-schedule-button"
+                          aria-label={`Schedule ${a.name}`} title={`Schedule ${a.name}`} onClick={() => onSchedule(v, a)}>
+                          <Clock aria-hidden="true" />
+                        </button>
                         <ItemActions name={a.name} deleteLabel={`Unlink ${a.name}`}
                           onDelete={() => update({ ...v, activities: v.activities.filter((activity) => activity.name !== a.name) })}
-                          onEdit={() => { setId(v.id); setReplacing(a.name); setChoice(a); setLinkMode("add"); }} />
+                          onEdit={() => { setId(v.id); setReplacing(a.name); setChoice(a); setLinkMode("picker"); }} />
                       </div>
                     ))}
                     <button className="value-add-activity" aria-label={`Add activity to ${v.name}`}
-                      onClick={() => { setId(v.id); setReplacing(null); setChoice({ name: "", icon: "custom" }); setLinkMode("choose"); }}>
+                      onClick={() => { setId(v.id); setReplacing(null); setChoice({ name: "", icon: "custom" }); setLinkMode("picker"); }}>
                       <Plus aria-hidden="true" /><span>Add activity</span>
                     </button>
                   </div>

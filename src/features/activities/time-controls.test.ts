@@ -7,14 +7,18 @@ import { parseSpokenHalfHour } from "../../shared/accessibility/speech";
 import { searchActivities, suggestionActivities, mainActivities } from "../../domain/activities/catalogue";
 import { ActivityIcon } from "./ActivityIcon";
 
-test("duration keeps only the time range above its shorter/longer controls", () => {
-  const html = renderToStaticMarkup(createElement(DurationPicker, { startMinute: 540, value: 90, onChange: () => {} }));
-  assert.ok(html.indexOf("9:00 AM") < html.indexOf("30 minutes shorter"));
-  assert.match(html, /10:30 AM/);
-  assert.match(html, /1 hour 30 minutes/);
-  assert.equal((html.match(/<button/g) ?? []).length, 2);
-  const minimum = renderToStaticMarkup(createElement(DurationPicker, { startMinute: 1410, value: 30, onChange: () => {} }));
-  assert.equal((minimum.match(/disabled=""/g) ?? []).length, 2);
+test("logged end times use the scheduling list in half-hour blocks and stop at midnight", () => {
+  const render = (startMinute: number, value?: number) => renderToStaticMarkup(createElement(DurationPicker, { startMinute, value, onChange: () => {} }));
+  const html = render(990, 60);
+  assert.match(html, /4:30 PM – 5:30 PM/);
+  assert.match(html, /role="listbox"/);
+  assert.match(html, /aria-selected="true" tabindex="0">5:30 PM/);
+  assert.match(html, /role="option"[^>]*>5:00 PM/);
+  assert.match(html, /role="option"[^>]*>12:00 AM \(midnight\)/);
+  assert.doesNotMatch(html, /role="option"[^>]*>(4:30 PM|4:45 PM|5:15 PM|12:30 AM)/);
+  assert.equal((render(1410, 30).match(/role="option"/g) ?? []).length, 1);
+  assert.match(render(1425), /11:45 PM – 12:00 AM/);
+  assert.doesNotMatch(render(1425), /role="option"/);
 });
 
 test("separate time dictation rounds half hours and rejects invalid end times", () => {

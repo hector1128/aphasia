@@ -310,17 +310,17 @@ test("time controls show separate start/end choices in half-hour blocks", () => 
   assert.doesNotMatch(html, /half-hour blocks|Or say|choose the duration/);
   assert.doesNotMatch(html, /<select|4:15 PM|4:45 PM|time-wheel/);
 });
-test("picker separates recent, suggested and other activities; scheduling shows personal values", () => {
+test("picker separates recommended, suggested and other activities; scheduling shows personal values", () => {
   const data = emptyData();
   const html = renderToStaticMarkup(createElement(ActivityPicker, {
-    value: { name: "", icon: "custom" }, recent: [{ name: "Playing piano", icon: "music" }],
+    value: { name: "", icon: "custom" }, recommended: [{ name: "Playing piano", icon: "music" }],
     suggestions: suggestedActivities(data), onChange: () => {},
   }));
   assert.ok(html.indexOf("Playing piano") < html.indexOf("Listen to a new artist"));
-  assert.match(html, /<h2>Most recent<\/h2>/);
+  assert.match(html, /<h2>Recommended<\/h2>/);
   assert.match(html, /<h2>Suggestions<\/h2>/);
   assert.match(html, /<h2>Activities<\/h2>/);
-  assert.ok(html.indexOf("Most recent") < html.indexOf("Suggestions"));
+  assert.ok(html.indexOf("Recommended") < html.indexOf("Suggestions"));
   assert.doesNotMatch(html, /Need suggestions/);
   for (const category of activityCategories) assert.ok(html.includes(category.name));
   assert.doesNotMatch(html, /Personal relationships|Daily responsibilities/);
@@ -333,11 +333,11 @@ test("picker separates recent, suggested and other activities; scheduling shows 
   assert.match(values, /Add a value/);
   assert.doesNotMatch(values, />Personal relationships</);
 });
-test("the logging picker shows recent and other activities without suggestions", () => {
+test("the logging picker shows recommended and other activities without suggestions", () => {
   const html = renderToStaticMarkup(createElement(ActivityPicker, {
-    value: { name: "", icon: "custom" }, recent: [{ name: "Reading", icon: "read" }], onChange: () => {},
+    value: { name: "", icon: "custom" }, recommended: [{ name: "Reading", icon: "read" }], onChange: () => {},
   }));
-  assert.match(html, /<h2>Most recent<\/h2>/);
+  assert.match(html, /<h2>Recommended<\/h2>/);
   assert.match(html, /<h2>Activities<\/h2>/);
   assert.doesNotMatch(html, /<h2>Suggestions<\/h2>/);
   assert.doesNotMatch(html, /Make a smoothie|Make a greeting card|Try clay modeling/);
@@ -346,7 +346,7 @@ test("the logging picker shows recent and other activities without suggestions",
 });
 test("a selected activity populates the textbox and shows its card with the library collapsed", () => {
   const html = renderToStaticMarkup(createElement(ActivityPicker, {
-    value: { name: "Taking care of pets", icon: "pets" }, recent: [], suggestions: [], onChange: () => {},
+    value: { name: "Taking care of pets", icon: "pets" }, suggestions: [], onChange: () => {},
   }));
   assert.match(html, /value="Taking care of pets"/);
   assert.match(html, /aria-label="Selected activity"/);

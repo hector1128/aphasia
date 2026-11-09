@@ -72,7 +72,7 @@ test("personal custom choices rotate six shapes, retain their icon and appear fi
   const restored = readData(JSON.stringify(data));
   assert.deepEqual(restored.myActivities, data.myActivities);
   for (const choice of restored.myActivities) assert.doesNotMatch(renderToStaticMarkup(createElement(ActivityIcon, { id: choice.icon, name: choice.name })), /lucide-activity|heart-pulse/);
-  const html = renderToStaticMarkup(createElement(ActivityPicker, { value: { name: "", icon: "custom" }, mine: data.myActivities, recent: [], onChange: () => {} }));
+  const html = renderToStaticMarkup(createElement(ActivityPicker, { value: { name: "", icon: "custom" }, mine: data.myActivities, onChange: () => {} }));
   assert.ok(html.indexOf('My activities') < html.indexOf('Food and drinks'));
   assert.equal(dateKey(new Date('2026-11-01T12:00')), '2026-11-01');
 });

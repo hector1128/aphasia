@@ -31,11 +31,11 @@ Without cloud configuration, the app uses the existing `my-day-v2` local log and
 
 ## Activities and values
 
-- Logging keeps the date and starting time selected on Home or Activity Log, then asks for the activity, ratings and duration. Duration changes in 30-minute increments. Mood and enjoyment are required; importance can be skipped or reused for two weeks.
+- Logging keeps the date and starting time selected on Home or Activity Log, then asks for the activity, ratings and duration. Choose the end time in 30-minute increments. Mood and enjoyment are required; importance can be skipped or reused for two weeks.
 - Scheduling asks for Start and End through custom half-hour lists, each with its own microphone. Repeat offers daily, weekdays or weekly. Scheduling from Values also asks for the day and retains that value.
 - Activities fill every occupied half-hour on Home and Activity Log, while counting once in reports. Drag the first/last handle or use its arrow keys to resize. Scheduled activities use purple.
-- My activities appears first, followed by nine activity categories. Logging separates recent choices from categories; scheduling adds up to five personalized suggestions. Search includes the wider library and all suggestion candidates, supports simple phrases and spelling corrections, and always allows custom names. Unknown choices rotate through six stable geometric icons.
-- Values use five life areas. Add activity offers choices from this week, filtered by day, or scheduling directly into the value.
+- My activities appears first, followed by nine activity categories. Recommended choices use the selected weekday and half-hour; scheduling adds up to five personalized suggestions. Search includes the wider library and all suggestion candidates, supports simple phrases and spelling corrections, and always allows custom names. Unknown choices rotate through six stable geometric icons.
+- Values use five life areas. Add activity opens the activity picker and links the choice to the value. Select its clock to schedule it. The picker also offers choices from this week, filtered by day.
 - Sleep and Wake up fill empty half-hour rows between those exact times. Ordinary morning activities do not imply waking.
 
 ## Mindfulness and accessibility

@@ -9,16 +9,16 @@ const scales = {
     anchors: ["Very bad", "Neutral", "Very good"],
   },
   Enjoyment: {
-    description: "Enjoyment means how much you liked the activity. Choose 0 if you did not enjoy it at all, 5 if you enjoyed it somewhat, or 10 if you enjoyed it very much.",
+    description: "Please choose a number from 0 to 10 to indicate how much you enjoyed the activity. Choose 0 if you did not enjoy it at all, 5 if you enjoyed it somewhat, and 10 if you enjoyed it very much.",
     anchors: ["Not at all", "Somewhat", "Very much"],
   },
   Importance: {
-    description: "Importance means how much the activity matters to you. Choose 0 if it is not important, 5 if it is somewhat important, or 10 if it is very important.",
-    anchors: ["Not important", "Somewhat important", "Very important"],
+    description: "Importance means how much the activity matters to you. Choose 0 if it is not at all important, 5 if it is somewhat important, and 10 if it is very important.",
+    anchors: ["Not at all important", "Somewhat important", "Very important"],
   },
 } satisfies Record<RatingKind, { description: string; anchors: [string, string, string] }>;
 
-export function ScaleInfo({ kind }: { kind: RatingKind }) {
+export function ScaleInfo({ kind, activity = false }: { kind: RatingKind; activity?: boolean }) {
   const id = useId();
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -51,7 +51,9 @@ export function ScaleInfo({ kind }: { kind: RatingKind }) {
     <div ref={panel} id={id} popover="auto" className="scale-info-panel" role="dialog" aria-labelledby={`${id}-title`}
       onToggle={(event) => setOpen(event.newState === "open")}>
       <h2 id={`${id}-title`}>{kind}</h2>
-      <p>{scales[kind].description}</p>
+      <p>{kind === "Mood" && activity
+        ? "We want to know how you felt after doing this activity. Please choose a number from 0 (very bad) to 10 (very good) to indicate how you felt. A rating of 5 is neither bad or good."
+        : scales[kind].description}</p>
       <button type="button" className="secondary" popoverTarget={id} popoverTargetAction="hide">Close</button>
     </div>
   </>;
@@ -74,6 +76,7 @@ export function RatingSlider({
 }) {
   const anchorsId = useId();
   const anchors = scales[label].anchors;
+  const selectedAnchor = value % 5 === 0 ? anchors[value / 5] : undefined;
   const symbol = (n: number) => <RatingPicture value={n} kind={label} />;
   return (
     <div className="rating-slider">
@@ -93,7 +96,7 @@ export function RatingSlider({
         value={value}
         aria-label={label}
         aria-describedby={anchorsId}
-        aria-valuetext={`${value} out of 10`}
+        aria-valuetext={`${value} out of 10${selectedAnchor ? `, ${selectedAnchor}` : ""}`}
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <div className="slider-adjust">
@@ -115,11 +118,10 @@ export function RatingSlider({
           <Plus />
         </button>
       </div>
-      {symbol(value)}
-      <div className="rating-end-faces">
-        <span>0 = {symbol(0)}</span>
-        <span>10 = {symbol(10)}</span>
-      </div>
+      <figure className="rating-current">
+        {symbol(value)}
+        {selectedAnchor && <figcaption>{selectedAnchor}</figcaption>}
+      </figure>
     </div>
   );
 }

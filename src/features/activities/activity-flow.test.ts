@@ -17,6 +17,6 @@ test("cached importance removes only importance, keeping the final duration step
   assert.deepEqual(activitySteps({ ...options, completing: true }), ["mood", "enjoyment", "duration"]);
   assert.deepEqual(activitySteps({ ...options, sleep: true }), ["activity"]);
 });
-test("scheduling from a value does not ask for the value again", () => {
-  assert.deepEqual(activitySteps({ planning: true, completing: false, chooseDay: true, sleep: false, valueLinked: true }), ["activity", "day", "time"]);
+test("scheduling a linked activity starts at the day step", () => {
+  assert.deepEqual(activitySteps({ planning: true, completing: false, chooseDay: true, sleep: false, valueLinked: true }), ["day", "time"]);
 });

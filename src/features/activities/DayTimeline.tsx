@@ -38,7 +38,6 @@ export function DayTimeline({ date, data, onAdd, onEdit, onDelete, onToggle, onR
         .find((button) => button.getAttribute("aria-label") === `Adjust ${edge} time for ${entry.name}`)?.focus());
     }}><GripHorizontal size={20} aria-hidden="true" /></button>;
   return <>
-    <p className="timeline-help">Drag an activity’s start or end handle to change its duration. You can also focus a handle and use the arrow keys.</p>
     <p className="sr-only" role="status">{preview ? `${preview.name}: ${entryTimeLabel(preview)}` : message}</p>
     <div className={`day-timeline ${preview ? "is-resizing" : ""}`} ref={area} tabIndex={0} role="region" aria-label="Day timeline"
       onKeyDown={(event) => { if (event.key === "Escape" && drag.current) { drag.current = null; setPreview(null); setMessage("Duration change cancelled."); } }}

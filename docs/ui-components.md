@@ -2,7 +2,7 @@
 
 Read this file **before every UI change**. Reuse the components and classes below, then update this file in the same change if their appearance or behavior changes. `src/styles/style.css` is the implementation; later rules and media queries override earlier ones. Check the final computed style in the browser when a selector occurs more than once.
 
-All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated November 1, 2026.
+All dimensions below are CSS pixels with `box-sizing: border-box`. Widths are fluid unless a fixed size or maximum is listed. Heights are minimums when text must wrap. Do not force a long label into a fixed-height box. Reference updated November 9, 2026.
 
 ## Foundations
 
@@ -66,18 +66,17 @@ At ≥1440px the home dashboard has two columns, fractions .95 and 1.15 with a 3
 | `.wizard-footer` | Auto top margin, padding-top 32; actions gap 14, progress 40px below actions |
 | `.wizard-progress` | Centered, gap 10; bars 28×8, radius 8, `#dce4d7`; active bar 44px wide and section color |
 
-Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days. Logging ends with Duration (except point-in-time sleep/wake markers). Adding from Home or a selected calendar block keeps that day and always asks for time. Scheduling from Values and editing a one-off plan retain the day step; Activity Log’s Plan activity uses its selected day. The time step shows that day as a 19px supporting caption.
+Activity wizards use only bottom Back/Next/Save actions and bottom progress indicators. Do not restore the redundant top Home/Back links or top previous/next toggle. Mood and enjoyment require a rating; importance may be skipped and remembered ratings suppress that step for 14 days. Logging ends with Duration (except point-in-time sleep/wake markers). Logging from Home or a calendar block keeps its start time. Scheduling from a linked activity in Values starts at the day step with the activity and value already chosen. Editing a one-off plan retains the day step; Activity Log’s Plan activity uses its selected day.
 
 ## Activity choices, values and life areas
 
 | Component / selector | Size / radius / colors / spacing |
 | --- | --- |
 | `.entry-row` | Full width flex row, radius 14, white background, text left; strong label 23px / 1.4 |
-| `.value-navigation-row` | Shared by life-area cards and Choose from this week / Schedule an activity. Min-height 88, padding 17px 14px, gap 14, 1px purple section border; label flexes, arrow anchored at right |
+| `.value-navigation-row` | Used by life-area cards. Min-height 88, padding 17px 14px, gap 14, 1px purple section border; label flexes, arrow anchored at right |
 | `.value-heart` in navigation row | 52×52, radius 13, background `#e7dcf1`, 30×30 purple icon; fixed size, no shrink |
 | Navigation chevron | 24×24; 14px right padding plus border; never adjacent to the end of a short label |
 | `.value-list` | Grid, gap 18, margin 24px 0; life-area cards use 2 columns at ≥768px; accordion list remains 1 column |
-| `.value-link-options` | Single-column grid, 20px gap, top margin 28; identical card construction for both actions |
 | `.value-week-activities` | Top margin 28; reuse WeekPicker, bounded to the current Monday–Sunday week; initial day is today |
 | `.value-day-heading` | Top margin 24; full weekday + month + day; only selected day's activities appear below |
 | `.week-activity-list` | Grid gap 16, margin 20px 0 26px; no nested scrolling. Deduplicate names within the selected day, order by time, exclude automatic sleep/wake markers |
@@ -85,19 +84,20 @@ Activity wizards use only bottom Back/Next/Save actions and bottom progress indi
 | Mobile accordion header | Main icon 38×38 with 25px icon; 20px label, 17px at ≤360px; controls remain fixed 44/40px columns |
 | Accordion body | Animate grid rows 0fr→1fr over 360ms; opacity 280ms; collapsed body must be inert and hidden from accessibility tree |
 | `.value-activity-grid` | 2 equal columns, gap 12, padding 18px 14px, top border 1px `#e4daee` |
-| `.value-activity-card` | Min-height 142, padding 12, radius 14, 1px `#d6c6e3`, background `#f7f3fa`; icon and menu on top, label below; gap 12px 6px; label 18px/650 |
+| `.value-activity-card` | Min-height 166, padding 12, radius 14, 1px `#d6c6e3`, background `#f7f3fa`; icon above label, clock and menu below; gap 12px 6px; label 18px/650 |
 | Value activity art | 34×34, radius 8, 1px purple border, padding 3, background `#eee5f4`, inner art 26×26; upright |
-| Desktop value activity ≥1024px | Compact horizontal row, min-height 100, padding 16, gap 14; art 48×48 / inner 38×38; label 20px; 44px menu at far right |
+| Desktop value activity ≥1024px | Compact horizontal row, min-height 100, padding 16, gap 14; art 48×48 / inner 38×38; label 20px; 44px clock and menu at far right |
+| Value schedule clock | 44×44, radius 11, 22px Lucide Clock, purple section colors; accessible name “Schedule [activity]”; opens Day → Time for this activity and value |
 | `.value-add-activity` | Solid 1px `#c9b9da`, radius 14, min-height 100, padding 16, gap 12, background `#f5eff9`, purple text, 32×32 plus; left aligned |
 | `.schedule-value-grid` | 2 columns, gap 16, margin 20px 0; cards min-height 100, padding 16, gap 14. At ≤600px card contents stack and padding is 12 |
 | `.add-schedule-value` | Plus and text centered together horizontally and vertically on all viewports, soft purple background |
 | `.activity-options` | 2 columns, gap 12; gap 18 at ≥768px, 3 columns at ≥1440px |
 | `.activity-choice` | Min-height 76, padding 16px 12px, radius 12, 2px border; 23px text; values variant background `#f6f2f9`, purple border |
 | Mobile activity choice | Vertical icon then label, gap 10, padding 14px 10px, 19px text; trailing plus top-right |
-| `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color; use the same tile for categories, activities, recent choices, suggestions and the selected card |
+| `.area-icon` in activity choices | 48px square, radius 12, theme soft background and theme icon color; use the same tile for categories, activities, recommendations, suggestions and the selected card |
 | `.activity-icon` | Upright Lucide SVG, 1.7px stroke at its native 24px viewBox; default 32×32, picker tile inner icon 32×32; fixed size, no shrinking |
 
-Selecting a library activity populates the text field and keeps a visible selected card. Show My activities first, containing the user’s chosen/custom activities, followed by the nine categories in `activityCategories` in `src/domain/activities/catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and all 120 suggestion candidates stay searchable in both logging and scheduling, including choices that are never shown as category cards. Extend the static pool and map each new choice in ActivityIcon; keep recommendation ranking and the nine main categories unchanged. Logging separates recent choices from the rest; only scheduling offers up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Empty days show a clear message and a Schedule an activity action while keeping the day filter available.
+Selecting a library activity populates the text field and keeps a visible selected card. Show My activities first, containing the user’s chosen/custom activities, followed by the nine categories in `activityCategories` in `src/domain/activities/catalogue.ts`; these are separate from the five life areas used by values. Category cards reuse `.activity-choice` and `.area-icon`, open their activity list, and offer an All activities back action. The larger library and all 120 suggestion candidates stay searchable in both logging and scheduling, including choices that are never shown as category cards. Extend the static pool and map each new choice in ActivityIcon; keep the nine main categories unchanged. In logging and scheduling, Recommended shows up to three choices for the selected weekday and half-hour, with time-of-day defaults when there is little matching history. Scheduling and the Values picker also show up to five personalized suggestions from the separate `suggestionActivities` pool. Do not render that pool as extra browsing categories. Values opens the shared picker directly; selecting a choice links it and returns to the card with its clock. The optional Choose from this week button opens the existing day filter.
 
 The picker field label and placeholder are **Enter the activity**, including its microphone label. Search matches partial words, aliases and simple phrases regardless of word order, ignores conversational filler, ranks exact matches first and deduplicates equivalent names. Keep both custom activity entry and legacy library search available. Enable native spelling/autocorrect hints and local typo matching (including transposed letters). Offer an explicit “Did you mean” correction; always retain the original custom entry option. Never silently rewrite personal names.
 
@@ -112,7 +112,7 @@ The picker field label and placeholder are **Enter the activity**, including its
 | `TimeSelect` | Custom button/listbox, no native select. Trigger min-height 64, padding 14px 16px (mobile horizontal 10), radius 12, 2px section border, section-soft surface; text 22px / mobile 19px; 19px label / mobile 18px. Options in 30-minute increments, end strictly after start, through midnight |
 | Time listbox | Native auto popover with fixed positioning, 8px from trigger; flips above and stays 12px within the viewport. Max-height min(260px,60dvh), padding 8, radius 14, app surface; options min-height 48, 20px text. Escape/outside click closes; arrow/Home/End keys move focus, Enter selects, Tab dismisses. Fade/5px motion over 260ms; reduced motion disables it |
 | Recurrence | 26px checkbox below scheduling times, separated by 28px top margin + 24px padding and border. Every day / Weekdays / Every week buttons min-height 52, radius 12, padding 12px 16px, 12px gap. Existing series edits apply only to the selected date; Stop repeating ends the series from that date |
-| Duration | Final logging step. 30-minute increments, min 30, bounded to midnight. Minus/value/plus columns 48px / 1fr / 48px with 16px gap; 25px value. Heading: “Choose how long the activity lasted”. Show the green (`#356e48`) start/end range above the minus/value/plus row (25px / 650, 22px at ≤600px). No preset buttons or duplicate supporting instruction |
+| Duration | Final logging step. Start is fixed. Reuse TimeSelect for End time, with half-hour increments from start + 30 through midnight. Center the 320px max-width control 24px below the green range (`#356e48`, 25px / 650, 22px at ≤600px). End options support vertical scroll snap. Heading: “Choose how long the activity lasted” |
 | `.moment-section` | Radius 19, 1px section border; mobile padding 12; separates current-time header from activities |
 | Home current activity | Min-height 88, padding 18px 16px, 14px gap; mobile padding 12 horizontally, 10px gap, name 20px / 1.35 |
 | Timeline | Scrollable full day, max-height min(640px,68dvh); desktop min(760px,78dvh); margin 24px 0 32px, padding 8px 5px |
@@ -122,12 +122,12 @@ The picker field label and placeholder are **Enter the activity**, including its
 | Timeline name/time on mobile | Name on first line(s), time beneath with 6px gap; time 16px / 1.5. At ≤360px controls wrap beneath content |
 | Logged activity icon | Tile 44×44, radius 10, 1px section border, padding 4; inner art 34×34; upright |
 | Scheduled activity | Surface `#f4eef9`, border `#b69ccb`; purple `#674a86` icons and soft purple tiles; retain completion controls without status sentences |
-| `.rating-slider` | Margin 32px 0; slider target height 52; ticks 0–10 at 23px, each with its own picture above it (up to 38×44, scales down to fit 11 columns); track 6px, radius 9, `#8faa8a` |
+| `.rating-slider` | Margin 32px 0 (mobile activity ratings: 16px top, 8px bottom, 16px below title); slider target height 52; ticks 0–10 at 23px, each with its own picture above it (up to 38×44, scales down to fit 11 columns); below 768px hide ticks and pictures for 1, 3, 7 and 9, keeping their positions and all selectable values. Track 6px, radius 9, `#8faa8a` |
 | Scale heading info | 44px circular button beside the heading, 24px Info icon, 8px gap, soft section background and 1px section border. Native auto popover supports Close, Escape and outside click; opens 12px below its info button, flips above when needed and stays 16px inside the viewport. Repositions on scroll/resize. Opacity and 5px vertical motion over 260ms, including exit; max-width 420px or viewport minus 32px, padding 24, radius 16, 20px / 1.5 body |
-| `.slider-anchors` | Labels above ticks 0, 5 and 10; 16px / 1.35, weight 650, section color, grid columns 1fr / 1.4fr / 1fr, 8px gap. Mood: Very bad / Neutral / Very good. Enjoyment: Not at all / Somewhat / Very much. Importance: Not important / Somewhat important / Very important. Slider describes all anchors to screen readers |
+| `.slider-anchors` | Labels above ticks 0, 5 and 10; 16px / 1.35, weight 650 (activity rating anchors 20px, 18px below 768px), section color, grid columns 1fr / 1.4fr / 1fr, 8px gap. Mood: Very bad / Neutral / Very good. Enjoyment: Not at all / Somewhat / Very much. Importance: Not at all important / Somewhat important / Very important. Slider describes all anchors to screen readers |
 | Slider thumb | WebKit 38×38 circle, 4px app-surface border and 2px section-color shadow; Firefox inner 32×32 plus border |
-| `.slider-adjust` | Minus / score / plus row; score 30px / 650; margin 18px 0 30px |
-| `.rating-expression` | 140×140 with contain fit; endpoint examples 52×52; no stretching or rotation |
+| `.slider-adjust` | Minus / score / plus row; score 30px / 650; margin 18px 0 30px (20px bottom on mobile activity ratings) |
+| `.rating-expression` | 140×140 with contain fit; no stretching or rotation. Current face shows the anchor caption at 0, 5 or 10 (20px / 650, 8px above caption); no duplicate endpoint examples |
 | Importance art | Load individual `public/ratings/importance/0.png` through `10.png` directly. Regenerate with `scripts/crop-ratings.py` (Pillow), using the original `importance.png` sheet and the supplied `importance-6.png` portrait card for six. Crops exclude printed numbers and neighboring cells, capped at 280×280 with aspect ratio preserved. Avoid browser SVG sheet clipping; preserve supplied art and progression |
 | Mood / enjoyment art | Mood uses individual `public/ratings/mood/0.png` through `10.png`; enjoyment uses individual `public/ratings/enjoyment/0.png` through `10.png`, generated from its own sheet by the same crop script. Do not substitute importance images for other rating kinds |
 

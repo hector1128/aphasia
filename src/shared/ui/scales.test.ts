@@ -20,8 +20,19 @@ test("each scale describes its own 0, 5 and 10 anchors and exposes keyboard-acce
     assert.match(help, /popover="auto"/);
     assert.match(help, /popoverTargetAction="hide"/i);
     const expected = kind === "Mood" ? "Neutral" : kind === "Enjoyment" ? "Somewhat" : "Somewhat important";
-    assert.ok(slider.includes(expected));
+    assert.ok(slider.includes(`<figcaption>${expected}</figcaption>`));
+    assert.doesNotMatch(slider, /rating-end-faces/);
   }
+});
+
+test("the current face captions only anchor scores and daily mood keeps its own instructions", () => {
+  const render = (value: number) => renderToStaticMarkup(createElement(RatingSlider, { label: "Importance", value, onChange: () => {} }));
+  assert.match(render(0), /<figcaption>Not at all important<\/figcaption>/);
+  assert.match(render(10), /<figcaption>Very important<\/figcaption>/);
+  assert.doesNotMatch(render(7), /<figcaption>/);
+  const instructions = (activity: boolean) => renderToStaticMarkup(createElement(ScaleInfo, { kind: "Mood", activity }));
+  assert.match(instructions(true), /We want to know how you felt after doing this activity/);
+  assert.doesNotMatch(instructions(false), /after doing this activity/);
 });
 
 test("automatic report preference is off for old accounts and persists without opting in malformed values", () => {

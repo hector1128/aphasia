@@ -9,7 +9,7 @@ import { personalActivity } from "../../domain/activities/personal";
 
 export function ActivityPicker({
   value,
-  recent,
+  recommended = [],
   onChange,
   suggestions = [],
   mine = [],
@@ -17,7 +17,7 @@ export function ActivityPicker({
   suggestions?: ActivityChoice[];
   mine?: ActivityChoice[];
   value: ActivityChoice;
-  recent: ActivityChoice[];
+  recommended?: ActivityChoice[];
   onChange: (choice: ActivityChoice) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -32,7 +32,7 @@ export function ActivityPicker({
     seen.add(key);
     return true;
   });
-  const recentChoices = uniqueChoices(recent.slice(0, 5));
+  const recommendedChoices = uniqueChoices(recommended);
   const suggestionChoices = uniqueChoices(suggestions);
   const selectChoice = (choice: ActivityChoice) => {
     setQuery("");
@@ -92,9 +92,9 @@ export function ActivityPicker({
       >
         {!query.trim() && !category ? (
           <>
-            {recentChoices.length > 0 && <section>
-              <h2>Most recent</h2>
-              <div className="activity-options">{recentChoices.map(renderChoice)}</div>
+            {recommendedChoices.length > 0 && <section>
+              <h2>Recommended</h2>
+              <div className="activity-options">{recommendedChoices.map(renderChoice)}</div>
             </section>}
             {suggestionChoices.length > 0 && <section>
               <h2>Suggestions</h2>

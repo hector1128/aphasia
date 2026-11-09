@@ -1,4 +1,5 @@
 import { suggestedActivities } from "../domain/activities/catalogue";
+import { recommendedActivities } from "../domain/activities/recommended";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -91,9 +92,9 @@ const stepTitles: Record<Step, string> = {
   day: "Which day?",
   time: "What time?",
   duration: "Choose how long the activity lasted",
-  mood: "How did you feel?",
-  enjoyment: "How much did you enjoy it?",
-  importance: "How important was it?",
+  mood: "What was your mood immediately after this activity?",
+  enjoyment: "How much did you enjoy the activity?",
+  importance: "How important was the activity?",
 };
 
 export function App({ account }: { account?: Account }) {
@@ -197,13 +198,14 @@ export function App({ account }: { account?: Account }) {
     status: "planned" | "done",
     selectedDate = today,
     selectedMinute = minute,
-    origin: "home" | "plan" | "values" = "home",
-    chooseDateAndTime = false,
+    origin: "home" | "plan" | { value: LifeValue; activity: ActivityChoice } = "home",
   ) => {
+    const linked = typeof origin === "object" ? origin : undefined;
     setDraft({
       id: crypto.randomUUID(),
-      name: "",
-      icon: "custom",
+      ...(linked?.activity ?? { name: "", icon: "custom" }),
+      valueId: linked?.value.id,
+      lifeArea: linked?.value.area,
       date: selectedDate,
       startMinute: selectedMinute,
       durationMinutes: 30,
@@ -211,18 +213,17 @@ export function App({ account }: { account?: Account }) {
       source: status === "planned" ? "scheduled" : "logged",
     });
     setCompletingPlan(false);
-    setChooseDay(chooseDateAndTime);
+    setChooseDay(Boolean(linked));
     setRepeat("none");
     setImportanceRated(false);
-    setReturnTo(origin);
-    setStep("activity");
+    setReturnTo(typeof origin === "object" ? "values" : origin);
+    setStep(linked ? "day" : "activity");
     go("edit");
   };
-  const scheduleFromValue = (value: LifeValue) => {
+  const scheduleFromValue = (value: LifeValue, activity: ActivityChoice) => {
     const later = nextActivitySlot();
     setFocusedValueId(value.id);
-    newEntry("planned", later.date, later.startMinute, "values", true);
-    setDraft((entry) => entry ? { ...entry, valueId: value.id, lifeArea: value.area } : entry);
+    newEntry("planned", later.date, later.startMinute, { value, activity });
   };
   const editEntry = (entry: Entry, origin: "home" | "plan") => {
     const startMinute = Math.floor(entry.startMinute / 30) * 30;
@@ -309,8 +310,7 @@ export function App({ account }: { account?: Account }) {
     const updated = { ...draft,
       ...(step === "mood" ? { mood: draft.mood ?? 5 } : {}),
       ...(step === "enjoyment" ? { rating: draft.rating ?? 5 } : {}),
-      ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}),
-      ...(step === "duration" ? { durationMinutes: draft.durationMinutes ?? 30 } : {}) };
+      ...(step === "importance" ? { importance: draft.importance ?? 5 } : {}) };
     if (step === "importance") setImportanceRated(true);
     if (lastStep) { save(updated, step === "importance" || importanceRated); return; }
     setDraft(updated);
@@ -353,7 +353,7 @@ export function App({ account }: { account?: Account }) {
         <h1 ref={heading} tabIndex={-1}>
           {title}
         </h1>
-        {ratingKind && <ScaleInfo kind={ratingKind} />}
+        {ratingKind && <ScaleInfo kind={ratingKind} activity={screen === "edit"} />}
       </div>
     </>
   );
@@ -585,7 +585,6 @@ export function App({ account }: { account?: Account }) {
                       selectedDate,
                       selectedDate === later.date ? later.startMinute : 540,
                       "plan",
-                      false,
                     );
                   }}
                 >
@@ -600,7 +599,7 @@ export function App({ account }: { account?: Account }) {
                   <ActivityPicker
                     key={draft.id}
                     value={draft}
-                    recent={data.recentActivities}
+                    recommended={recommendedActivities(data, draft, clock)}
                     mine={data.myActivities}
                     suggestions={planning ? suggestedActivities(data) : []}
                     onChange={chooseActivity}
@@ -635,7 +634,7 @@ export function App({ account }: { account?: Account }) {
                   {draft.seriesId && <div className="repeat-settings"><p>This activity repeats. Edits here apply only to this date.</p>
                     <button type="button" className="secondary" onClick={() => { const seriesId = draft.seriesId; if (!seriesId) return; setData((previous) => stopRepeating(previous, seriesId, draft.date)); setDraft({ ...draft, seriesId: undefined }); setNotice("Repeats stopped from this date. Save to keep this activity."); }}>Stop repeating from this date</button></div>}
                 </>}
-                {step === "duration" && <DurationPicker startMinute={draft.startMinute} value={draft.durationMinutes ?? 30} onChange={(durationMinutes) => setDraft({ ...draft, durationMinutes })} />}
+                {step === "duration" && <DurationPicker startMinute={draft.startMinute} value={draft.durationMinutes} onChange={(durationMinutes) => setDraft({ ...draft, durationMinutes })} />}
                 {step === "mood" && (
                   <RatingSlider
                     label="Mood"

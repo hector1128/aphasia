@@ -65,7 +65,7 @@ export const currentSlot = (d = new Date()) =>
   d.getHours() * 60 + (d.getMinutes() < 30 ? 0 : 30);
 export const timeLabel = (minute: number) =>
   `${Math.floor(minute / 60) % 12 || 12}:${String(minute % 60).padStart(2, "0")} ${minute % 1440 < 720 ? "AM" : "PM"}`;
-export const entryEnd = (entry: Entry) => entry.startMinute + (entry.durationMinutes ?? 30 - entry.startMinute % 30);
+export const entryEnd = (entry: Pick<Entry, "startMinute" | "durationMinutes">) => entry.startMinute + (entry.durationMinutes ?? 30 - entry.startMinute % 30);
 export const entryTimeLabel = (entry: Entry) => entry.durationMinutes === undefined ? timeLabel(entry.startMinute)
   : `${timeLabel(entry.startMinute)} – ${timeLabel(entryEnd(entry))}`;
 export function resizeActivity(entry: Entry, edge: "start" | "end", minute: number): Entry {
