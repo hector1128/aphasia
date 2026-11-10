@@ -1760,7 +1760,8 @@ h1:focus {
 .rating-current { margin: 0; min-height: 176px; text-align: center; }
 .rating-current figcaption { margin-top: 8px; color: var(--section); font-size: 20px; font-weight: 650; }
 @media (max-width: 767px) {
-  .slider-ticks > span:nth-child(even):not(.anchor-tick) { visibility: hidden; }
+  .rating-slider .slider-ticks { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .slider-ticks > span:nth-child(even):not(.anchor-tick) { display: none; }
   .activity-wizard .slider-anchors { font-size: 18px; }
   .activity-wizard > .scale-title { margin-bottom: 16px; }
   .activity-wizard > .rating-slider { margin: 16px 0 8px; }

@@ -18,7 +18,7 @@ begin
   assert public.activity_reminder_due('{"entries":{"x":{"date":"2026-10-29","status":"done","startMinute":"bad"}}}', timestamp '2026-10-29 16:00');
   assert public.activity_reminder_due(base, timestamptz '2026-10-29 20:00+00' at time zone 'America/New_York');
   assert public.activity_reminder_due(base, timestamptz '2026-11-02 21:00+00' at time zone 'America/New_York');
-  assert not has_function_privilege('authenticated', 'public.claim_activity_reminders()', 'execute');
+  assert not has_function_privilege('authenticated', 'public.claim_activity_reminders(boolean,boolean)', 'execute');
   assert not has_table_privilege('authenticated', 'public.activity_reminder_preferences', 'select');
   assert not has_function_privilege('anon', 'public.confirm_activity_reminder(text)', 'execute');
 
@@ -78,6 +78,37 @@ begin
   assert (select morning_minute = 0 and evening_minute = minute and not afternoon_enabled from public.activity_reminder_preferences where user_id = owner_id);
   perform public.disable_activity_reminder(owner_id);
   assert not public.activity_reminder_still_due(morning_claim);
+end;
+$$;
+do $$
+declare owner_id uuid := gen_random_uuid(); zone text; token_hash text; recipient text := '+15550100001';
+  delivery uuid; unsub text;
+begin
+  select name into zone from pg_timezone_names where extract(hour from now() at time zone name) = 16 limit 1;
+  assert zone is not null;
+  token_hash := encode(sha256(convert_to(owner_id::text, 'UTF8')), 'hex');
+  insert into auth.users(id) values (owner_id);
+  assert public.request_activity_reminder(owner_id, recipient, zone, token_hash, null, 'text');
+  assert not exists (select 1 from public.claim_activity_reminders(true) where user_id = owner_id);
+  assert public.confirm_activity_reminder(token_hash);
+  assert not exists (select 1 from public.claim_activity_reminders() where user_id = owner_id);
+  select claim_id, unsubscribe_token into delivery, unsub from public.claim_activity_reminders(true, false)
+    where user_id = owner_id and channel = 'text' and phone = recipient and email = '';
+  assert delivery is not null;
+  assert public.activity_reminder_still_due(delivery);
+  update public.activity_reminder_deliveries set claimed_at = now() - interval '6 minutes' where user_id = owner_id;
+  assert not exists (select 1 from public.claim_activity_reminders(true) where user_id = owner_id);
+  assert public.unsubscribe_activity_reminder(unsub);
+  assert not public.activity_reminder_still_due(delivery);
+  assert (select not enabled and verified_at is null from public.activity_reminder_preferences where user_id = owner_id);
+  update public.activity_reminder_preferences set confirmation_sent_at = now() - interval '2 minutes',
+    sms_confirmation_count = 3 where user_id = owner_id;
+  begin
+    perform public.request_activity_reminder(owner_id, '+15550100002', zone, token_hash, null, 'text');
+    raise exception 'Expected text confirmation limit';
+  exception when raise_exception then
+    assert sqlerrm = 'SMS_RATE_LIMITED';
+  end;
 end;
 $$;
 rollback;

@@ -1,8 +1,16 @@
+export type ReminderChannel = "email" | "text";
 export type ReminderKind = "morning" | "afternoon" | "evening";
 export type ReminderTimes = { morning: number | null; afternoon: boolean; evening: number | null };
 export const defaultReminderTimes = (): ReminderTimes => ({ morning: null, afternoon: true, evening: null });
-export type ReminderPreferences = { email: string; timeZone: string; enabled: boolean; confirmed: boolean; pending: boolean; times: ReminderTimes };
+export type ReminderPreferences = { channel: ReminderChannel; email: string; phone: string; timeZone: string; enabled: boolean; confirmed: boolean; pending: boolean; times: ReminderTimes };
 export const validReminderEmail = (email: string) => email.length <= 254 && /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(email);
+export const validReminderPhone = (phone: string) => /^\+[1-9]\d{7,14}$/.test(phone);
+export function normalizeReminderPhone(value: string) {
+  if (value.length > 32 || !/^[+0-9 ().-]+$/.test(value)) return "";
+  const number = value.replace(/[ ().-]/g, "");
+  const normalized = /^\d{10}$/.test(number) ? `+1${number}` : /^1\d{10}$/.test(number) ? `+${number}` : number;
+  return validReminderPhone(normalized) ? normalized : "";
+}
 export function validTimeZone(zone: string) {
   try { new Intl.DateTimeFormat("en", { timeZone: zone }).format(); return true; }
   catch { return false; }
@@ -19,7 +27,9 @@ export function parseReminderPreferences(input: unknown): ReminderPreferences {
     !("enabled" in input) || typeof input.enabled !== "boolean" ||
     !("confirmed" in input) || typeof input.confirmed !== "boolean" ||
     !("pending" in input) || typeof input.pending !== "boolean" || ("times" in input && !validReminderTimes(input.times))) throw Error("Could not read reminder settings.");
-  return { email: input.email, timeZone: input.timeZone, enabled: input.enabled, confirmed: input.confirmed, pending: input.pending,
+  return { channel: "channel" in input && input.channel === "text" ? "text" : "email",
+    phone: "phone" in input && typeof input.phone === "string" && validReminderPhone(input.phone) ? input.phone : "",
+    email: input.email, timeZone: input.timeZone, enabled: input.enabled, confirmed: input.confirmed, pending: input.pending,
     times: "times" in input && validReminderTimes(input.times) ? input.times : defaultReminderTimes() };
 }
 export function reminderMessage(kind: ReminderKind) {

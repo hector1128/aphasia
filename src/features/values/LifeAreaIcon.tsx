@@ -9,7 +9,7 @@ const areaIcons = {
   "Daily responsibilities": ListChecks,
 } satisfies Record<LifeArea, typeof HeartHandshake>;
 
-export const areaLabel = (area: LifeArea) => area.replaceAll("/", " | ");
+export const areaLabel = (area: LifeArea) => area.replaceAll("/", " / ");
 
 export function AreaIcon({ area }: { area: LifeArea }) {
   const Icon = areaIcons[area];

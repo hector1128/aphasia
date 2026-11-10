@@ -9,6 +9,7 @@ import { buildWeeklyReportPdf } from "../../src/features/reports/report-week.js"
 import { cloudConfig } from "../../src/services/supabase/cloud-config.js";
 import { createClient } from "@supabase/supabase-js";
 import { sendResend } from "../email.js";
+import { emailCard } from "../email-card.js";
 export type MailConfig = Record<string, string>;
 export function validateRequest(body: unknown) {
   const b = body as { to: string; date: string; period?: unknown; data: unknown };
@@ -133,17 +134,20 @@ export function reportMiddleware(
         return reply(400, { error: "Enter a valid email and report details." });
       }
       const pdf = input.period === "week" ? await buildWeeklyReportPdf(input.data, input.date) : await buildReportPdf(input.data, input.date);
+      const title = input.period === "week" ? "Your weekly activity report" : "Your daily activity report";
       const message = {
         from: config.REPORT_FROM,
         ...(config.REPORT_REPLY_TO ? { replyTo: config.REPORT_REPLY_TO } : {}),
         to: input.to,
         subject: `My Day ${input.period === "week" ? "weekly" : "daily"} report - ${input.date}`,
         text: `The ${input.period === "week" ? "weekly" : "daily"} report for ${input.date} is attached as a PDF. Missing information is marked in the report.`,
+        html: emailCard({ title, text: `Your My Day report for ${input.date} is attached. Open the PDF to view it.`,
+          note: "Missing information is marked in the report." }),
         attachments: [{ filename: `my-day-${input.period}-${input.date}.pdf`,
           content: Buffer.from(pdf), contentType: "application/pdf" }],
       } satisfies SendMailOptions;
       if (!sendMail && config.RESEND_API_KEY) {
-        await sendResend(config, { to: input.to, subject: message.subject, text: message.text,
+        await sendResend(config, { to: input.to, subject: message.subject, text: message.text, html: message.html,
           attachments: message.attachments.map((attachment) => ({ filename: attachment.filename,
             content: attachment.content.toString("base64") })) }, fetcher);
       } else {

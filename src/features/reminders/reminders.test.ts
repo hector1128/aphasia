@@ -10,7 +10,7 @@ const config = { SUPABASE_URL: "https://database.example.com", SUPABASE_PUBLISHA
   SUPABASE_SECRET_KEY: "synthetic-private-database-key", RESEND_API_KEY: "synthetic-private-email-key",
   REPORT_FROM: "My Day <reports@example.com>", REPORT_REPLY_TO: "lab@example.edu", APP_ORIGIN: "https://app.example.com",
   CRON_SECRET: "synthetic-private-scheduler-secret-123456789" };
-async function server(fetcher: typeof fetch, overrides: Partial<typeof config> = {}) {
+async function server(fetcher: typeof fetch, overrides: Record<string, string> = {}) {
   const handler = remindersMiddleware({ ...config, ...overrides }, fetcher);
   const instance = createServer((req, res) => void handler(req, res, () => { res.writeHead(404); res.end(); }));
   await new Promise<void>((resolve) => instance.listen(0, "127.0.0.1", resolve));
@@ -54,6 +54,8 @@ test("saving requires an authenticated account, explicit consent, and valid fiel
       assert.deepEqual(body.to, ["person@example.com"]);
       const rawToken = /token=([a-f0-9]{64})/.exec(body.text)?.[1];
       assert.ok(rawToken);
+      assert.match(body.html, /Confirm reminders/);
+      assert.match(body.html, /action=confirm&amp;token=/);
       assert.doesNotMatch(body.text, /synthetic-private/);
       return Response.json({ id: "email-confirmation" });
     }
@@ -113,6 +115,8 @@ test("the scheduler is private, rechecks eligibility, uses stable retry keys and
       sent++; keys.push(new Headers(init?.headers).get("idempotency-key") || "");
       const body = JSON.parse(String(init?.body));
       assert.match(body.text, /action=unsubscribe/);
+      assert.match(body.html, /Open My Day/);
+      assert.match(body.html, /action=unsubscribe&amp;token=/);
       assert.doesNotMatch(body.text, /patient|mood|importance|synthetic-private/);
       return Response.json({ id: "accepted-reminder" });
     }
@@ -192,5 +196,133 @@ test("morning and night reminders have distinct messages and retry keys on the s
     assert.deepEqual(await (await run()).json(), { accepted: 2, failed: 0, skipped: 0 });
     await run(); assert.equal(keys.size, 2);
     assert.deepEqual([...subjects].sort(), ['Good morning from My Day', 'Good night from My Day']);
+  } finally { await api.close(); }
+});
+
+const textConfig = {
+  TWILIO_ACCOUNT_SID: "AC" + "a".repeat(32),
+  TWILIO_API_KEY_SID: "SK" + "b".repeat(32),
+  TWILIO_API_KEY_SECRET: "synthetic-private-text-key",
+  TWILIO_MESSAGING_SERVICE_SID: "MG" + "c".repeat(32),
+};
+const phone = "+12025550123";
+const messageSid = "SM" + "d".repeat(32);
+
+test("email settings still load before the optional text migration", async () => {
+  const api = await server(async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/auth/v1/user")) return Response.json({ id: userId });
+    assert.ok(url.pathname.endsWith("/activity_reminder_preferences"));
+    if (url.searchParams.get("select")?.includes("phone"))
+      return Response.json({ code: "42703", message: "column phone does not exist" }, { status: 400 });
+    return Response.json(pref);
+  });
+  try {
+    const response = await api.request();
+    assert.equal(response.status, 200);
+    const settings = await response.json();
+    assert.equal(settings.available, true);
+    assert.equal(settings.textAvailable, false);
+    assert.equal(settings.preferences.email, pref.email);
+  } finally { await api.close(); }
+});
+
+test("text reminders require configuration, explicit permission and a phone confirmation link", async () => {
+  const save = { action: "save", enabled: true, channel: "text", phone: "(202) 555-0123", timeZone: "UTC", consent: true };
+  const unavailable = await server(async (input) => {
+    assert.ok(String(input).endsWith("/auth/v1/user"));
+    return Response.json({ id: userId });
+  });
+  try { assert.equal((await unavailable.request(save)).status, 503); }
+  finally { await unavailable.close(); }
+
+  let sent = 0, confirmed = 0, tokenHash = "", link = "";
+  const api = await server(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/auth/v1/user")) return Response.json({ id: userId });
+    if (url.endsWith("/rpc/request_activity_reminder")) {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.owner_id, userId);
+      assert.equal(body.recipient, phone);
+      assert.equal(body.delivery_channel, "text");
+      tokenHash = body.token_hash;
+      return Response.json(true);
+    }
+    if (url.startsWith("https://api.twilio.com/")) {
+      sent++;
+      const form = new URLSearchParams(String(init?.body));
+      assert.equal(form.get("To"), phone);
+      assert.equal(form.get("MessagingServiceSid"), textConfig.TWILIO_MESSAGING_SERVICE_SID);
+      assert.match(form.get("Body") || "", /Reply STOP to opt out/);
+      link = (form.get("Body") || "").match(/\/api\/reminders\?action=confirm-text&token=[a-f0-9]{64}/)?.[0] || "";
+      assert.ok(link);
+      assert.equal(createHash("sha256").update(new URL(link, "https://app.example.com").searchParams.get("token") || "").digest("hex"), tokenHash);
+      return Response.json({ sid: messageSid, status: "accepted" });
+    }
+    if (url.endsWith("/rpc/confirm_activity_reminder")) {
+      confirmed++;
+      assert.equal(JSON.parse(String(init?.body)).token_hash, tokenHash);
+      return Response.json(true);
+    }
+    assert.match(url, /activity_reminder_preferences/);
+    return Response.json({ ...pref, email: "", channel: "text", phone });
+  }, { ...textConfig, RESEND_API_KEY: "" });
+  try {
+    assert.equal((await api.request({ ...save, consent: false })).status, 400);
+    assert.equal((await api.request({ ...save, phone: "invalid" })).status, 400);
+    assert.equal(sent, 0);
+    const response = await api.request(save);
+    assert.equal(response.status, 200);
+    const settings = await response.json();
+    assert.equal(settings.textAvailable, true);
+    assert.equal(settings.available, false);
+    assert.equal(settings.preferences.pending, true);
+    assert.equal(settings.preferences.enabled, false);
+    assert.equal(sent, 1);
+    assert.match(await (await api.request(undefined, {}, link)).text(), /Confirm your text reminders/);
+    assert.equal(confirmed, 0);
+    const token = new URL(link, "https://app.example.com").searchParams.get("token");
+    assert.equal((await api.request({ action: "confirm-text", token })).status, 200);
+    assert.equal(confirmed, 1);
+  } finally { await api.close(); }
+});
+
+test("text deliveries use the existing scheduler, check eligibility and honor carrier opt-out", async () => {
+  let blocked = false, due = true, sent = 0, stopped = 0, finished = 0;
+  const unsub = "c".repeat(64);
+  const api = await server(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/rpc/claim_activity_reminders")) {
+      assert.deepEqual(JSON.parse(String(init?.body)), { sms_ready: true, email_ready: true });
+      return Response.json([{ user_id: userId, local_date: "2026-11-09", claim_id: "claim",
+        channel: "text", phone, email: "", unsubscribe_token: unsub, kind: "evening" }]);
+    }
+    if (url.endsWith("/rpc/activity_reminder_still_due")) return Response.json(due);
+    if (url.startsWith("https://api.twilio.com/")) {
+      sent++;
+      const form = new URLSearchParams(String(init?.body));
+      assert.match(form.get("Body") || "", /Good night.*Reply STOP/);
+      assert.doesNotMatch(form.get("Body") || "", /patient|importance|rating|token=/);
+      return blocked ? Response.json({ code: 21610 }, { status: 400 })
+        : Response.json({ sid: messageSid, status: "queued" });
+    }
+    if (url.endsWith("/rpc/unsubscribe_activity_reminder")) {
+      stopped++;
+      assert.deepEqual(JSON.parse(String(init?.body)), { token: unsub });
+      return Response.json(true);
+    }
+    assert.ok(url.endsWith("/rpc/finish_activity_reminder"));
+    assert.equal(JSON.parse(String(init?.body)).email_id, messageSid);
+    finished++;
+    return Response.json(null);
+  }, textConfig);
+  const run = async () => (await api.request({ action: "run" }, { headers: { Authorization: `Bearer ${config.CRON_SECRET}` } })).json();
+  try {
+    assert.deepEqual(await run(), { accepted: 1, failed: 0, skipped: 0 });
+    blocked = true;
+    assert.deepEqual(await run(), { accepted: 0, failed: 0, skipped: 1 });
+    due = false;
+    assert.deepEqual(await run(), { accepted: 0, failed: 0, skipped: 1 });
+    assert.deepEqual({ sent, stopped, finished }, { sent: 2, stopped: 1, finished: 1 });
   } finally { await api.close(); }
 });

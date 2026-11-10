@@ -1,5 +1,5 @@
 type EmailConfig = Record<string, string | undefined>;
-export type EmailMessage = { to: string; subject: string; text: string;
+export type EmailMessage = { to: string; subject: string; text: string; html?: string;
   attachments?: { filename: string; content: string }[] };
 
 export async function sendResend(config: EmailConfig, message: EmailMessage,
@@ -11,7 +11,8 @@ export async function sendResend(config: EmailConfig, message: EmailMessage,
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
     body: JSON.stringify({ from: config.REPORT_FROM, to: [message.to],
       ...(config.REPORT_REPLY_TO ? { reply_to: config.REPORT_REPLY_TO } : {}),
-      subject: message.subject, text: message.text, ...(message.attachments ? { attachments: message.attachments } : {}) }),
+      subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}),
+      ...(message.attachments ? { attachments: message.attachments } : {}) }),
   });
   const result: unknown = await response.json();
   if (!response.ok || !result || typeof result !== "object" || !("id" in result) ||

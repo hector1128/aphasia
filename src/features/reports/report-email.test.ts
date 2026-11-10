@@ -33,6 +33,9 @@ test("Resend accepts daily and weekly reports with real base64 PDF attachments a
       assert.equal(body.from, "reports@example.com");
       assert.equal(body.reply_to, "lab@example.edu");
       assert.deepEqual(body.to, ["recipient@example.com"]);
+      assert.match(body.html, new RegExp(`Your ${period === "week" ? "weekly" : "daily"} activity report`));
+      assert.match(body.html, /max-width:560px|#e6f0e4/);
+      assert.match(body.text, /attached as a PDF/);
       assert.equal(body.attachments[0].filename, `my-day-${period}-2026-10-25.pdf`);
       const pdf = Buffer.from(body.attachments[0].content, "base64");
       assert.equal(pdf.subarray(0, 4).toString(), "%PDF");
